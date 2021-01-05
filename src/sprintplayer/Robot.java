@@ -4,6 +4,9 @@ import battlecode.common.*;
 
 public abstract class Robot {
     RobotController rc;
+    int turnCount = 0;
+    Team allyTeam;
+    Team enemyTeam;
 
     static final Direction[] directions = {
         Direction.NORTH,
@@ -18,9 +21,13 @@ public abstract class Robot {
 
     public Robot(RobotController robotController) throws GameActionException {
         rc = robotController;
+        allyTeam = rc.getTeam();
+        enemyTeam = allyTeam.opponent();
     }
 
-    public abstract void run() throws GameActionException;
+    public void run() throws GameActionException {
+        turnCount++;
+    }
 
     /**
      * Returns a random Direction.

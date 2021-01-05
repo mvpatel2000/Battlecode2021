@@ -16,6 +16,7 @@ public class EnlightmentCenter extends Robot {
 
     @Override
     public void run() throws GameActionException {
+        super.run();
         RobotType toBuild = RobotType.MUCKRAKER;
         int influence = 1;
         for (Direction dir : directions) {
