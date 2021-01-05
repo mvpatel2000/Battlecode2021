@@ -32,3 +32,6 @@ battlecode-scaffold.iws
 .settings/
 
 access.txt
+
+# below is our stuff
+.vscode/
