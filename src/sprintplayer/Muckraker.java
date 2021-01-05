@@ -3,9 +3,16 @@ package sprintplayer;
 import battlecode.common.*;
 
 public class Muckraker extends Unit {
+    MapLocation destination;
 
     public Muckraker(RobotController rc) throws GameActionException {
         super(rc);
+        // TODO: Delete! Hard coded destination for testing
+        if (allyTeam == Team.A) {
+            destination = baseLocation.translate(20, 0);
+        } else {
+            destination = baseLocation.translate(-20, 0);
+        }
     }
 
     @Override
@@ -23,8 +30,8 @@ public class Muckraker extends Unit {
                 }
             }
         }
-        if (tryMove(randomDirection())) {
-            
+        if (tryMove(rc.getLocation().directionTo(destination))) {
+
         }
     }
 }
