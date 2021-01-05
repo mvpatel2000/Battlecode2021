@@ -16,8 +16,8 @@ public class EnlightmentCenter extends Robot {
 
     @Override
     public void run() throws GameActionException {
-        RobotType toBuild = randomSpawnableRobotType();
-        int influence = 50;
+        RobotType toBuild = RobotType.MUCKRAKER;
+        int influence = 1;
         for (Direction dir : directions) {
             if (rc.canBuildRobot(toBuild, dir, influence)) {
                 rc.buildRobot(toBuild, dir, influence);

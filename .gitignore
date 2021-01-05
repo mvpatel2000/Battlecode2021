@@ -30,5 +30,6 @@ battlecode-scaffold.iws
 .classpath
 .project
 .settings/
+.vscode*
 
 access.txt

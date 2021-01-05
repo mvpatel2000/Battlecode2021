@@ -1,4 +1,4 @@
-package sprintplayer;
+package slandererplayer;
 import battlecode.common.*;
 
 public strictfp class RobotPlayer {
