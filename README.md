@@ -1,6 +1,6 @@
-# Battlecode 2021 Scaffold
+# Smite Battlecode 2021
 
-This is the Battlecode 2021 scaffold, containing an `examplefuncsplayer`. Read https://2021.battlecode.org/getting-started!
+This is team Smite's Battlecode 2021 repository.
 
 ### Project Structure
 
@@ -32,4 +32,5 @@ This is the Battlecode 2021 scaffold, containing an `examplefuncsplayer`. Read h
     Runs a game with the settings in gradle.properties
 - `./gradlew update`
     Update to the newest version! Run every so often
-
+- `python ./scripts/copy_bot.py bot1dir bot2dir`
+    Duplicate and rename an existing bot package folder.
