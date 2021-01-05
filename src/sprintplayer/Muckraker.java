@@ -9,9 +9,9 @@ public class Muckraker extends Unit {
         super(rc);
         // TODO: Delete! Hard coded destination for testing
         if (allyTeam == Team.A) {
-            destination = baseLocation.translate(20, 20);
+            destination = baseLocation.translate(40, 40);
         } else {
-            destination = baseLocation.translate(-20, -20);
+            destination = baseLocation.translate(-40, -40);
         }
     }
 
