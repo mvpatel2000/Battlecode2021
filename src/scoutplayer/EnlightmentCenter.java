@@ -27,7 +27,11 @@ public class EnlightmentCenter extends Robot {
         setInitialFlag = false;
         initialFlagRound = 1;
         numFoundECs = 0;
-        numAllyECs = rc.getRobotCount() / 2 - 1;
+        // Note: rc.getRobotCount() returns number of ally units on map. If there's another EC,
+        // it might spawn a unit, which would increase this. We would then overestimate the
+        // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
+        // early termination method that sometimes helps.
+        numAllyECs = rc.getRobotCount() - 1;
         allyECLocs = new MapLocation[2];
     }
 
@@ -81,11 +85,11 @@ public class EnlightmentCenter extends Robot {
 
         // Scan over possible IDs across multiple rounds until ally ECs found.
         if (setInitialFlag && rc.getRoundNum() > initialFlagRound) {
-            while (Clock.getBytecodesLeft() > 200) {
-                for (; scanIndex < scanIndex + 14096; scanIndex++) {
+            while (Clock.getBytecodesLeft() > 200 && scanIndex < 14096) {
+                for (; scanIndex < scanIndex + 10; scanIndex++) {
                     if (rc.canGetFlag(scanIndex) && getSecretCode(scanIndex) == rc.getFlag(scanIndex)) {
                         numFoundECs += 1;
-                        System.out.println("Found an ally! Yay " + scanIndex + " I now have: " + numFoundECs + " allies.");
+                        System.out.println("Found an ally! Yay " + scanIndex + " I now have: " + numFoundECs + " allies out of " + numAllyECs + " expected.");
                         if (numFoundECs == numAllyECs) {
                             break;
                         }
