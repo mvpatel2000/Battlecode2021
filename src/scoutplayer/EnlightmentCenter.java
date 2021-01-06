@@ -31,7 +31,7 @@ public class EnlightmentCenter extends Robot {
         // it might spawn a unit, which would increase this. We would then overestimate the
         // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
         // early termination method that sometimes helps.
-        numAllyECs = rc.getRobotCount() - 1;
+        numAllyECs = Math.min(3, rc.getRobotCount() - 1);
         allyECLocs = new MapLocation[2];
     }
 
@@ -66,7 +66,7 @@ public class EnlightmentCenter extends Robot {
      */
     void initialFlagsAndAllies() throws GameActionException {
         // Already done finding all ally ECs
-        if (numFoundECs == numAllyECs) {
+        if (numFoundECs == numAllyECs || scanIndex > 14096) {
             return;
         }
     
@@ -76,7 +76,7 @@ public class EnlightmentCenter extends Robot {
             if (rc.canSetFlag(code)) {
                 rc.setFlag(code);
                 setInitialFlag = true;
-                System.out.println("I set my initial flag to: " + code);
+                System.out.println("I set my initial flag to: " + code + " and expect " + numAllyECs + " allies.");
                 initialFlagRound = rc.getRoundNum();
             } else {
                 System.out.println("MAJOR ERROR: EQ CODE IS LIKELY WRONG: " + code);
@@ -87,7 +87,7 @@ public class EnlightmentCenter extends Robot {
         if (setInitialFlag && rc.getRoundNum() > initialFlagRound) {
             while (Clock.getBytecodesLeft() > 200 && scanIndex < 14096) {
                 for (; scanIndex < scanIndex + 10; scanIndex++) {
-                    if (rc.canGetFlag(scanIndex) && getSecretCode(scanIndex) == rc.getFlag(scanIndex)) {
+                    if (rc.canGetFlag(scanIndex) && getSecretCode(scanIndex) == rc.getFlag(scanIndex) && scanIndex != rc.getID()) {
                         numFoundECs += 1;
                         System.out.println("Found an ally! Yay " + scanIndex + " I now have: " + numFoundECs + " allies out of " + numAllyECs + " expected.");
                         if (numFoundECs == numAllyECs) {
