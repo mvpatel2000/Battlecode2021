@@ -1,7 +1,7 @@
 ## Proposed Turn Flow For Non-ECs
 
 1. Parse vision
-    * Update flag handlers
+    * Optionally update flag handlers
 2. Take action
 3. If robot moved:
     * Parse vision again
