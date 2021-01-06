@@ -3,12 +3,13 @@ package scoutplayer;
 import battlecode.common.*;
 
 public class EnlightmentCenter extends Robot {
+    // EC to EC communication
     boolean setInitialFlag;
-    int initialFlagRound = 1;
-    boolean foundAllyECs;
+    int initialFlagRound;
+    int numFoundECs;
     int numAllyECs;
-    int initialCheck;
     MapLocation[] allyECLocs;
+    int scanIndex = 10000;
     // Change these two numbers before uploading to competition
     final int CRYPTO_KEY = 92747502; // A random large number
     final int MODULUS = 36904; // A random number smaller than CRYPTO KEY and 2^21 = 2,097,152
@@ -21,12 +22,13 @@ public class EnlightmentCenter extends Robot {
 
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
+
+        // Initialize EC to EC communication variables
         setInitialFlag = false;
         initialFlagRound = 1;
-        foundAllyECs = false;
+        numFoundECs = 0;
+        numAllyECs = rc.getRobotCount() / 2 - 1;
         allyECLocs = new MapLocation[2];
-        numAllyECs = 0;
-        initialCheck = 10000;
     }
 
     @Override
@@ -59,29 +61,41 @@ public class EnlightmentCenter extends Robot {
      * Once the above ^ is figured out, the above TODOs should be trivial! FindAllyFlag is already written.
      */
     void initialFlagsAndAllies() throws GameActionException {
+        // Already done finding all ally ECs
+        if (numFoundECs == numAllyECs) {
+            return;
+        }
+    
+        // Setup initial flag
         if (!setInitialFlag) {
             int code = getSecretCode(rc.getID());
             if (rc.canSetFlag(code)) {
                 rc.setFlag(code);
-                System.out.println("I set my initial flag to: " + code);
                 setInitialFlag = true;
+                System.out.println("I set my initial flag to: " + code);
                 initialFlagRound = rc.getRoundNum();
             } else {
-                System.out.println("MAJOR ERROR: CODE IS LIKELY WRONG: " + code);
+                System.out.println("MAJOR ERROR: EQ CODE IS LIKELY WRONG: " + code);
             }
         }
 
-        if (!foundAllyECs && setInitialFlag && rc.getRoundNum() > initialFlagRound) {
-            for (int i=10000; i<14096; i++) {
-                if (rc.canGetFlag(i)) {
-                    if (getSecretCode(i) == rc.getFlag(i)) {
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! Yay " + i + " I now have: " + numAllyECs + " allies.");
+        // Scan over possible IDs across multiple rounds until ally ECs found.
+        if (setInitialFlag && rc.getRoundNum() > initialFlagRound) {
+            while (Clock.getBytecodesLeft() > 200) {
+                for (; scanIndex < scanIndex + 14096; scanIndex++) {
+                    if (rc.canGetFlag(scanIndex) && getSecretCode(scanIndex) == rc.getFlag(scanIndex)) {
+                        numFoundECs += 1;
+                        System.out.println("Found an ally! Yay " + scanIndex + " I now have: " + numFoundECs + " allies.");
+                        if (numFoundECs == numAllyECs) {
+                            break;
+                        }
                     }
                 }
+                if (numFoundECs == numAllyECs) {
+                    break;
+                }
             }
-            foundAllyECs = true;
-            System.out.println("Done searching for allies. FINAL TALLY: " + numAllyECs + " allies.");
+            System.out.println("Done searching for allies. FINAL TALLY: " + numFoundECs + " allies out of " + numAllyECs + " expected.");
         }
     }
 
