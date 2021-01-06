@@ -18,18 +18,30 @@ public class Muckraker extends Unit {
     @Override
     public void run() throws GameActionException {
         super.run();
-        Team enemy = rc.getTeam().opponent();
-        int actionRadius = rc.getType().actionRadiusSquared;
-        for (RobotInfo robot : rc.senseNearbyRobots(actionRadius, enemy)) {
-            if (robot.type.canBeExposed()) {
-                // It's a slanderer... go get them!
-                if (rc.canExpose(robot.location)) {
-                    // System.out.println("e x p o s e d");
-                    rc.expose(robot.location);
-                    return;
+        // Search for nearest slanderer. If one exists, kill it or move towards it.
+        if (rc.isReady()) {
+            MapLocation myLocation = rc.getLocation();
+            RobotInfo[] nearbyRobots = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, enemyTeam);
+            RobotInfo nearestSlanderer = null;
+            int nearestSlandererDistSquared = 100;
+            for (RobotInfo robot : nearbyRobots) {
+                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+                if (robot.type == RobotType.SLANDERER && robotDistSquared < nearestSlandererDistSquared) {
+                    nearestSlanderer = robot;
+                    nearestSlandererDistSquared = robotDistSquared;
                 }
             }
+            if (nearestSlanderer != null) {
+                // Nearest slanderer exists -- try to kill it or move towards it.
+                if (nearestSlandererDistSquared < rc.getType().actionRadiusSquared) {
+                    rc.expose(nearestSlanderer.location);
+                } else {
+                    fuzzyMove(nearestSlanderer.location);
+                }
+            } else {
+                // Continue towards destination
+                fuzzyMove(destination);
+            }
         }
-        fuzzyMove(destination);
     }
 }

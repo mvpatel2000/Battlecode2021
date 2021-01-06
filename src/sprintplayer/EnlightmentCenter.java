@@ -17,7 +17,7 @@ public class EnlightmentCenter extends Robot {
     @Override
     public void run() throws GameActionException {
         super.run();
-        RobotType toBuild = RobotType.MUCKRAKER;
+        RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.SLANDERER;
         int influence = 1;
         for (Direction dir : directions) {
             if (rc.canBuildRobot(toBuild, dir, influence)) {
