@@ -3,18 +3,28 @@ package scoutplayer;
 // TODO: add encryption scheme
 
 public class Flag {
-    
+
     int flag;
     int writtenTo;
     final int FLAG_BITS = 24;
     final int SCHEMA_BITS = 3;
-    
+
     final int MAP_TERRAIN_SCHEMA = 0;
     final int EC_SCOUT_SCHEMA = 1;
-    
+    final int FIND_ALLY_SCHEMA = 2;
+
     public Flag() {
         flag = 0;
         writtenTo = 0;
+    }
+
+    /**
+     * Call this constructor when you are parsing a flag that has been sent to you
+     * and you do not know what type.
+     */
+    public Flag(int received) {
+        flag = received;
+        writtenTo = 24;
     }
 
     public boolean setSchema(int schema) {
@@ -28,7 +38,7 @@ public class Flag {
     public int getSchema() {
         return readFromFlag(0, SCHEMA_BITS);
     }
-    
+
     // It is up to the caller to provide enough bits to write the value.
     // Otherwise, the function will not work. It will only write the first numBits
     // digits.
@@ -53,7 +63,7 @@ public class Flag {
         int bitm = bitmask2(startBit, startBit + numBits, true);
         return (flag & bitm) >>> (32 - startBit - numBits);
     }
-    
+
     public static int bitmask2(int start, int end, boolean read) {
         int num = start*32+end;
         switch (num) {
