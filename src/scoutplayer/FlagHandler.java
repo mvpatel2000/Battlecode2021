@@ -6,8 +6,7 @@ public abstract class FlagHandler {
 
     Robot robot;
 
-    public FlagHandler(Robot r) throws GameActionException {
-        robot = r;
+    public FlagHandler() throws GameActionException {
     }
 
     public void update(boolean beforeMove) {

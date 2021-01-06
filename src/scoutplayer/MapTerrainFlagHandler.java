@@ -6,10 +6,10 @@ import battlecode.common.*;
 
 public class MapTerrainFlagHandler extends FlagHandler {
 
-    int[][] locQueue;
+    final int MAX_QUEUE_SPOTS = 50;
+    int[][] locQueue = new int[MAX_QUEUE_SPOTS][2];
     
-    public MapTerrainFlagHandler(Robot r) throws GameActionException {
-        super(r);
+    public MapTerrainFlagHandler() throws GameActionException {
     }
 
     @Override
@@ -17,6 +17,10 @@ public class MapTerrainFlagHandler extends FlagHandler {
         if (beforeMove) {
             return;
         }
+    }
+
+    public int availableSpots() {
+        return 0;
     }
 
     public void updateQueue() {

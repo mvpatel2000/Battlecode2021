@@ -11,8 +11,6 @@ public abstract class Unit extends Robot {
     RobotInfo[] nearbyRobots;
     Direction lastMove;
 
-    FlagHandler[] flagHandlers;
-
     int[][] SENSE_SPIRAL_ORDER;
     int[][] NEW_SENSED_LOCS_NORTH;
     int[][] NEW_SENSED_LOCS_NORTHEAST;
@@ -44,12 +42,6 @@ public abstract class Unit extends Robot {
 
     public void parseVision() throws GameActionException {
         nearbyRobots = rc.senseNearbyRobots();
-    }
-
-    public void updateFlagHandlers(boolean beforeMove) throws GameActionException {
-        for (FlagHandler flagHandler : flagHandlers) {
-            flagHandler.update(beforeMove);
-        }
     }
 
     // Returns newly sensable locations relative to the current location
