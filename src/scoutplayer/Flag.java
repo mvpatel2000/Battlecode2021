@@ -3,22 +3,22 @@ package scoutplayer;
 // TODO: add encryption scheme
 
 public class Flag {
-    
+
     int flag;
     int writtenTo;
     final int FLAG_BITS = 24;
     final int SCHEMA_BITS = 3;
-    
+
     final int MAP_TERRAIN_SCHEMA = 0;
     final int EC_SCOUT_SCHEMA = 1;
-    
-    // constructor for writing a flag
+    final int FIND_ALLY_SCHEMA = 2;
+
     public Flag() {
         flag = 0;
         writtenTo = 0;
     }
 
-    // constructor for reading/parsing a flag
+    /* constructor for reading/parsing a flag */
     public Flag(int inFlag) {
         flag = inFlag;
         writtenTo = FLAG_BITS;
@@ -35,12 +35,15 @@ public class Flag {
     public boolean setSchema(int schema) {
         return writeToFlag(schema, SCHEMA_BITS);
     }
-    // It is up to the caller to provide enough bits to write the value.
-    // Otherwise, the function will not work. It will only write the first numBits
-    // digits.
-    // If providing a number with excess bits (numBits >> 2^value), the number will be
-    // at the right end of the slot (the excess bits will be turned into leading zeros).
-    // TODO: remove public
+
+    /*
+     * It is up to the caller to provide enough bits to write the value.
+     * Otherwise, the function will not work. It will only write the first numBits
+     * digits.
+     * If providing a number with excess bits (numBits >> 2^value), the number will be
+     * at the right end of the slot (the excess bits will be turned into leading zeros).
+     * TODO: remove public
+     */
     public boolean writeToFlag(int value, int numBits) {
         if (numBits + writtenTo > FLAG_BITS) {
             return false;
@@ -59,7 +62,7 @@ public class Flag {
         int bitm = bitmask2(startBit, startBit + numBits, true);
         return (flag & bitm) >>> (32 - startBit - numBits);
     }
-    
+
     public static int bitmask2(int start, int end, boolean read) {
         int num = start*32+end;
         switch (num) {

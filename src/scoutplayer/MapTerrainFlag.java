@@ -19,8 +19,10 @@ public class MapTerrainFlag extends Flag {
         super(flag);
     }
 
-    // Caller must ensure that idx is at most NUM_LOCS.
-    // Returns downsampled passability.
+    /*
+     * Returns downsampled passability. Caller must ensure that idx
+     * is at most NUM_LOCS.
+     */
     public double getPassability(int idx) {
         return decodePassability(readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + PASSABILITY_BITS * idx, PASSABILITY_BITS));
     }
@@ -45,9 +47,11 @@ public class MapTerrainFlag extends Flag {
         return writeToFlag(encodePassability(pa), PASSABILITY_BITS);
     }
 
-    // Encodes passability in a 3-bit integer.
-    // If the input pa is 0, that means that the tile is off the map.
-    // Transform [0.1, 1] to [0, 0.9], then map [0, 0.91) to [0, 7).
+    /*
+     * Encodes passability in a 3-bit integer.
+     * If the input pa is 0, that means that the tile is off the map.
+     * Transforms [0.1, 1] to [0, 0.9], then maps [0, 0.91) to [0, 7).
+     */
     public int encodePassability(double pa) {
         switch ((int) Math.floor((1-pa)*100/13)) {
             case 0:

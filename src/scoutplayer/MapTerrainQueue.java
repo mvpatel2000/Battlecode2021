@@ -23,10 +23,12 @@ public class MapTerrainQueue {
         return size;
     }
 
-    // Add newly sensable locations to the queue after taking a
-    // step in direction di and ending at location currentLoc.
-    // If the queue overflows, then the elements at the front
-    // of the queue are overwritten.
+    /*
+     * Add newly sensable locations to the queue after taking a
+     * step in direction di and ending at location currentLoc.
+     * If the queue overflows, then the elements at the front
+     * of the queue are overwritten.
+     */
     public void step(Direction di, MapLocation currentLoc) throws GameActionException {
         // Call the function specific to the unit; for now, it is Politician
         int[][] newTiles = Politician.newSensedLocationsRelative(di);

@@ -42,6 +42,17 @@ public abstract class Robot {
     }
 
     /**
+     * Converts Team enum to number.
+     * 0 for Team A, 1 for team B.
+     */
+    public int getTeamNum(Team t) {
+        if (t == Team.A) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+    /**
      * Returns a random Direction.
      *
      * @return a random Direction
