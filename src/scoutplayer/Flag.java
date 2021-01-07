@@ -4,24 +4,25 @@ package scoutplayer;
 
 public class Flag {
 
-    int flag;
+    int flag; // Must always be between 0 and 2^FLAG_BITS - 1
     int writtenTo;
     final int FLAG_BITS = 24;
     final int SCHEMA_BITS = 3;
 
-    final int MAP_TERRAIN_SCHEMA = 0;
-    final int EC_SCOUT_SCHEMA = 1;
-    final int FIND_ALLY_SCHEMA = 2;
+    public static final int NO_SCHEMA = 0;
+    public static final int EC_SCOUT_SCHEMA = 1;
+    public static final int FIND_ALLY_SCHEMA = 2;
+    public static final int MAP_TERRAIN_SCHEMA = 3;
 
     public Flag() {
         flag = 0;
-        writtenTo = 0;
+        writtenTo = 32 - FLAG_BITS; // 8-bit offset to make the first 8 bits blank
     }
 
     /* constructor for reading/parsing a flag */
     public Flag(int inFlag) {
         flag = inFlag;
-        writtenTo = FLAG_BITS;
+        writtenTo = 32;
     }
 
     public int getFlag() {
@@ -37,15 +38,14 @@ public class Flag {
     }
 
     /*
-     * It is up to the caller to provide enough bits to write the value.
-     * Otherwise, the function will not work. It will only write the first numBits
-     * digits.
+     * Allocate the next numBits bits in the flag's contents to write in value.
+     * It is up to the caller to provide enough bits to write the value. Otherwise,
+     * the function will not work. It will only write the first numBits bits.
      * If providing a number with excess bits (numBits >> 2^value), the number will be
      * at the right end of the slot (the excess bits will be turned into leading zeros).
-     * TODO: remove public
      */
     public boolean writeToFlag(int value, int numBits) {
-        if (numBits + writtenTo > FLAG_BITS) {
+        if (numBits + writtenTo > 32) {
             return false;
         }
         int bitm = bitmask2(writtenTo, writtenTo + numBits, false);
@@ -56,9 +56,12 @@ public class Flag {
         return true;
     }
 
-    // Bits are zero-indexed.
-    // TODO: remove public
+    /*
+     * Read numBits bits from the flag, starting at startBit, which must be
+     * between 0 and FLAG_BITS - 1 inclusive.
+     */
     public int readFromFlag(int startBit, int numBits) {
+        startBit += 32 - FLAG_BITS; // 8-bit offset to account for blank first 8 bits
         int bitm = bitmask2(startBit, startBit + numBits, true);
         return (flag & bitm) >>> (32 - startBit - numBits);
     }

@@ -3,6 +3,7 @@ package scoutplayer;
 import battlecode.common.*;
 
 public abstract class Robot {
+
     RobotController rc;
     int turnCount = 0;
     Team allyTeam;

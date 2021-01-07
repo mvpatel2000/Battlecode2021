@@ -9,12 +9,12 @@ public class MapTerrainQueue {
     final int CAPACITY = 50;
     final int MAX_NEW_TILES_PER_STEP = 15;
 
-    int[][] queue;
+    MapTerrain[] queue;
     int start;
     int size;
 
     public MapTerrainQueue() {
-        queue = new int[CAPACITY][2];
+        queue = new MapTerrain[CAPACITY];
         start = 0;
         size = 0;
     }
@@ -23,21 +23,35 @@ public class MapTerrainQueue {
         return size;
     }
 
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
     /*
      * Add newly sensable locations to the queue after taking a
      * step in direction di and ending at location currentLoc.
      * If the queue overflows, then the elements at the front
      * of the queue are overwritten.
+     * 
+     * Pass in rc in order to sense and store passabilities. If
+     * rc is set to null, then step will only fill in the locations
+     * on the terrain queue and all passabilities will be set to zero.
+     * (This functionality is used by ScoutTracker, who only needs
+     * to know the locations and the order they pop off in.)
      */
-    public void step(Direction di, MapLocation currentLoc) throws GameActionException {
+    public void step(RobotController rc, Direction di, MapLocation currentLoc) throws GameActionException {
+        System.out.println("MapTerrainQueue stepping, lastMove was " + di.toString());
         // Call the function specific to the unit; for now, it is Politician
         int[][] newTiles = Politician.newSensedLocationsRelative(di);
-        System.out.println(newTiles);
         int idx = start + size;
         if (idx >= CAPACITY) idx -= CAPACITY; // modulo expensive, use if instead
         for (int i = 0; i < newTiles.length; i++) {
-            queue[idx][0] = newTiles[i][0] + currentLoc.x;
-            queue[idx][1] = newTiles[i][1] + currentLoc.y;
+            double pa = 0;
+            MapLocation loc = new MapLocation(newTiles[i][0] + currentLoc.x, newTiles[i][1] + currentLoc.y);
+            if (rc != null && rc.onTheMap(loc)) {
+                pa = rc.sensePassability(loc);
+            }
+            queue[idx] = new MapTerrain(loc, pa);
             idx++;
             if (idx == CAPACITY) idx = 0;
         }
@@ -47,21 +61,33 @@ public class MapTerrainQueue {
         } else {
             size = size + newTiles.length;
         }
+
+        // System.out.println("MapTerrainQueue: " + toString());
     }
 
-    public MapLocation pop() {
+    public MapTerrain pop() {
         if (size == 0) {
             return null;
         }
-        MapLocation newLoc = new MapLocation(queue[start][0], queue[start][1]);
+        MapTerrain newTerrain = queue[start];
         start++;
         if (start == CAPACITY) start = 0;
         size--;
-        return newLoc;
+        return newTerrain;
     }
 
     public boolean hasRoom() {
         return size + MAX_NEW_TILES_PER_STEP <= CAPACITY;
     }
 
+    public String toString() {
+        String s = "[";
+        for (int i = 0; i < size; i++) {
+            int idx = start + i;
+            if (idx >= CAPACITY) idx -= CAPACITY;
+            s += queue[idx].loc.toString() + ", ";
+        }
+        s += "]";
+        return s;
+    }
 }

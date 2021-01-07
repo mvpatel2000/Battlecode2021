@@ -20,7 +20,6 @@ public class FlagReadWriteTest {
         assertEquals(flag.getSchema(), 1);
     }
 
-    // TODO: remove test, make writeToFlag and readFromFlag private
     @Test
     public void testFlagContents() {
         Flag flag = new Flag();
@@ -31,7 +30,6 @@ public class FlagReadWriteTest {
         assertEquals(flag.readFromFlag(8, 5), 20);
     }
 
-    // TODO: remove test, make writeToFlag and readFromFlag private
     @Test
     public void testFlagOverload() {
         Flag flag = new Flag();

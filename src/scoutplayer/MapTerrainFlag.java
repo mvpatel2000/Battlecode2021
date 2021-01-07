@@ -8,7 +8,7 @@ public class MapTerrainFlag extends Flag {
 
     final static int PASSABILITY_BITS = 3;
     final static int LAST_MOVE_BITS = 4;
-    final static int NUM_LOCS = 6; // number of locations whose passabilities are stored in the flag
+    final static int NUM_LOCS = 5; // number of locations whose passabilities are stored in the flag
 
     public MapTerrainFlag() {
         super();
@@ -32,7 +32,7 @@ public class MapTerrainFlag extends Flag {
     }
 
     public void setLastMove(int lm) {
-        writeToFlag(lm, 4);
+        writeToFlag(lm, LAST_MOVE_BITS);
     }
 
     public void setLastMove(Direction lm) {
@@ -52,7 +52,7 @@ public class MapTerrainFlag extends Flag {
      * If the input pa is 0, that means that the tile is off the map.
      * Transforms [0.1, 1] to [0, 0.9], then maps [0, 0.91) to [0, 7).
      */
-    public int encodePassability(double pa) {
+    public static int encodePassability(double pa) {
         switch ((int) Math.floor((1-pa)*100/13)) {
             case 0:
                 return 0; // 0.87 < pa <= 1.00

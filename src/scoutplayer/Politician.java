@@ -25,15 +25,19 @@ public class Politician extends Unit {
     @Override
     public void run() throws GameActionException {
         super.run();
-        if (mtq.hasRoom() && tryMove(randomDirection())) {
-            System.out.println("I moved "+lastMove.toString()+" to "+rc.getLocation().toString());
+        if (mtq.hasRoom() && tryMove(randomDirection())) { // move if queue isn't full
+            System.out.println("I moved "+moveThisTurn.toString()+" to "+rc.getLocation().toString());
+        } else if (!mtq.hasRoom()) {
+            System.out.println("MapTerrainQueue full; not moving this round.");
         }
-        mtq.step(lastMove, rc.getLocation());
+        mtq.step(rc, moveThisTurn, rc.getLocation());
         MapTerrainFlag mtf = new MapTerrainFlag();
-        mtf.setLastMove(lastMove);
+        mtf.setLastMove(moveThisTurn);
         for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
-            MapLocation loc = mtq.pop();
-            mtf.addPassability(rc.sensePassability(loc));
+            if (mtq.isEmpty()) break;
+            MapTerrain terrain = mtq.pop();
+            mtf.addPassability(terrain.pa);
+            System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
         rc.setFlag(mtf.getFlag());
     }

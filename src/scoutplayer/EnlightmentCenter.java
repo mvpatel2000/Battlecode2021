@@ -26,7 +26,7 @@ public class EnlightmentCenter extends Robot {
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
 
-        map = new RelativeMap();
+        map = new RelativeMap(rc.getLocation());
         st = null; // ScoutTracker
 
         // Initialize EC to EC communication variables
@@ -44,6 +44,8 @@ public class EnlightmentCenter extends Robot {
     @Override
     public void run() throws GameActionException {
         super.run();
+
+        if (turnCount == 100) rc.resign(); // TODO: remove; just for debugging
 
         if (st == null) { // no scout has been built yet
             if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {

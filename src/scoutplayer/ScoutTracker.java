@@ -31,15 +31,19 @@ public class ScoutTracker {
             return false;
         }
         MapLocation myLoc = rc.getLocation();
-        int flag = rc.getFlag(scoutID);
-        MapTerrainFlag mtf = new MapTerrainFlag(flag);
-        Direction lastMove = mtf.getLastMove();
-        scoutLoc = scoutLoc.add(lastMove);
-        mtq.step(lastMove, scoutLoc);
-        for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
-            MapLocation loc = mtq.pop();
-            double pa = mtf.getPassability(i);
-            map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
+        MapTerrainFlag mtf = new MapTerrainFlag(rc.getFlag(scoutID));
+        if (mtf.getSchema() == Flag.MAP_TERRAIN_SCHEMA) { // TODO: better way of checking schema?
+            Direction lastMove = mtf.getLastMove();
+            scoutLoc = scoutLoc.add(lastMove);
+            mtq.step(null, lastMove, scoutLoc);
+            for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
+                if (mtq.isEmpty()) break;
+                MapLocation loc = mtq.pop().loc;
+                double pa = mtf.getPassability(i);
+                System.out.println("I hear there's passability " + pa + " at " + loc.toString());
+                map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
+                rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);
+            }
         }
         return true;
     }
