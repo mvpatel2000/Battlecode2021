@@ -38,8 +38,10 @@ public class Politician extends Unit {
         rc.setFlag(mtf.getFlag());
     }
 
-    // Returns newly sensable locations relative to the current location
-    // after a move in direction lastMove.
+    /*
+     * Returns newly sensable locations relative to the current location
+     * after a move in direction lastMove.
+     */
     public static int[][] newSensedLocationsRelative(Direction lastMove) throws GameActionException {
         switch (lastMove) {
             case NORTH:
