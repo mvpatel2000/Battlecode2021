@@ -34,3 +34,7 @@ This is team Smite's Battlecode 2021 repository.
     Update to the newest version! Run every so often
 - `python ./scripts/copy_bot.py bot1dir bot2dir`
     Duplicate and rename an existing bot package folder.
+
+### Useful notes
+
+- By convention, we use `MapLocation` for absolute locations and `int[2]` for relative locations.

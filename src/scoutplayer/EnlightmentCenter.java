@@ -10,21 +10,28 @@ public class EnlightmentCenter extends Robot {
         RobotType.MUCKRAKER,
     };
 
+    RelativeMap map;
+    ScoutTracker st;
+
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
+        map = new RelativeMap();
+        st = null;
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
-        RobotType toBuild = RobotType.MUCKRAKER;
-        int influence = 1;
-        for (Direction dir : directions) {
-            if (rc.canBuildRobot(toBuild, dir, influence)) {
-                rc.buildRobot(toBuild, dir, influence);
-            } else {
-                break;
+        if (st == null) {
+            if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
+                rc.buildRobot(RobotType.POLITICIAN, Direction.EAST, 1);
+                MapLocation spawnLoc = rc.getLocation().add(Direction.EAST);
+                System.out.println("Built Politician at " + spawnLoc.toString());
+                int scoutID = rc.senseRobotAtLocation(spawnLoc).ID;
+                st = new ScoutTracker(rc, scoutID, spawnLoc, map);
             }
+        } else {
+            st.update();
         }
     }
 

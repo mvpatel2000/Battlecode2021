@@ -11,17 +11,6 @@ public abstract class Unit extends Robot {
     RobotInfo[] nearbyRobots;
     Direction lastMove;
 
-    int[][] SENSE_SPIRAL_ORDER;
-    int[][] NEW_SENSED_LOCS_NORTH;
-    int[][] NEW_SENSED_LOCS_NORTHEAST;
-    int[][] NEW_SENSED_LOCS_EAST;
-    int[][] NEW_SENSED_LOCS_SOUTHEAST;
-    int[][] NEW_SENSED_LOCS_SOUTH;
-    int[][] NEW_SENSED_LOCS_SOUTHWEST;
-    int[][] NEW_SENSED_LOCS_WEST;
-    int[][] NEW_SENSED_LOCS_NORTHWEST;
-    final int[][] NEW_SENSED_LOCS_CENTER = {};
-
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         lastMove = Direction.CENTER;
@@ -42,31 +31,6 @@ public abstract class Unit extends Robot {
 
     public void parseVision() throws GameActionException {
         nearbyRobots = rc.senseNearbyRobots();
-    }
-
-    // Returns newly sensable locations relative to the current location
-    // after a move in direction lastMove.
-    public int[][] newSensedLocationsRelative(Direction lastMove) throws GameActionException {
-        switch (lastMove) {
-            case NORTH:
-                return NEW_SENSED_LOCS_NORTH;
-            case NORTHEAST:
-                return NEW_SENSED_LOCS_NORTHEAST;
-            case EAST:
-                return NEW_SENSED_LOCS_EAST;
-            case SOUTHEAST:
-                return NEW_SENSED_LOCS_SOUTHEAST;
-            case SOUTH:
-                return NEW_SENSED_LOCS_SOUTH;
-            case SOUTHWEST:
-                return NEW_SENSED_LOCS_SOUTHWEST;
-            case WEST:
-                return NEW_SENSED_LOCS_WEST;
-            case NORTHWEST:
-                return NEW_SENSED_LOCS_NORTHWEST;
-            default:
-                return NEW_SENSED_LOCS_CENTER;
-        }
     }
 
     /**

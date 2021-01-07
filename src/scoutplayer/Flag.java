@@ -12,13 +12,16 @@ public class Flag {
     final int MAP_TERRAIN_SCHEMA = 0;
     final int EC_SCOUT_SCHEMA = 1;
     
+    // constructor for writing a flag
     public Flag() {
         flag = 0;
         writtenTo = 0;
     }
 
-    public boolean setSchema(int schema) {
-        return writeToFlag(schema, SCHEMA_BITS);
+    // constructor for reading/parsing a flag
+    public Flag(int inFlag) {
+        flag = inFlag;
+        writtenTo = FLAG_BITS;
     }
 
     public int getFlag() {
@@ -28,7 +31,10 @@ public class Flag {
     public int getSchema() {
         return readFromFlag(0, SCHEMA_BITS);
     }
-    
+
+    public boolean setSchema(int schema) {
+        return writeToFlag(schema, SCHEMA_BITS);
+    }
     // It is up to the caller to provide enough bits to write the value.
     // Otherwise, the function will not work. It will only write the first numBits
     // digits.

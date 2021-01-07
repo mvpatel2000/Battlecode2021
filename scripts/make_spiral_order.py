@@ -16,7 +16,7 @@ reverse = [d[2] for d in reverse]
 D = sorted(D)
 D = [d[2] for d in D]
 print('Count: '+str(len(D)))
-print('SENSE_SPIRAL_ORDER = {'+(',').join(['{'+str(x)+','+str(y)+'}' for x,y in D])+'};')
+print('final static int[][] SENSE_SPIRAL_ORDER = {'+(',').join(['{'+str(x)+','+str(y)+'}' for x,y in D])+'};')
 # print('Decreasing radius: ')
 # print('{'+(',').join(['{'+str(x)+','+str(y)+'}' for x,y in reverse])+'}')
 
@@ -35,4 +35,4 @@ for di in directions.keys():
     de = directions[di]
     old_vision = [[x-de[0],y-de[1]] for x,y in D]
     new_spots = [d for d in D if d not in old_vision]
-    print('NEW_SENSED_LOCS_'+di+' = {'+(',').join(['{'+str(x)+','+str(y)+'}' for x,y in new_spots])+'};')
+    print('final static int[][] NEW_SENSED_LOCS_'+di+' = {'+(',').join(['{'+str(x)+','+str(y)+'}' for x,y in new_spots])+'};')
