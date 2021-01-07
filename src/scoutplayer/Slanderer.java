@@ -15,15 +15,41 @@ public class Slanderer extends Unit {
     final static int[][] NEW_SENSED_LOCS_NORTHWEST = {{-3,2},{-2,3},{0,4},{-4,0},{1,4},{-4,-1},{-4,1},{-1,4},{-3,3},{2,4},{-4,-2},{-4,2},{-2,4}};
     final static int[][] NEW_SENSED_LOCS_CENTER = {};
 
+    MapLocation destination;
+
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
+        // TODO: Delete! Hard coded destination for testing
+        if (allyTeam == Team.A) {
+            destination = baseLocation.translate(0, 0);
+        } else {
+            destination = baseLocation.translate(0, 0);
+        }
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
-        if (tryMove(randomDirection()))
-            System.out.println("I moved!");
+        // Run away from nearest Muckraker.
+        if (rc.isReady()) {
+            RobotInfo nearestMuckraker = null;
+            int nearestMuckrakerDistSquared = 100;
+            for (RobotInfo robot : nearbyEnemies) {
+                int robotDistSquared = currLocation.distanceSquaredTo(robot.location);
+                if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+                    nearestMuckraker = robot;
+                    nearestMuckrakerDistSquared = robotDistSquared;
+                }
+            }
+            if (nearestMuckraker != null) {
+                // Flee from nearest Muckraker.
+                MapLocation fleeLocation = currLocation.add(currLocation.directionTo(nearestMuckraker.location).opposite());
+                fuzzyMove(fleeLocation);
+            } else {
+                // Continue towards destination
+                fuzzyMove(destination);
+            }
+        }
     }
 
     // Returns newly sensable locations relative to the current location
