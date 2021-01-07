@@ -18,6 +18,7 @@ public class FlagReadWriteTest {
         Flag flag = new Flag();
         flag.setSchema(1);
         assertEquals(flag.getSchema(), 1);
+        assertEquals(Flag.getSchema(flag.getFlag()), 1);
     }
 
     @Test
