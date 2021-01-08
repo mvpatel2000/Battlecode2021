@@ -86,7 +86,7 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
-     * 
+     * TODO
      */
     void setSpawnOrDirectionFlag() throws GameActionException {
 
