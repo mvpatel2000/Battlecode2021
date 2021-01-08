@@ -55,7 +55,6 @@ public class EnlightmentCenter extends Robot {
         // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
         // early termination method that sometimes helps.
         allyECsUpperBound = Math.min(3, rc.getRobotCount() - 1);
-        allyECLocs = new MapLocation[2];
     }
 
     @Override
