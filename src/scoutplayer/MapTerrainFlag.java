@@ -27,27 +27,27 @@ public class MapTerrainFlag extends Flag {
      * Returns downsampled passability. Caller must ensure that idx
      * is at most NUM_LOCS.
      */
-    public double getPassability(int idx) {
+    public double readPassability(int idx) {
         return decodePassability(readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + PASSABILITY_BITS * idx, PASSABILITY_BITS));
     }
 
-    public Direction getLastMove() {
+    public Direction readLastMove() {
         return Robot.allDirections[readFromFlag(SCHEMA_BITS, LAST_MOVE_BITS)];
     }
 
-    public void setLastMove(int lm) {
-        writeToFlag(lm, LAST_MOVE_BITS);
+    public boolean writeLastMove(int lm) {
+        return writeToFlag(lm, LAST_MOVE_BITS);
     }
 
-    public void setLastMove(Direction lm) {
-        writeToFlag(Robot.directionToInt(lm), LAST_MOVE_BITS);
+    public boolean writeLastMove(Direction lm) {
+        return writeToFlag(Robot.directionToInt(lm), LAST_MOVE_BITS);
     }
 
     public boolean isFull() {
         return writtenTo + PASSABILITY_BITS > FLAG_BITS;
     }
 
-    public boolean addPassability(double pa) {
+    public boolean writePassability(double pa) {
         return writeToFlag(encodePassability(pa), PASSABILITY_BITS);
     }
 

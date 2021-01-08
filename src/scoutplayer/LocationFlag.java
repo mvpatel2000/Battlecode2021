@@ -23,6 +23,15 @@ public class LocationFlag extends Flag {
     }
 
     /**
+     * Encode a location modulo 128.
+     * @param loc Location to be encoded
+     * @return Whether the write was successful.
+     */
+    public boolean writeLocation(MapLocation loc) {
+        return writeToFlag(loc.x, COORD_BITS) && writeToFlag(loc.y, COORD_BITS);
+    }
+
+    /**
      * Write the mod 128 version of your x-coordinate, y-coordinate
      */
     public boolean writeLocation(int x, int y) {

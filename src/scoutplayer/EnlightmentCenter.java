@@ -50,7 +50,7 @@ public class EnlightmentCenter extends Robot {
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialLof = new LocationFlag();
-        initialLof.writeLocation(myLocation.x % 128, myLocation.y % 128);
+        initialLof.writeLocation(myLocation);
         // Note: rc.getRobotCount() returns number of ally units on map. If there's another EC,
         // it might spawn a unit, which would increase this. We would then overestimate the
         // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
