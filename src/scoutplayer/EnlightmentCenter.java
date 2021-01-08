@@ -45,7 +45,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (turnCount == 100) rc.resign(); // TODO: remove; just for debugging
+        if (turnCount == 10) rc.resign(); // TODO: remove; just for debugging
 
         if (st == null) { // no scout has been built yet
             if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
@@ -56,7 +56,9 @@ public class EnlightmentCenter extends Robot {
                 st = new ScoutTracker(rc, scoutID, spawnLoc, map);
             }
         } else {
+            System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             st.update(); // check on existing scout
+            System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         }
 
         initialFlagsAndAllies();
