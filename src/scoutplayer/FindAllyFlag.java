@@ -14,7 +14,6 @@ public class FindAllyFlag extends Flag {
      */
     public FindAllyFlag(int received) {
         super(received);
-        writtenTo = 24;
     }
 
     public boolean writeCode(int code) {

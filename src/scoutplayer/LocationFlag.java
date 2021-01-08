@@ -15,7 +15,6 @@ public class LocationFlag extends Flag {
      */
     public LocationFlag(int received) {
         super(received);
-        writtenTo = 24;
     }
 
     /**
