@@ -11,6 +11,7 @@ public abstract class Robot {
     Team enemyTeam;
     MapLocation startLocation;
     MapLocation myLocation;
+    boolean flagSetThisRound;
 
     static final Direction[] directions = {
         Direction.NORTH,
@@ -42,10 +43,17 @@ public abstract class Robot {
         myID = rc.getID();
         startLocation = rc.getLocation();
         myLocation = startLocation;
+        flagSetThisRound = false;
     }
 
     public void run() throws GameActionException {
         turnCount++;
+        flagSetThisRound = false;
+    }
+
+    public void setFlag(int flag) throws GameActionException {
+        rc.setFlag(flag);
+        flagSetThisRound = true;
     }
 
     /**

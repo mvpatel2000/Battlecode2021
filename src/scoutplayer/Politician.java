@@ -15,6 +15,8 @@ public class Politician extends Unit {
     final static int[][] NEW_SENSED_LOCS_WEST = {{-4,-1},{-4,1},{-4,-2},{-4,2},{0,5},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4}};
     final static int[][] NEW_SENSED_LOCS_NORTHWEST = {{0,4},{-4,0},{-4,1},{-1,4},{-3,3},{2,4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{-4,-3},{-5,0},{-4,3},{-3,4}};
     final static int[][] NEW_SENSED_LOCS_CENTER = {};
+    
+    public final static int INITIAL_COOLDOWN = 10;
 
     MapTerrainQueue mtq;
 
@@ -42,7 +44,7 @@ public class Politician extends Unit {
             mtf.writePassability(terrain.pa);
             // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
-        rc.setFlag(mtf.getFlag());
+        setFlag(mtf.getFlag());
     }
 
     /**

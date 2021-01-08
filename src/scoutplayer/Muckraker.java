@@ -3,6 +3,9 @@ package scoutplayer;
 import battlecode.common.*;
 
 public class Muckraker extends Unit {
+
+    public final static int INITIAL_COOLDOWN = 10;
+    
     MapLocation destination;
 
     public Muckraker(RobotController rc) throws GameActionException {

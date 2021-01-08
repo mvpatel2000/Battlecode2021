@@ -10,6 +10,15 @@ import battlecode.common.*;
  * DirectionsFlag.
  */
 public class SpawnUnitFlag extends Flag {
+    /**
+     * Flag breakdown:
+     * - flag schema (SCHEMA_BITS)
+     * - unit type (UNIT_TYPE_BITS)
+     * - spawn direction (SPAWN_DIR_BITS)
+     * - unit ID (ID_BITS)
+     * 
+     * Total bits used: 3 + 2 + 3 + 16 = 24.
+     */
 
     final int UNIT_TYPE_BITS = 2;
     final int SPAWN_DIR_BITS = 3;
@@ -19,6 +28,17 @@ public class SpawnUnitFlag extends Flag {
     public SpawnUnitFlag() {
         super();
         setSchema(Flag.SPAWN_UNIT_SCHEMA);
+    }
+
+    /**
+     * Constructor to set up flag with known type, direction, and ID.
+     */
+    public SpawnUnitFlag(RobotType type, Direction spawnDir, int id) {
+        super();
+        setSchema(Flag.SPAWN_UNIT_SCHEMA);
+        writeUnitType(type);
+        writeSpawnDir(spawnDir);
+        writeID(id);
     }
 
     /**

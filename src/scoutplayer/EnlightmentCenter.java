@@ -23,6 +23,11 @@ public class EnlightmentCenter extends Robot {
     final int MODULUS = 1453481; // A random number strictly smaller than CRYPTO KEY and 2^21 = 2,097,152
     final int STOP_SENDING_LOCATION_ROUND = 10;
 
+    // Flags to initialize whenever a unit is spawned, and then set
+    // at the earliest available flag slot.
+    SpawnUnitFlag latestSpawnFlag;
+    LocationFlag latestSpawnDestinationFlag;
+
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
         RobotType.SLANDERER,
@@ -30,7 +35,7 @@ public class EnlightmentCenter extends Robot {
     };
 
     RelativeMap map;
-    ScoutTracker st;
+    ScoutTracker st; // TODO: array of ScoutTrackers
 
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
@@ -64,30 +69,7 @@ public class EnlightmentCenter extends Robot {
 
         if (turnCount == 100) rc.resign(); // TODO: remove; just for debugging
 
-        if (st == null) { // no scout has been built yet
-            if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
-                rc.buildRobot(RobotType.POLITICIAN, Direction.EAST, 1);
-                MapLocation spawnLoc = rc.getLocation().add(Direction.EAST);
-                System.out.println("Built Politician at " + spawnLoc.toString());
-                int scoutID = rc.senseRobotAtLocation(spawnLoc).ID;
-                st = new ScoutTracker(rc, scoutID, spawnLoc, map);
-            }
-        } else {
-            //System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-            //st.update(); // check on existing scout
-            //System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-        }
-
-        RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-        int influence = allyTeam == Team.A ? 1 : 50;
-        for (Direction dir : directions) {
-            if (rc.canBuildRobot(toBuild, dir, influence)) {
-                rc.buildRobot(toBuild, dir, influence);
-            } else {
-                break;
-            }
-        }
-        // Add all new functions after this line.
+        // Add all new code after this line.
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
         // This function will return with ~500 bytecode left for rounds 2 - 6,
@@ -96,6 +78,69 @@ public class EnlightmentCenter extends Robot {
         // so we do not run out of bytecode.
         initialFlagsAndAllies();
         setInitialLocationFlag();
+
+        spawnOrUpdateScout();
+        spawnAttacker();
+        
+        setSpawnOrDirectionFlag();
+    }
+
+    /**
+     * 
+     */
+    void setSpawnOrDirectionFlag() throws GameActionException {
+
+    }
+
+    /**
+     * If no scout has been made, spawn a scout. Otherwise, run the
+     * ScoutTracker update loop.
+     * 
+     * TODO: figure out direction to send scout in.
+     */
+    void spawnOrUpdateScout() throws GameActionException {
+        if (st == null) { // no scout has been spawned yet
+            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
+                st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?
+            }
+        } else {
+            //System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+            st.update(); // check on existing scout
+            //System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+        }
+    }
+
+    void spawnAttacker() throws GameActionException {
+        RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
+        int influence = allyTeam == Team.A ? 1 : 50;
+        for (Direction dir : directions) {
+            spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK);
+        }
+    }
+    
+    /**
+     * Spawn a robot and prepare its SpawnUnitFlag and the LocationFlag
+     * telling it where its destination will be. These flags will not
+     * actually be set by the EC here; that happens in another function,
+     * setSpawnOrDirectionFlag().
+     * @param type Type of the robot to build.
+     * @param direction Direction to build the robot in.
+     * @param influence Influence to allocate to the new robot.
+     * @param destination Destination of the new robot.
+     * @return Whether the robot was successfully spawned.
+     * @throws GameActionException
+     */
+    boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
+        if (!rc.canBuildRobot(type, direction, influence)) {
+            return false;
+        }
+        rc.buildRobot(type, direction, influence);
+        MapLocation spawnLoc = myLocation.add(Direction.EAST);
+        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
+        int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
+        latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
+        latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
+        return true;
     }
 
     /**
@@ -111,7 +156,7 @@ public class EnlightmentCenter extends Robot {
     void initialFlagsAndAllies() throws GameActionException {
         if (!setInitialFlag) {
              if (rc.canSetFlag(initialFaf.flag)) {
-                 rc.setFlag(initialFaf.flag);
+                 setFlag(initialFaf.flag);
                  System.out.println("I set my initial flag to: " + initialFaf.flag);
                  setInitialFlag = true;
                  initialFlagRound = rc.getRoundNum();
@@ -167,7 +212,7 @@ public class EnlightmentCenter extends Robot {
             }
             if (rc.canSetFlag(initialLof.flag)) {
                 System.out.println("Setting location flag to: " + initialLof.flag);
-                rc.setFlag(initialLof.flag);
+                setFlag(initialLof.flag);
             } else {
                 System.out.println("MAJOR ERROR: LocationFlag IS LIKELY WRONG: " + initialLof.flag);
             }

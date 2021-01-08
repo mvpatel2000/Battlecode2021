@@ -6,12 +6,26 @@ import battlecode.common.*;
  * Flag that any robot can use to send or receive locations.
  */
 public class LocationFlag extends Flag {
+    /**
+     * Flag breakdown:
+     * - flag schema (SCHEMA_BITS)
+     * - x coordinate mod 128 (COORD_BITS)
+     * - y coordinate mod 128 (COORD_BITS)
+     * 
+     * Total bits used: 3 + 7 + 7 = 17.
+     */
 
     final int COORD_BITS = 7;
 
     public LocationFlag() {
         super();
         setSchema(LOCATION_SCHEMA);
+    }
+    
+    public LocationFlag(MapLocation loc) {
+        super();
+        setSchema(LOCATION_SCHEMA);
+        writeLocation(loc);
     }
 
     /**

@@ -7,27 +7,37 @@ public class ScoutTracker {
     int scoutID;
     MapLocation scoutLoc;
     RelativeMap map;
-    boolean active;
+    boolean alive;
     RobotController rc;
     MapTerrainQueue mtq;
+    int turnCount;
 
     public ScoutTracker(RobotController ecRC, int idToTrack, MapLocation startingLoc, RelativeMap ecMap) {
         scoutID = idToTrack;
         scoutLoc = startingLoc;
         map = ecMap;
         rc = ecRC;
-        active = true;
-        mtq = new MapTerrainQueue();
+        alive = true;
+        turnCount = 1;
+        // mtq is initialized as late as possible, after the initial cooldown,
+        // in order to allow EC as many bytecodes as possible for initial comms.
     }
 
-    public boolean isActive() {
-        return active;
+    public boolean isAlive() {
+        return alive;
     }
 
     public boolean update() throws GameActionException {
         // System.out.println("ScoutTracker.update() bp 0: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-        if (!active || !rc.canGetFlag(scoutID)) {
-            active = false;
+        turnCount++;
+        if (turnCount < Politician.INITIAL_COOLDOWN) { // 10 turn cooldown for the scout hasn't passed yet; nothing to do.
+            return true;
+        }
+        if (turnCount == Politician.INITIAL_COOLDOWN) {
+            mtq = new MapTerrainQueue(); // lazy initialization at the last possible moment
+        }
+        if (!alive || !rc.canGetFlag(scoutID)) {
+            alive = false;
             return false;
         }
         MapLocation myLoc = rc.getLocation();

@@ -9,6 +9,14 @@ import battlecode.common.*;
  * Flag that scouts use to communicate map passabilities to ECs.
  */
 public class MapTerrainFlag extends Flag {
+    /**
+     * Flag breakdown:
+     * - flag schema (SCHEMA_BITS)
+     * - last move (LAST_MOVE_BITS)
+     * - 5x passability entry (PASSABILITY_BITS)
+     * 
+     * Total bits used: 3 + 4 + 5*3 = 22.
+     */
 
     final static int PASSABILITY_BITS = 3;
     final static int LAST_MOVE_BITS = 4;

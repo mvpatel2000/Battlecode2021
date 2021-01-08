@@ -6,6 +6,13 @@ package scoutplayer;
  * that they see from other robots.
  */
 public class FindAllyFlag extends Flag {
+    /**
+     * Flag breakdown:
+     * - flag schema (SCHEMA_BITS)
+     * - secret code (CODE_BITS)
+     * 
+     * Total bits used: 3 + 21 = 24.
+     */
 
     final int CODE_BITS = 21;
 
