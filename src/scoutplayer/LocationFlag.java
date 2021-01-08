@@ -2,7 +2,7 @@ package scoutplayer;
 
 public class LocationFlag extends Flag {
 
-    final int NUM_COORD_BITS = 7;
+    final int COORD_BITS = 7;
 
     public LocationFlag() {
         super();
@@ -21,7 +21,7 @@ public class LocationFlag extends Flag {
      * Write the mod 128 version of your x-coordinate, y-coordinate
      */
     public boolean writeLocation(int x, int y) {
-        return writeToFlag(x, NUM_COORD_BITS) && writeToFlag(y, NUM_COORD_BITS);
+        return writeToFlag(x, COORD_BITS) && writeToFlag(y, COORD_BITS);
     }
 
     /**
@@ -29,6 +29,6 @@ public class LocationFlag extends Flag {
      * [location.x % 128, location.y % 128]
      */
     public int[] readLocation() {
-        return new int[]{readFromFlag(3, NUM_COORD_BITS), readFromFlag(3+NUM_COORD_BITS, NUM_COORD_BITS)};
+        return new int[]{readFromFlag(3, COORD_BITS), readFromFlag(3+COORD_BITS, COORD_BITS)};
     }
 }

@@ -2,7 +2,7 @@ package scoutplayer;
 
 public class FindAllyFlag extends Flag {
 
-    final int NUM_CODE_BITS = 21;
+    final int CODE_BITS = 21;
 
     public FindAllyFlag() {
         super();
@@ -17,10 +17,10 @@ public class FindAllyFlag extends Flag {
     }
 
     public boolean writeCode(int code) {
-        return writeToFlag(code, NUM_CODE_BITS);
+        return writeToFlag(code, CODE_BITS);
     }
 
     public int readCode() {
-        return readFromFlag(3, NUM_CODE_BITS);
+        return readFromFlag(3, CODE_BITS);
     }
 }
