@@ -20,7 +20,9 @@ public class Flag {
         writtenTo = 32 - FLAG_BITS; // 8-bit offset to make the first 8 bits blank
     }
 
-    /* constructor for reading/parsing a flag */
+    /**
+     * constructor for reading/parsing a flag
+     */
     public Flag(int inFlag) {
         flag = inFlag;
         writtenTo = 32;
@@ -30,7 +32,7 @@ public class Flag {
         return flag;
     }
 
-    /*
+    /**
      * Get the schema directly from a raw flag value.
      * 
      * Note: if we add encryption later, we'll need to decrypt here.
@@ -48,7 +50,7 @@ public class Flag {
         return writeToFlag(schema, SCHEMA_BITS);
     }
 
-    /*
+    /**
      * Allocate the next numBits bits in the flag's contents to write in value.
      * It is up to the caller to provide enough bits to write the value. Otherwise,
      * the function will not work. It will only write the first numBits bits.
@@ -67,7 +69,7 @@ public class Flag {
         return true;
     }
 
-    /*
+    /**
      * Read numBits bits from the flag, starting at startBit, which must be
      * between 0 and FLAG_BITS - 1 inclusive.
      */

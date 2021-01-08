@@ -98,7 +98,7 @@ public class EnlightmentCenter extends Robot {
         setInitialLocationFlag();
     }
 
-    /*
+    /**
      * Sets an initial flag to let other ECs know I exist.
      * Then, go through IDs 10000 to 14096 to check for my allies.
      * Flags are set and verified using getSecretCode() below.
@@ -209,7 +209,7 @@ public class EnlightmentCenter extends Robot {
         }
     }
 
-    /*
+    /**
      * Returns a secret code used to verify that a robot is indeed an ally EC.
      * Sent out at the beginning of the match to alert other ECs.
      */

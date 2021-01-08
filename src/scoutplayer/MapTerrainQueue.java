@@ -27,7 +27,7 @@ public class MapTerrainQueue {
         return size == 0;
     }
 
-    /*
+    /**
      * Add newly sensable locations to the queue after taking a
      * step in direction di and ending at location currentLoc.
      * If the queue overflows, then the elements at the front

@@ -22,7 +22,7 @@ public class RelativeMap {
         this.myLocation = myLocation;
     }
 
-    /*
+    /**
      * xRel and yRel should be between -63 and 63 when pa > 0.
      * In particular, the vector [xRel, yRel] from myLocation
      * should lie fully within the map.
@@ -45,28 +45,28 @@ public class RelativeMap {
         }
     }
 
-    /*
+    /**
      * Coordinates of relLoc should be between -63 and 63 when pa > 0.
      */
     public void set(int[] relLoc, double pa) {
         set(relLoc[0], relLoc[1], pa);
     }
 
-    /*
+    /**
      * Input relative x and y coordinates, which are each between -64 and 127 inclusive.
      */
     public double get(int xRel, int yRel) {
         return map[xRel & 63][yRel & 63];
     }
 
-    /*
+    /**
      * Coordinates of relLoc should be between -64 and 127 inclusive.
      */
     public double get(int[] relLoc) {
         return map[relLoc[0] & 63][relLoc[1] & 63];
     }
 
-    /*
+    /**
      * Mod64 a relative location in-place. Both coordinates
      * must be between -64 and 127 inclusive.
      */
@@ -75,7 +75,7 @@ public class RelativeMap {
         relLoc[1] = relLoc[1] & 63;
     }
 
-    /*
+    /**
      * Converts relative coordinates from 0 to 63 inclusive to MapLocation.
      * CAUTION: the output could be wrong if the requested coordinate is
      * in an unexplored part of the map and little information about the

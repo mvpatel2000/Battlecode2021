@@ -9,7 +9,8 @@ public class LocationFlag extends Flag {
         setSchema(LOCATION_SCHEMA);
     }
 
-    /* Call this when you know the int you just received
+    /**
+     * Call this when you know the int you just received
      * represents a FindAllyFlag.
      */
     public LocationFlag(int received) {
@@ -17,14 +18,15 @@ public class LocationFlag extends Flag {
         writtenTo = 24;
     }
 
-    /*
+    /**
      * Write the mod 128 version of your x-coordinate, y-coordinate
      */
     public boolean writeLocation(int x, int y) {
         return writeToFlag(x, NUM_COORD_BITS) && writeToFlag(y, NUM_COORD_BITS);
     }
 
-    /* Returns an array of two ints representing
+    /**
+     * Returns an array of two ints representing
      * [location.x % 128, location.y % 128]
      */
     public int[] readLocation() {

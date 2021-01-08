@@ -57,7 +57,7 @@ public abstract class Unit extends Robot {
         return false;
     }
 
-    /*
+    /**
      * Use this function instead of rc.move(). Still need
      * to verify canMove before calling this.
      */
@@ -67,7 +67,7 @@ public abstract class Unit extends Robot {
         myLocation = myLocation.add(dir);
     }
 
-    /*
+    /**
      * Moves towards destination, in the optimal direction or diagonal offsets based on which is
      * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
      * unnecessary computation.

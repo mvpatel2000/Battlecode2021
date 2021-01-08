@@ -19,7 +19,7 @@ public class MapTerrainFlag extends Flag {
         super(flag);
     }
 
-    /*
+    /**
      * Returns downsampled passability. Caller must ensure that idx
      * is at most NUM_LOCS.
      */
@@ -47,7 +47,7 @@ public class MapTerrainFlag extends Flag {
         return writeToFlag(encodePassability(pa), PASSABILITY_BITS);
     }
 
-    /*
+    /**
      * Encodes passability in a 3-bit integer.
      * If the input pa is 0, that means that the tile is off the map.
      * Transforms [0.1, 1] to [0, 0.9], then maps [0, 0.91) to [0, 7).

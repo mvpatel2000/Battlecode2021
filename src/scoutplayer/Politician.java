@@ -45,7 +45,7 @@ public class Politician extends Unit {
         rc.setFlag(mtf.getFlag());
     }
 
-    /*
+    /**
      * Returns newly sensable locations relative to the current location
      * after a move in direction lastMove.
      */
@@ -72,7 +72,7 @@ public class Politician extends Unit {
         }
     }
 
-    /*
+    /**
      * Analyzes if politician should attack. Returns true if it attacked. Sorts nearbyRobots and
      * considers various ranges of empowerment to optimize kills.
      */
