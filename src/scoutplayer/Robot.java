@@ -5,7 +5,8 @@ import battlecode.common.*;
 public abstract class Robot {
 
     RobotController rc;
-    int turnCount = 0;
+    int currentRound;
+    int turnCount;
     int myID;
     Team allyTeam;
     Team enemyTeam;
@@ -38,6 +39,8 @@ public abstract class Robot {
 
     public Robot(RobotController robotController) throws GameActionException {
         rc = robotController;
+        currentRound = 0;
+        turnCount = 0;
         allyTeam = rc.getTeam();
         enemyTeam = allyTeam.opponent();
         myID = rc.getID();
@@ -49,6 +52,7 @@ public abstract class Robot {
     public void run() throws GameActionException {
         turnCount++;
         flagSetThisRound = false;
+        currentRound = rc.getRoundNum();
     }
 
     public void setFlag(int flag) throws GameActionException {
