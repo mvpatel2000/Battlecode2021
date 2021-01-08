@@ -35,7 +35,7 @@ public class ScoutTracker {
         MapTerrainFlag mtf = new MapTerrainFlag(rc.getFlag(scoutID));
         // System.out.println("ScoutTracker.update() bp 1: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         if (mtf.getSchema() == Flag.MAP_TERRAIN_SCHEMA) { // TODO: better way of checking schema?
-            Direction lastMove = mtf.getLastMove();
+            Direction lastMove = mtf.readLastMove();
             scoutLoc = scoutLoc.add(lastMove);
             // System.out.println("ScoutTracker.update() bp 2: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             mtq.step(null, lastMove, scoutLoc);
@@ -43,7 +43,7 @@ public class ScoutTracker {
             for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
                 if (mtq.isEmpty()) break;
                 MapLocation loc = mtq.pop().loc;
-                double pa = mtf.getPassability(i);
+                double pa = mtf.readPassability(i);
                 // System.out.println("I hear there's passability " + pa + " at " + loc.toString());
                 map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
                 rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);

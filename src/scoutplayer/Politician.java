@@ -35,11 +35,11 @@ public class Politician extends Unit {
         }
         mtq.step(rc, moveThisTurn, rc.getLocation());
         MapTerrainFlag mtf = new MapTerrainFlag();
-        mtf.setLastMove(moveThisTurn);
+        mtf.writeLastMove(moveThisTurn);
         for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
             if (mtq.isEmpty()) break;
             MapTerrain terrain = mtq.pop();
-            mtf.addPassability(terrain.pa);
+            mtf.writePassability(terrain.pa);
             // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
         rc.setFlag(mtf.getFlag());
