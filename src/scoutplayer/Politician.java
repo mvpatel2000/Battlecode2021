@@ -1,6 +1,7 @@
 package scoutplayer;
 
 import battlecode.common.*;
+import java.util.*;
 
 public class Politician extends Unit {
 
@@ -25,7 +26,9 @@ public class Politician extends Unit {
     @Override
     public void run() throws GameActionException {
         super.run();
-        if (mtq.hasRoom() && tryMove(randomDirection())) { // move if queue isn't full
+        if (considerAttack()) {
+            System.out.println("Attacking!");
+        } else if (mtq.hasRoom() && tryMove(randomDirection())) { // move if queue isn't full
             System.out.println("I moved "+moveThisTurn.toString()+" to "+rc.getLocation().toString());
         } else if (!mtq.hasRoom()) {
             System.out.println("MapTerrainQueue full; not moving this round.");
@@ -37,7 +40,7 @@ public class Politician extends Unit {
             if (mtq.isEmpty()) break;
             MapTerrain terrain = mtq.pop();
             mtf.addPassability(terrain.pa);
-            System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
+            // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
         rc.setFlag(mtf.getFlag());
     }
@@ -67,5 +70,59 @@ public class Politician extends Unit {
             default:
                 return NEW_SENSED_LOCS_CENTER;
         }
+    }
+
+    /*
+     * Analyzes if politician should attack. Returns true if it attacked. Sorts nearbyRobots and
+     * considers various ranges of empowerment to optimize kills.
+     */
+    public boolean considerAttack() throws GameActionException {
+        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
+        if (!rc.isReady() || totalDamage <= 0) {
+            return false;
+        }
+        Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
+            public int compare(RobotInfo r1, RobotInfo r2) {
+                // Intentional: Reverse order for this demo
+                int d1 = currLocation.distanceSquaredTo(r1.location);
+                int d2 = currLocation.distanceSquaredTo(r2.location);
+                return d1 - d2;
+            }
+        });
+        int[] distanceSquareds = new int[nearbyRobots.length];
+        for (int i = 0; i < nearbyRobots.length; i++) {
+            distanceSquareds[i] = currLocation.distanceSquaredTo(nearbyRobots[i].location);
+        }
+        int optimalNumEnemiesKilled = 0;
+        int optimalDist = -1;
+        int maxDist = rc.getType().actionRadiusSquared;
+        // Loop over subsets of nearbyRobots
+        for (int i = 1; i <= nearbyRobots.length; i++) {
+            // Skip over subsets which don't actually change range
+            if (i != nearbyRobots.length && distanceSquareds[i-1] == distanceSquareds[i]) {
+                continue;
+            }
+            // Remaining units are out of range, break.
+            if (distanceSquareds[i-1] >= maxDist) {
+                break;
+            }
+            // Count number of units to kill
+            int perUnitDamage = (int)(totalDamage / i);
+            int numEnemiesKilled = 0;
+            for (int j = 0; j < i; j++) {
+                RobotInfo robot = nearbyRobots[j];
+                if (robot.team == enemyTeam && perUnitDamage > robot.conviction) {
+                    numEnemiesKilled++;
+                }
+            }
+            if (numEnemiesKilled > optimalNumEnemiesKilled) {
+                optimalNumEnemiesKilled = numEnemiesKilled;
+                optimalDist = distanceSquareds[i-1];
+            }
+        }
+        if (optimalNumEnemiesKilled > 0 && rc.canEmpower(optimalDist)) {
+            rc.empower(optimalDist);
+        }
+        return false;
     }
 }

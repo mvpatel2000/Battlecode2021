@@ -33,6 +33,7 @@ public abstract class Unit extends Robot {
     public void run() throws GameActionException {
         super.run();
         moveThisTurn = Direction.CENTER;
+        parseVision();
     }
 
     public void parseVision() throws GameActionException {

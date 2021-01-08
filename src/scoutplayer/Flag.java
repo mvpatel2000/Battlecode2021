@@ -6,8 +6,8 @@ public class Flag {
 
     int flag; // Must always be between 0 and 2^FLAG_BITS - 1
     int writtenTo;
-    final int FLAG_BITS = 24;
-    final int SCHEMA_BITS = 3;
+    public final static int FLAG_BITS = 24;
+    public final static int SCHEMA_BITS = 3;
 
     public static final int NO_SCHEMA = 0;
     public static final int EC_SCOUT_SCHEMA = 1;
@@ -28,6 +28,16 @@ public class Flag {
 
     public int getFlag() {
         return flag;
+    }
+
+    /*
+     * Get the schema directly from a raw flag value.
+     * 
+     * Note: if we add encryption later, we'll need to decrypt here.
+     */
+    public static int getSchema(int flag) {
+        int bitm = bitmask2(32 - FLAG_BITS, 32 - FLAG_BITS + SCHEMA_BITS, true);
+        return (flag & bitm) >>> (FLAG_BITS - SCHEMA_BITS);
     }
 
     public int getSchema() {

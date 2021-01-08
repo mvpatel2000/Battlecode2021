@@ -39,7 +39,7 @@ public class RelativeMap {
             if (xRel > 0 && xRel - 64 > xLineBelow) xLineBelow = xRel - 64;
             if (yRel < 0 && yRel + 64 < yLineAbove) yLineAbove = yRel + 64;
             if (yRel > 0 && yRel - 64 > yLineBelow) yLineBelow = yRel - 64;
-            map[mod64(xRel)][mod64(yRel)] = pa;
+            map[xRel & 63][yRel & 63] = pa;
         }
     }
 
@@ -54,14 +54,14 @@ public class RelativeMap {
      * Input relative x and y coordinates, which are each between -64 and 127 inclusive.
      */
     public double get(int xRel, int yRel) {
-        return map[mod64(xRel)][mod64(yRel)];
+        return map[xRel & 63][yRel & 63];
     }
 
     /*
      * Coordinates of relLoc should be between -64 and 127 inclusive.
      */
     public double get(int[] relLoc) {
-        return map[mod64(relLoc[0])][mod64(relLoc[1])];
+        return map[relLoc[0] & 63][relLoc[1] & 63];
     }
 
     /*
@@ -69,17 +69,8 @@ public class RelativeMap {
      * must be between -64 and 127 inclusive.
      */
     public static void mod64(int[] relLoc) {
-        relLoc[0] = mod64(relLoc[0]);
-        relLoc[1] = mod64(relLoc[1]);
-    }
-
-    /*
-     * Mod64 a relative coordinate between -64 and 127.
-     */
-    public static int mod64(int c) {
-        if (c < 0) return c + 64;
-        if (c >= 64) return c - 64;
-        return c;
+        relLoc[0] = relLoc[0] & 63;
+        relLoc[1] = relLoc[1] & 63;
     }
 
     /*

@@ -26,16 +26,20 @@ public class ScoutTracker {
     }
 
     public boolean update() throws GameActionException {
+        // System.out.println("ScoutTracker.update() bp 0: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         if (!active || !rc.canGetFlag(scoutID)) {
             active = false;
             return false;
         }
         MapLocation myLoc = rc.getLocation();
         MapTerrainFlag mtf = new MapTerrainFlag(rc.getFlag(scoutID));
+        // System.out.println("ScoutTracker.update() bp 1: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         if (mtf.getSchema() == Flag.MAP_TERRAIN_SCHEMA) { // TODO: better way of checking schema?
             Direction lastMove = mtf.getLastMove();
             scoutLoc = scoutLoc.add(lastMove);
+            // System.out.println("ScoutTracker.update() bp 2: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             mtq.step(null, lastMove, scoutLoc);
+            // System.out.println("ScoutTracker.update() bp 3: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
                 if (mtq.isEmpty()) break;
                 MapLocation loc = mtq.pop().loc;
@@ -43,6 +47,7 @@ public class ScoutTracker {
                 // System.out.println("I hear there's passability " + pa + " at " + loc.toString());
                 map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
                 rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);
+                // System.out.println("ScoutTracker.update() bp 4." + i + ": " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             }
         }
         return true;
