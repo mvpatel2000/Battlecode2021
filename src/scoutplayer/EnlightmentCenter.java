@@ -21,6 +21,7 @@ public class EnlightmentCenter extends Robot {
     // Change these two numbers before uploading to competition
     final int CRYPTO_KEY = 92747502; // A random large number
     final int MODULUS = 1453481; // A random number strictly smaller than CRYPTO KEY and 2^21 = 2,097,152
+    final int STOP_SENDING_LOCATION_ROUND = 10;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -72,9 +73,9 @@ public class EnlightmentCenter extends Robot {
                 st = new ScoutTracker(rc, scoutID, spawnLoc, map);
             }
         } else {
-            System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+            //System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             //st.update(); // check on existing scout
-            System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+            //System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         }
 
         RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
@@ -102,7 +103,10 @@ public class EnlightmentCenter extends Robot {
      * Then, go through IDs 10000 to 14096 to check for my allies.
      * Flags are set and verified using getSecretCode() below.
      * Currently, the check from 10k-14k takes ~11,600 bytecodes on each round
-     * for 5 rounds (Rounds 2-6). Ends on round 6.
+     * for 5 rounds (Rounds 2-6). Ends on round 6. You can reduce the number of bytecodes
+     * used per round (but extend the number of rounds) by modifying the searchBounds array
+     * and making the differences in numbers smaller. Please ensure this function finishes
+     * before or on to round 8, or else, you should change STOP_SENDING_LOCATION_ROUND.
      */
     void initialFlagsAndAllies() throws GameActionException {
         if (!setInitialFlag) {
@@ -119,7 +123,7 @@ public class EnlightmentCenter extends Robot {
          if (!foundAllyECs && setInitialFlag && rc.getRoundNum() > initialFlagRound) {
              int startPoint = searchBounds[searchRound];
              int endPoint = searchBounds[searchRound+1];
-             System.out.println(startPoint + " to " + endPoint);
+             //System.out.println(startPoint + " to " + endPoint);
              System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
              for (int i=startPoint; i<endPoint; i++) {
                  if (rc.canGetFlag(i)) {
@@ -145,10 +149,11 @@ public class EnlightmentCenter extends Robot {
 
     /**
      * After completing initialFlagsAndAllies, this should run on the next round (currently 7)
-     * until round 10. We tell our other ECs our location and check for their flags saying the same.
+     * until round STOP_SENDING_LOCATION_ROUND.
+     * We tell our other ECs our location and check for their flags saying the same.
      */
     void setInitialLocationFlag() throws GameActionException {
-        if (rc.getRoundNum() <= 10 && setInitialFlag && foundAllyECs && numAllyECs > 0) {
+        if (rc.getRoundNum() <= STOP_SENDING_LOCATION_ROUND && setInitialFlag && foundAllyECs && numAllyECs > 0) {
             // skip round 6, just after completing initialFlagsAndAllies.
             // We don't want to change our flag from a FindAllyFlag to a LocFlag while
             // our allies are still looking for our FindAllyFlag.
