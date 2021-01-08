@@ -45,7 +45,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (turnCount == 100) rc.resign(); // TODO: remove; just for debugging
+        if (turnCount == 500) rc.resign(); // TODO: remove; just for debugging
 
         if (st == null) { // no scout has been built yet
             if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
@@ -57,6 +57,16 @@ public class EnlightmentCenter extends Robot {
             }
         } else {
             st.update(); // check on existing scout
+        }
+
+        RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
+        int influence = allyTeam == Team.A ? 1 : 50;
+        for (Direction dir : directions) {
+            if (rc.canBuildRobot(toBuild, dir, influence)) {
+                rc.buildRobot(toBuild, dir, influence);
+            } else {
+                break;
+            }
         }
 
         initialFlagsAndAllies();
