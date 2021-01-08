@@ -11,7 +11,7 @@ public class RelativeMap {
     public int xLineBelow; // between -64 and -1
     public int yLineAbove; // between 1 and 64
     public int yLineBelow; // between -64 and -1
-    MapLocation absoluteOrigin;
+    MapLocation myLocation;
     
     public RelativeMap(MapLocation myLocation) {
         map = new double[64][64];
@@ -19,11 +19,13 @@ public class RelativeMap {
         xLineBelow = -64;
         yLineAbove = 64;
         yLineBelow = -64;
-        absoluteOrigin = myLocation;
+        this.myLocation = myLocation;
     }
 
     /*
      * xRel and yRel should be between -63 and 63 when pa > 0.
+     * In particular, the vector [xRel, yRel] from myLocation
+     * should lie fully within the map.
      */
     public void set(int xRel, int yRel, double pa) {
         if (pa == 0) {
@@ -84,8 +86,8 @@ public class RelativeMap {
      * or xRel < xLineBelow + 65; analogous conditions hold for the output y.
      */
     public MapLocation getAbsoluteLocation(int xRel, int yRel) {
-        int x = absoluteOrigin.x + xRel;
-        int y = absoluteOrigin.y + yRel;
+        int x = myLocation.x + xRel;
+        int y = myLocation.y + yRel;
         if (xRel > xLineAbove) x -= 65;
         if (yRel > yLineAbove) y -= 65;
         return new MapLocation(x, y);
