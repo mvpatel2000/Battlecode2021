@@ -27,13 +27,13 @@ public abstract class Unit extends Robot {
                 baseID = robot.ID;
             }
         }
-        parseVision();
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
         moveThisTurn = Direction.CENTER;
+        parseVision();
     }
 
     public void parseVision() throws GameActionException {
