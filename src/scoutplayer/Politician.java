@@ -77,7 +77,8 @@ public class Politician extends Unit {
      * considers various ranges of empowerment to optimize kills.
      */
     public boolean considerAttack() throws GameActionException {
-        if (!rc.isReady()) {
+        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
+        if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
@@ -94,7 +95,6 @@ public class Politician extends Unit {
         }
         int optimalNumEnemiesKilled = 0;
         int optimalDist = -1;
-        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         int maxDist = rc.getType().actionRadiusSquared;
         // Loop over subsets of nearbyRobots
         for (int i = 1; i <= nearbyRobots.length; i++) {
