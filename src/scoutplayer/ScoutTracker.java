@@ -4,7 +4,7 @@ import battlecode.common.*;
 
 // TODO: account for edges of map
 public class ScoutTracker {
- 
+
     int scoutID;
     MapLocation scoutLoc;
     RelativeMap map;

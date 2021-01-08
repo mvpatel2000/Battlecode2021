@@ -5,7 +5,7 @@ import battlecode.common.*;
 public class RelativeMap {
 
     double[][] map;
-
+    public static final int ALLY_EC = -1;
     // Vars used to determine map boundaries
     public int xLineAbove; // between 1 and 64
     public int xLineBelow; // between -64 and -1
@@ -45,7 +45,7 @@ public class RelativeMap {
         }
     }
 
-    /* 
+    /*
      * Coordinates of relLoc should be between -63 and 63 when pa > 0.
      */
     public void set(int[] relLoc, double pa) {
@@ -66,7 +66,7 @@ public class RelativeMap {
         return map[relLoc[0] & 63][relLoc[1] & 63];
     }
 
-    /* 
+    /*
      * Mod64 a relative location in-place. Both coordinates
      * must be between -64 and 127 inclusive.
      */
@@ -81,7 +81,7 @@ public class RelativeMap {
      * in an unexplored part of the map and little information about the
      * map boundary's location is known. In general, this function should
      * only be called on input coordinates that have already been scouted.
-     * 
+     *
      * Specifically, the output x is well-defined iff either xRel > xLineAbove
      * or xRel < xLineBelow + 65; analogous conditions hold for the output y.
      */
