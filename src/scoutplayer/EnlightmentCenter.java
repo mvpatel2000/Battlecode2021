@@ -183,23 +183,10 @@ public class EnlightmentCenter extends Robot {
                     Flag ff = new Flag(data);
                     if (ff.getSchema() == Flag.LOCATION_SCHEMA) {
                         LocationFlag new_lf = new LocationFlag(data);
-                        int[] locs = new_lf.readLocation(); // location modulo 128
-                        // extract relative x and y s.t. both lie within the map
-                        int xRel = locs[0] - (myLocation.x & 127);
-                        if (xRel > 64) {
-                            xRel -= 128;
-                        } else if (xRel < -64) {
-                            xRel += 128;
-                        }
-                        int yRel = locs[1] - (myLocation.y & 127);
-                        if (yRel > 64) {
-                            yRel -= 128;
-                        } else if (yRel < -64) {
-                            yRel += 128;
-                        } 
-                        System.out.println("Adding ally " + i + " at RELATIVE location (" + xRel + ", " + yRel + ")");
-                        map.set(xRel, yRel, RelativeMap.ALLY_EC);
-                        MapLocation allyECLoc = map.getAbsoluteLocation(xRel, yRel);
+                        int[] locs = new_lf.readRelativeLocationFrom(myLocation); // relative locs
+                        System.out.println("Adding ally " + i + " at RELATIVE location (" + locs[0] + ", " + locs[1] + ")");
+                        map.set(locs[0], locs[1], RelativeMap.ALLY_EC);
+                        MapLocation allyECLoc = map.getAbsoluteLocation(locs[0], locs[1]);
                         System.out.println("Adding ally " + i + " at location " + allyECLoc.toString());
                         allyECLocs[i] = allyECLoc;
                         foundAllyECLocations.add(i);

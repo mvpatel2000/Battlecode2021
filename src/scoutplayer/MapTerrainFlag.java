@@ -4,6 +4,10 @@ import battlecode.common.*;
 
 // TODO: current implementation leaves 2 bits unused
 // TODO: consider setting PASSABILITY_BITS = 2 and rewriting encodePassability()
+
+/**
+ * Flag that scouts use to communicate map passabilities to ECs.
+ */
 public class MapTerrainFlag extends Flag {
 
     final static int PASSABILITY_BITS = 3;

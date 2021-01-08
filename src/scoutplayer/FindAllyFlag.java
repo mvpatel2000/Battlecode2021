@@ -1,5 +1,10 @@
 package scoutplayer;
 
+/**
+ * Flag that ECs use to broadcast a secret code to allies
+ * at the start of the game, and to verify the secret codes
+ * that they see from other robots.
+ */
 public class FindAllyFlag extends Flag {
 
     final int CODE_BITS = 21;
@@ -21,6 +26,6 @@ public class FindAllyFlag extends Flag {
     }
 
     public int readCode() {
-        return readFromFlag(3, CODE_BITS);
+        return readFromFlag(SCHEMA_BITS, CODE_BITS);
     }
 }

@@ -9,11 +9,18 @@ public class Flag {
     public final static int FLAG_BITS = 24;
     public final static int SCHEMA_BITS = 3;
 
+    /* 
+     * TODO: if we start running out of schema space, some of these schemas can
+     * be made to have the same value because they can only come from a specific
+     * unit type (e.g. SPAWN_UNIT_SCHEMA can only come from ECs, while MAP_TERRAIN_SCHEMA
+     * can only come from scouts, so it is safe to have them be the same value.)
+     */
     public static final int NO_SCHEMA = 0;
     public static final int EC_SCOUT_SCHEMA = 1;
     public static final int FIND_ALLY_SCHEMA = 2;
     public static final int MAP_TERRAIN_SCHEMA = 3;
     public static final int LOCATION_SCHEMA = 4;
+    public static final int SPAWN_UNIT_SCHEMA = 5;
 
     public Flag() {
         flag = 0;
