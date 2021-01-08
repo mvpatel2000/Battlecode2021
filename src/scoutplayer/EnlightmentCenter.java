@@ -62,7 +62,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (turnCount == 500) rc.resign(); // TODO: remove; just for debugging
+        if (turnCount == 100) rc.resign(); // TODO: remove; just for debugging
 
         if (st == null) { // no scout has been built yet
             if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
@@ -183,13 +183,19 @@ public class EnlightmentCenter extends Robot {
                     Flag ff = new Flag(data);
                     if (ff.getSchema() == Flag.LOCATION_SCHEMA) {
                         LocationFlag new_lf = new LocationFlag(data);
-                        int[] locs = new_lf.readLocation();
-                        System.out.println("Adding ally " + i + " at location (" + locs[0] + ", " + locs[1] + ")");
-                        allyECLocs[i] = new MapLocation(locs[0], locs[1]);
-                        int relX = ((locs[0] & 127) - (myLocation.x & 127) + 128) & 63;
-                        int relY = ((locs[1] & 127) - (myLocation.y & 127) + 128) & 63;
-                        System.out.println("Adding ally " + i + " at RELATIVE location (" + relX + ", " + relY + ")");
-                        map.set(relX, relY, RelativeMap.ALLY_EC);
+                        int[] locs = new_lf.readLocation(); // location modulo 128
+                        // extract relative x and y s.t. both lie within the map
+                        int xRel = locs[0] - (myLocation.x & 127);
+                        if (xRel > 64) xRel -= 128;
+                        else if (xRel < -64) xRel += 128;
+                        int yRel = locs[1] - (myLocation.y & 127);
+                        if (yRel > 64) yRel -= 128;
+                        else if (yRel < -64) yRel += 128;
+                        System.out.println("Adding ally " + i + " at RELATIVE location (" + xRel + ", " + yRel + ")");
+                        map.set(xRel, yRel, RelativeMap.ALLY_EC);
+                        MapLocation allyECLoc = map.getAbsoluteLocation(xRel, yRel);
+                        System.out.println("Adding ally " + i + " at location " + allyECLoc.toString());
+                        allyECLocs[i] = allyECLoc;
                         foundAllyECLocations.add(i);
                     }
                 }
