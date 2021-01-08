@@ -45,7 +45,11 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
+<<<<<<< HEAD
         if (turnCount == 500) rc.resign(); // TODO: remove; just for debugging
+=======
+        if (turnCount == 10) rc.resign(); // TODO: remove; just for debugging
+>>>>>>> b93c5842922ddf08a3a5d37b7e10fc9336d7fd05
 
         if (st == null) { // no scout has been built yet
             if (rc.canBuildRobot(RobotType.POLITICIAN, Direction.EAST, 1)) {
@@ -56,7 +60,9 @@ public class EnlightmentCenter extends Robot {
                 st = new ScoutTracker(rc, scoutID, spawnLoc, map);
             }
         } else {
+            System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
             st.update(); // check on existing scout
+            System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         }
 
         RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;

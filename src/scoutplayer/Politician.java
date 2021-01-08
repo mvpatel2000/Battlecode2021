@@ -40,7 +40,7 @@ public class Politician extends Unit {
             if (mtq.isEmpty()) break;
             MapTerrain terrain = mtq.pop();
             mtf.addPassability(terrain.pa);
-            System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
+            // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
         rc.setFlag(mtf.getFlag());
     }
