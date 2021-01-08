@@ -6,8 +6,10 @@ public abstract class Robot {
 
     RobotController rc;
     int turnCount = 0;
+    int myID;
     Team allyTeam;
     Team enemyTeam;
+    MapLocation myLocation;
 
     static final Direction[] directions = {
         Direction.NORTH,
@@ -36,6 +38,8 @@ public abstract class Robot {
         rc = robotController;
         allyTeam = rc.getTeam();
         enemyTeam = allyTeam.opponent();
+        myID = rc.getID();
+        myLocation = rc.getLocation();
     }
 
     public void run() throws GameActionException {

@@ -13,6 +13,7 @@ public class Flag {
     public static final int EC_SCOUT_SCHEMA = 1;
     public static final int FIND_ALLY_SCHEMA = 2;
     public static final int MAP_TERRAIN_SCHEMA = 3;
+    public static final int LOCATION_SCHEMA = 4;
 
     public Flag() {
         flag = 0;

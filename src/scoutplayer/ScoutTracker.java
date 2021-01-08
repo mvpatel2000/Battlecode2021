@@ -4,7 +4,7 @@ import battlecode.common.*;
 
 // TODO: account for edges of map
 public class ScoutTracker {
- 
+
     int scoutID;
     MapLocation scoutLoc;
     RelativeMap map;
@@ -40,7 +40,7 @@ public class ScoutTracker {
                 if (mtq.isEmpty()) break;
                 MapLocation loc = mtq.pop().loc;
                 double pa = mtf.getPassability(i);
-                System.out.println("I hear there's passability " + pa + " at " + loc.toString());
+                // System.out.println("I hear there's passability " + pa + " at " + loc.toString());
                 map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
                 rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);
             }
