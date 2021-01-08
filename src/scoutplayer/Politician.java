@@ -84,14 +84,14 @@ public class Politician extends Unit {
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo
-                int d1 = currLocation.distanceSquaredTo(r1.location);
-                int d2 = currLocation.distanceSquaredTo(r2.location);
+                int d1 = myLocation.distanceSquaredTo(r1.location);
+                int d2 = myLocation.distanceSquaredTo(r2.location);
                 return d1 - d2;
             }
         });
         int[] distanceSquareds = new int[nearbyRobots.length];
         for (int i = 0; i < nearbyRobots.length; i++) {
-            distanceSquareds[i] = currLocation.distanceSquaredTo(nearbyRobots[i].location);
+            distanceSquareds[i] = myLocation.distanceSquaredTo(nearbyRobots[i].location);
         }
         int optimalNumEnemiesKilled = 0;
         int optimalDist = -1;

@@ -9,6 +9,7 @@ public abstract class Robot {
     int myID;
     Team allyTeam;
     Team enemyTeam;
+    MapLocation startLocation;
     MapLocation myLocation;
 
     static final Direction[] directions = {
@@ -39,7 +40,8 @@ public abstract class Robot {
         allyTeam = rc.getTeam();
         enemyTeam = allyTeam.opponent();
         myID = rc.getID();
-        myLocation = rc.getLocation();
+        startLocation = rc.getLocation();
+        myLocation = startLocation;
     }
 
     public void run() throws GameActionException {

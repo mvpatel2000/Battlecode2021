@@ -12,12 +12,11 @@ public abstract class Unit extends Robot {
     RobotInfo[] nearbyEnemies;
     RobotInfo[] nearbyRobots;
     Direction moveThisTurn;
-    MapLocation currLocation;
 
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
-        currLocation = rc.getLocation();
+        myLocation = rc.getLocation();
         // Add base information. If no base is found, baseID will be 0.
         baseID = 0;
         RobotInfo[] adjacentRobots = rc.senseNearbyRobots(2, allyTeam);
@@ -65,7 +64,7 @@ public abstract class Unit extends Robot {
     void move(Direction dir) throws GameActionException {
         rc.move(dir);
         moveThisTurn = dir;
-        currLocation = currLocation.add(dir);
+        myLocation = myLocation.add(dir);
     }
 
     /*

@@ -35,7 +35,7 @@ public class Slanderer extends Unit {
             RobotInfo nearestMuckraker = null;
             int nearestMuckrakerDistSquared = 100;
             for (RobotInfo robot : nearbyEnemies) {
-                int robotDistSquared = currLocation.distanceSquaredTo(robot.location);
+                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
                 if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
                     nearestMuckraker = robot;
                     nearestMuckrakerDistSquared = robotDistSquared;
@@ -43,7 +43,7 @@ public class Slanderer extends Unit {
             }
             if (nearestMuckraker != null) {
                 // Flee from nearest Muckraker.
-                MapLocation fleeLocation = currLocation.add(currLocation.directionTo(nearestMuckraker.location).opposite());
+                MapLocation fleeLocation = myLocation.add(myLocation.directionTo(nearestMuckraker.location).opposite());
                 fuzzyMove(fleeLocation);
             } else {
                 // Continue towards destination

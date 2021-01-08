@@ -23,7 +23,7 @@ public class Muckraker extends Unit {
             RobotInfo nearestSlanderer = null;
             int nearestSlandererDistSquared = 100;
             for (RobotInfo robot : nearbyEnemies) {
-                int robotDistSquared = currLocation.distanceSquaredTo(robot.location);
+                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
                 if (robot.type == RobotType.SLANDERER && robotDistSquared < nearestSlandererDistSquared) {
                     nearestSlanderer = robot;
                     nearestSlandererDistSquared = robotDistSquared;
