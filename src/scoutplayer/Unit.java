@@ -20,6 +20,13 @@ public abstract class Unit extends Robot {
         currLocation = rc.getLocation();
         // Add base information. If no base is found, baseID will be 0.
         baseID = 0;
+        RobotInfo[] adjacentRobots = rc.senseNearbyRobots(2, allyTeam);
+        for (RobotInfo robot : adjacentRobots) {
+            if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                baseLocation = robot.location;
+                baseID = robot.ID;
+            }
+        }
         parseVision();
     }
 
