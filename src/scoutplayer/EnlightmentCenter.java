@@ -111,7 +111,7 @@ public class EnlightmentCenter extends Robot {
      * TODO: figure out direction to send scout in.
      */
     void spawnOrUpdateScout() throws GameActionException {
-        if (turnCount < 10) return;
+        if (turnCount < STOP_SENDING_LOCATION_ROUND) return;
         if (st == null) { // no scout has been spawned yet
             if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
                 st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?

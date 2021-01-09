@@ -40,7 +40,7 @@ public class MapTerrainQueue {
      * to know the locations and the order they pop off in.)
      */
     public void step(RobotController rc, Direction di, MapLocation currentLoc) throws GameActionException {
-        System.out.println("MapTerrainQueue stepping, lastMove was " + di.toString());
+        // System.out.println("MapTerrainQueue stepping, lastMove was " + di.toString());
         // Call the function specific to the unit; for now, it is Politician
         int[][] newTiles = Politician.newSensedLocationsRelative(di);
         int idx = start + size;

@@ -30,9 +30,6 @@ public abstract class Unit extends Robot {
             if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (rc.canGetFlag(robot.ID)) {
                     SpawnUnitFlag suf = new SpawnUnitFlag(rc.getFlag(robot.ID));
-                    System.out.println("DEETS");
-                    System.out.println(suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA);
-                    System.out.println(suf.readID());
                     if (suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA && suf.readID() == rc.getID()) {
                         System.out.println("Not spawned silently");
                         spawnedSilently = false;
@@ -70,7 +67,7 @@ public abstract class Unit extends Robot {
         }
         if (turnCount == 2) { // expect SpawnDestinationFlag
             if (!rc.canGetFlag(baseID)) {
-                System.out.println("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
+                System.out.println("MAJOR ERROR: I was expecting a flag from the EC, but can't see one!");
                 return false;
             }
             SpawnDestinationFlag sdf = new SpawnDestinationFlag(rc.getFlag(baseID));

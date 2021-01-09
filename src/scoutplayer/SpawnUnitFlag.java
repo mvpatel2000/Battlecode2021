@@ -38,7 +38,7 @@ public class SpawnUnitFlag extends Flag {
         setSchema(SPAWN_UNIT_SCHEMA);
         writeUnitType(type);
         writeSpawnDir(spawnDir);
-        System.out.println(writeID(id));
+        writeID(id);
     }
 
     /**

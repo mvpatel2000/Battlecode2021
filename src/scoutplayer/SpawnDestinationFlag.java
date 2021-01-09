@@ -8,34 +8,38 @@ public class SpawnDestinationFlag extends LocationFlag {
      * - flag schema (SCHEMA_BITS)
      * - x coordinate mod 128 (COORD_BITS)
      * - y coordinate mod 128 (COORD_BITS)
-     * - instruction schema (INSTRUCTION_SCHEMA_BITS)
+     * - instruction schema (INSTRUCTION_BITS)
      * 
      * Total bits used: 3 + 7 + 7 + 3 = 20.
      */
     
-    final int INSTRUCTION_SCHEMA_BITS = 3;
+    final int INSTRUCTION_BITS = 3;
 
     public static final int INSTR_SCOUT = 0;
     public static final int INSTR_ATTACK = 1;
 
     public SpawnDestinationFlag() {
-        super();
+        super(true); // call the LocationFlag constructor that doesn't set the schema
+        System.out.println(writtenTo);
+        setSchema(SPAWN_DESTINATION_SCHEMA);
     }
 
     public SpawnDestinationFlag(MapLocation loc, int instrSchema) {
-        super(loc);
-        writeInstructionSchema(instrSchema);
+        super(true); // call the LocationFlag constructor that doesn't set the schema
+        setSchema(SPAWN_DESTINATION_SCHEMA);
+        writeLocation(loc);
+        writeInstruction(instrSchema);
     }
 
     public SpawnDestinationFlag(int received) {
         super(received);
     }
 
-    public boolean writeInstructionSchema(int instrSchema) {
-        return writeToFlag(instrSchema, INSTRUCTION_SCHEMA_BITS);
+    public boolean writeInstruction(int instrSchema) {
+        return writeToFlag(instrSchema, INSTRUCTION_BITS);
     }
 
-    public int readInstructionSchema() {
-        return readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS, INSTRUCTION_SCHEMA_BITS);
+    public int readInstruction() {
+        return readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS, INSTRUCTION_BITS);
     }
 }

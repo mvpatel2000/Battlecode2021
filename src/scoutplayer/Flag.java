@@ -68,13 +68,7 @@ public class Flag {
             return false;
         }
         int bitm = bitmask2(writtenTo, writtenTo + numBits, false);
-        System.out.println("-----");
-        System.out.println(writtenTo);
-        System.out.println(numBits);
-        System.out.println(value);
         value = value << (32 - writtenTo - numBits);
-        System.out.println(value);
-        System.out.println(bitm);
         flag &= bitm;
         flag |= value;
         writtenTo += numBits;

@@ -24,6 +24,10 @@ public class LocationFlag extends Flag {
         super();
         setSchema(LOCATION_SCHEMA);
     }
+
+    public LocationFlag(boolean withoutSchema) {
+        super();
+    }
     
     public LocationFlag(MapLocation loc) {
         super();
