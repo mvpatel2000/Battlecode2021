@@ -2,13 +2,16 @@ package scoutplayer;
 
 import battlecode.common.*;
 
+/**
+ * Flag used by ECs to communicate destinations to newly spawned units.
+ */
 public class SpawnDestinationFlag extends LocationFlag {
     /**
      * Flag breakdown:
      * - flag schema (SCHEMA_BITS)
      * - x coordinate mod 128 (COORD_BITS)
      * - y coordinate mod 128 (COORD_BITS)
-     * - instruction schema (INSTRUCTION_BITS)
+     * - instruction (INSTRUCTION_BITS)
      * 
      * Total bits used: 3 + 7 + 7 + 3 = 20.
      */
@@ -20,7 +23,6 @@ public class SpawnDestinationFlag extends LocationFlag {
 
     public SpawnDestinationFlag() {
         super(true); // call the LocationFlag constructor that doesn't set the schema
-        System.out.println(writtenTo);
         setSchema(SPAWN_DESTINATION_SCHEMA);
     }
 
