@@ -48,7 +48,7 @@ public class MapTerrainFlag extends Flag {
     }
 
     public boolean writeLastMove(Direction lm) {
-        return writeToFlag(Robot.directionToInt(lm), LAST_MOVE_BITS);
+        return writeLastMove(Robot.directionToInt(lm));
     }
 
     public boolean isFull() {
