@@ -27,7 +27,7 @@ public class SpawnUnitFlag extends Flag {
     
     public SpawnUnitFlag() {
         super();
-        setSchema(Flag.SPAWN_UNIT_SCHEMA);
+        setSchema(SPAWN_UNIT_SCHEMA);
     }
 
     /**
@@ -35,18 +35,18 @@ public class SpawnUnitFlag extends Flag {
      */
     public SpawnUnitFlag(RobotType type, Direction spawnDir, int id) {
         super();
-        setSchema(Flag.SPAWN_UNIT_SCHEMA);
+        setSchema(SPAWN_UNIT_SCHEMA);
         writeUnitType(type);
         writeSpawnDir(spawnDir);
-        writeID(id);
+        System.out.println(writeID(id));
     }
 
     /**
      * Use this constructor if you are reading a flag and
      * you already know it is a SpawnUnitFlag.
      */
-    public SpawnUnitFlag(int flag) {
-        super(flag);
+    public SpawnUnitFlag(int received) {
+        super(received);
     }
 
     public boolean writeUnitType(RobotType type) {
@@ -79,7 +79,7 @@ public class SpawnUnitFlag extends Flag {
         return writeToFlag(Robot.directionToInt(di), SPAWN_DIR_BITS);
     }
 
-    public Direction readSpawnDir(Direction di) {
+    public Direction readSpawnDir() {
         return Robot.directions[readFromFlag(SCHEMA_BITS + UNIT_TYPE_BITS, SPAWN_DIR_BITS)];
     }
 

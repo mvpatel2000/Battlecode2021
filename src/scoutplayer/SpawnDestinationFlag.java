@@ -16,7 +16,7 @@ public class SpawnDestinationFlag extends LocationFlag {
     final int INSTRUCTION_SCHEMA_BITS = 3;
 
     public static final int INSTR_SCOUT = 0;
-    public static final int INSTR_ATTACK = 0;
+    public static final int INSTR_ATTACK = 1;
 
     public SpawnDestinationFlag() {
         super();
@@ -27,8 +27,8 @@ public class SpawnDestinationFlag extends LocationFlag {
         writeInstructionSchema(instrSchema);
     }
 
-    public SpawnDestinationFlag(int flag) {
-        super(flag);
+    public SpawnDestinationFlag(int received) {
+        super(received);
     }
 
     public boolean writeInstructionSchema(int instrSchema) {

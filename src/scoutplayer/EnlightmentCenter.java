@@ -27,6 +27,7 @@ public class EnlightmentCenter extends Robot {
     // at the earliest available flag slot.
     SpawnUnitFlag latestSpawnFlag;
     LocationFlag latestSpawnDestinationFlag;
+    int latestSpawnRound;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -53,14 +54,15 @@ public class EnlightmentCenter extends Robot {
         searchBounds = new int[]{10000, 11072, 12584, 14096};
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
-        initialLof = new LocationFlag();
-        initialLof.writeLocation(myLocation);
+        initialLof = new LocationFlag(myLocation);
         firstRoundIDsToConsider = new ArrayList<Integer>();
         // Note: rc.getRobotCount() returns number of ally units on map. If there's another EC,
         // it might spawn a unit, which would increase this. We would then overestimate the
         // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
         // early termination method that sometimes helps.
         allyECsUpperBound = Math.min(3, rc.getRobotCount() - 1);
+
+        latestSpawnRound = -1;
     }
 
     @Override
@@ -77,16 +79,29 @@ public class EnlightmentCenter extends Robot {
         } else if (currentRound >= searchBounds.length && currentRound <= STOP_SENDING_LOCATION_ROUND) {
             setInitialLocationFlag();
         }
+        setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
         spawnOrUpdateScout();
         spawnAttacker();
-        setSpawnOrDirectionFlag();
     }
 
     /**
-     * TODO
+     * Set the robot's flag to a SpawnUnitFlag on the same round as spawning
+     * a new unit, or a SpawnDestinationFlag on the subsequent round.
      */
     void setSpawnOrDirectionFlag() throws GameActionException {
-
+        if (latestSpawnRound > 0 && currentRound == latestSpawnRound + 1) {
+            if (flagSetThisRound) { // TODO: delete, for debugging
+                System.out.println("MAJOR ERROR: Trying to send multiple flags in one round!");
+            }
+            System.out.println("Setting SpawnUnitFlag: " + latestSpawnFlag.flag);
+            setFlag(latestSpawnFlag.flag);
+        } else if (latestSpawnRound > 0 && currentRound == latestSpawnRound + 2) {
+            if (flagSetThisRound) { // TODO: delete, for debugging
+                System.out.println("MAJOR ERROR: Trying to send multiple flags in one round!");
+            }
+            System.out.println("Setting SpawnDestinationFlag: " + latestSpawnDestinationFlag.flag);
+            setFlag(latestSpawnDestinationFlag.flag);
+        }
     }
 
     /**
@@ -96,6 +111,7 @@ public class EnlightmentCenter extends Robot {
      * TODO: figure out direction to send scout in.
      */
     void spawnOrUpdateScout() throws GameActionException {
+        if (turnCount < 10) return;
         if (st == null) { // no scout has been spawned yet
             if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
                 st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?
@@ -107,14 +123,51 @@ public class EnlightmentCenter extends Robot {
         }
     }
 
-    void spawnAttacker() throws GameActionException {
-        RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-        int influence = allyTeam == Team.A ? 1 : 50;
-        for (Direction dir : directions) {
-            spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK);
-        }
+    boolean spawnAttacker() throws GameActionException {
+        // if (rc.isReady()) {
+        //     RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
+        //     int influence = allyTeam == Team.A ? 1 : 50;
+        //     if (rc.getInfluence() < influence) {
+        //         return false;
+        //     }
+        //     for (Direction dir : directions) {
+        //         if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
+        //             return true;
+        //         }
+        //     }
+        // }
+        return false;
     }
     
+    /**
+     * Spawn a robot and prepare its SpawnUnitFlag and the LocationFlag
+     * telling it where its destination will be. These flags will not
+     * actually be set by the EC here; that happens in another function,
+     * setSpawnOrDirectionFlag().
+     * @param type Type of the robot to build.
+     * @param direction Direction to build the robot in.
+     * @param influence Influence to allocate to the new robot.
+     * @param destination Destination of the new robot.
+     * @param silent Whether to suppress spawn flags.
+     * @return Whether the robot was successfully spawned.
+     * @throws GameActionException
+     */
+    boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean silent) throws GameActionException {
+        if (!rc.canBuildRobot(type, direction, influence)) {
+            return false;
+        }
+        rc.buildRobot(type, direction, influence);
+        MapLocation spawnLoc = myLocation.add(Direction.EAST);
+        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
+        if (!silent) {
+            int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
+            latestSpawnRound = currentRound;
+            latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
+            latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
+        }
+        return true;
+    }
+
     /**
      * Spawn a robot and prepare its SpawnUnitFlag and the LocationFlag
      * telling it where its destination will be. These flags will not
@@ -128,16 +181,7 @@ public class EnlightmentCenter extends Robot {
      * @throws GameActionException
      */
     boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
-        if (!rc.canBuildRobot(type, direction, influence)) {
-            return false;
-        }
-        rc.buildRobot(type, direction, influence);
-        MapLocation spawnLoc = myLocation.add(Direction.EAST);
-        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
-        int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
-        latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
-        latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
-        return true;
+        return spawnRobot(type, direction, influence, destination, instruction, false);
     }
 
     /**
@@ -434,6 +478,7 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
+     * TODO: update this comment?
      * After completing initialFlagsAndAllies, this should run on the next round (currently 5)
      * until round STOP_SENDING_LOCATION_ROUND.
      * We tell our other ECs our location and check for their flags saying the same.

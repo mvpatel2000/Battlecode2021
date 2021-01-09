@@ -13,13 +13,36 @@ public abstract class Unit extends Robot {
     RobotInfo[] nearbyRobots;
     Direction moveThisTurn;
 
+    MapLocation destination;
+    boolean spawnedSilently;
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
-        myLocation = rc.getLocation();
         // Add base information. If no base is found, baseID will be 0.
+        // If spawned silently, then baseLocation will be any base that
+        // is adjacent to the unit when it spawns, and is not necessarily
+        // specifically the one that spawned it.
         baseID = 0;
+        spawnedSilently = true;
         RobotInfo[] adjacentRobots = rc.senseNearbyRobots(2, allyTeam);
+        for (RobotInfo robot : adjacentRobots) {
+            if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                if (rc.canGetFlag(robot.ID)) {
+                    SpawnUnitFlag suf = new SpawnUnitFlag(rc.getFlag(robot.ID));
+                    System.out.println("DEETS");
+                    System.out.println(suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA);
+                    System.out.println(suf.readID());
+                    if (suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA && suf.readID() == rc.getID()) {
+                        System.out.println("Not spawned silently");
+                        spawnedSilently = false;
+                        baseLocation = robot.location;
+                        baseID = robot.ID;
+                    }
+                }
+            }
+        }
+        // Second pass if unit determines it was spawned silently
         for (RobotInfo robot : adjacentRobots) {
             if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                 baseLocation = robot.location;
@@ -32,7 +55,34 @@ public abstract class Unit extends Robot {
     public void run() throws GameActionException {
         super.run();
         moveThisTurn = Direction.CENTER;
+        myLocation = rc.getLocation();
         parseVision();
+        readECInstructions();
+    }
+
+    /**
+     * Read my destination from the EC that spawned me the turn
+     * after I was spawned.
+     */
+    public boolean readECInstructions() throws GameActionException {
+        if (spawnedSilently) {
+            return false;
+        }
+        if (turnCount == 2) { // expect SpawnDestinationFlag
+            if (!rc.canGetFlag(baseID)) {
+                System.out.println("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
+                return false;
+            }
+            SpawnDestinationFlag sdf = new SpawnDestinationFlag(rc.getFlag(baseID));
+            if (sdf.getSchema() != Flag.SPAWN_DESTINATION_SCHEMA) {
+                System.out.println("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
+                return false;
+            }
+            destination = sdf.readAbsoluteLocation(myLocation);
+            System.out.println("I have my destination: " + destination.toString());
+            return true;
+        }
+        return false;
     }
 
     public void parseVision() throws GameActionException {

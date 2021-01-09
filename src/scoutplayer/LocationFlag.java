@@ -4,6 +4,9 @@ import battlecode.common.*;
 
 /**
  * Flag that any robot can use to send or receive locations.
+ * 
+ * To add extra information in addition to a location, extend
+ * this class (see SpawnDestinationFlag as an example).
  */
 public class LocationFlag extends Flag {
     /**
@@ -30,7 +33,7 @@ public class LocationFlag extends Flag {
 
     /**
      * Call this when you know the int you just received
-     * represents a FindAllyFlag.
+     * represents a LocationFlag.
      */
     public LocationFlag(int received) {
         super(received);
@@ -42,14 +45,14 @@ public class LocationFlag extends Flag {
      * @return Whether the write was successful.
      */
     public boolean writeLocation(MapLocation loc) {
-        return writeToFlag(loc.x, COORD_BITS) && writeToFlag(loc.y, COORD_BITS);
+        return writeToFlag(loc.x & 127, COORD_BITS) && writeToFlag(loc.y & 127, COORD_BITS);
     }
 
     /**
      * Write the mod 128 version of your x-coordinate, y-coordinate
      */
     public boolean writeLocation(int x, int y) {
-        return writeToFlag(x, COORD_BITS) && writeToFlag(y, COORD_BITS);
+        return writeToFlag(x & 127, COORD_BITS) && writeToFlag(y & 127, COORD_BITS);
     }
 
     /**
