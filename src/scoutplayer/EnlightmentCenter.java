@@ -7,21 +7,23 @@ import java.util.HashSet;
 
 public class EnlightmentCenter extends Robot {
     // EC to EC communication
-    boolean foundAllyECs;
+    boolean scannedAllIDs;
     int searchRound;
-    int numAllyECs;
-    int allyECsUpperBound;
-    int[] allyECIds;
-    MapLocation[] allyECLocs; // absolute locations
+    int numPotentialAllyECs;
+    int[] potentialAllyECIDs;
+    MapLocation[] potentialAllyECLocs; // absolute locations
+
+    int numVerifiedAllyECs;
+    int[] verifiedAllyECIDs;
+    MapLocation[] verifiedAllyECLocs;
+
     Set<Integer> foundAllyECLocations;
-    FindAllyFlag initialFaf;    // initial flags used to communicate that I exist
-    LocationFlag initialLof;    // and my location to ally ECs.
+    FindAllyFlag initialFaf;    // initial flags used to communicate my existence and location
     int[] searchBounds;
     ArrayList<Integer> firstRoundIDsToConsider;
     // Change these two numbers before uploading to competition
     final int CRYPTO_KEY = 92747502; // A random large number
-    final int MODULUS = 1453481; // A random number strictly smaller than CRYPTO KEY and 2^21 = 2,097,152
-    final int STOP_SENDING_LOCATION_ROUND = 5;
+    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -44,23 +46,22 @@ public class EnlightmentCenter extends Robot {
         st = null; // ScoutTracker
 
         // Initialize EC to EC communication variables
-        foundAllyECs = false;
+        scannedAllIDs = false;
         searchRound = 0;
-        numAllyECs = 0;
-        allyECIds = new int[]{0, 0};
-        allyECLocs = new MapLocation[2];
+        numPotentialAllyECs = 0;
+        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};
+        potentialAllyECLocs = new MapLocation[5];
+        numVerifiedAllyECs = 0;
+        verifiedAllyECIDs = new int[]{0, 0};
+        verifiedAllyECLocs = new MapLocation[2];
+
         foundAllyECLocations = new HashSet<Integer>();
         // Underweight the first turn of searching since we initialize arrays on that turn.
         searchBounds = new int[]{10000, 11072, 12584, 14096};
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
-        initialLof = new LocationFlag(myLocation);
+        initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
         firstRoundIDsToConsider = new ArrayList<Integer>();
-        // Note: rc.getRobotCount() returns number of ally units on map. If there's another EC,
-        // it might spawn a unit, which would increase this. We would then overestimate the
-        // number of ECs, leading us to scan all ranges. This is OK -- we only use this as an
-        // early termination method that sometimes helps.
-        allyECsUpperBound = Math.min(3, rc.getRobotCount() - 1);
 
         latestSpawnRound = -1;
     }
@@ -74,13 +75,15 @@ public class EnlightmentCenter extends Robot {
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
         // This function will return with ~2700 bytecode left for rounds 1 - 3.
+        // TODO: Come up with initialization scheme for neutral ECs we take over.
         if (currentRound < searchBounds.length) {
             initialFlagsAndAllies();
-        } else if (currentRound >= searchBounds.length && currentRound <= STOP_SENDING_LOCATION_ROUND) {
-            setInitialLocationFlag();
         }
+
         setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
-        spawnOrUpdateScout();
+        if (turnCount > searchBounds.length) {
+            spawnOrUpdateScout();
+        }
         spawnAttacker();
     }
 
@@ -107,11 +110,10 @@ public class EnlightmentCenter extends Robot {
     /**
      * If no scout has been made, spawn a scout. Otherwise, run the
      * ScoutTracker update loop.
-     * 
+     *
      * TODO: figure out direction to send scout in.
      */
     void spawnOrUpdateScout() throws GameActionException {
-        if (turnCount < STOP_SENDING_LOCATION_ROUND) return;
         if (st == null) { // no scout has been spawned yet
             if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
                 st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?
@@ -138,7 +140,7 @@ public class EnlightmentCenter extends Robot {
         // }
         return false;
     }
-    
+
     /**
      * Spawn a robot and prepare its SpawnUnitFlag and the LocationFlag
      * telling it where its destination will be. These flags will not
@@ -208,317 +210,375 @@ public class EnlightmentCenter extends Robot {
         // Check first turn IDs for which we could get flag, then clear ArrayList
         if (currentRound == 2 && firstRoundIDsToConsider.size() > 0) {
             for (int i : firstRoundIDsToConsider) {
-                // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                // Please do not copy such bad style, the objects are there for a reason.
-                if (generateSecretCode(i) == (rc.getFlag(i) << 11) >>> 11) {
-                    allyECIds[numAllyECs] = i;
-                    numAllyECs += 1;
-                    System.out.println("Found an ally! ID: " + i + ". I now have: " + numAllyECs + " allies.");
+                FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(i));
+                // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                if (generateSecretCode(i) == newFaf.readCode())  {
+                    // add RobotID to potentialAlly list and decoded location to map.
+                    potentialAllyECIDs[numPotentialAllyECs] = i;
+                    numPotentialAllyECs += 1;
+                    int[] moduloLocs = newFaf.readLocation();
+                    int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                    map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                    MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                    System.out.println("Found a POTENTIAL ally! ID: " + i + ". I now have: " + numPotentialAllyECs + " allies.");
+                    System.out.println("Adding POTENTIAL ally " + i + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                 }
             }
             firstRoundIDsToConsider.clear();
         }
 
         // Continue scanning for friendly ECs
-        if (!foundAllyECs) {
+        if (!scannedAllIDs) {
             int startPoint = searchBounds[searchRound];
             int endPoint = searchBounds[searchRound+1];
             System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             // We partially unroll this loop to optimize bytecode. Without unrolling, we get 14.1
-            // bytecode per iteration, and with unrolling it's 12.2. This let's us do scanning in 3 turns.
+            // bytecode per iteration, and with unrolling it's 12.2. This lets us do scanning in 3 turns.
             for (int i=startPoint; i<endPoint; i+=16) {
                 if (rc.canGetFlag(i)) {
-                    if (myID == i) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
-                        firstRoundIDsToConsider.add(i);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(i) == (rc.getFlag(i) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = i;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + i + ". I now have: " + numAllyECs + " allies.");
+                    int j=i;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(i) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
                     }
                 }
                 if (rc.canGetFlag(i+1)) {
                     int j = i+1;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(i) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+2)) {
                     int j = i+2;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+3)) {
                     int j = i+3;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+4)) {
                     int j = i+4;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+5)) {
                     int j = i+5;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+6)) {
                     int j = i+6;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+7)) {
                     int j = i+7;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+8)) {
                     int j = i+8;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+9)) {
                     int j = i+9;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+10)) {
                     int j = i+10;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+11)) {
                     int j = i+11;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+12)) {
                     int j = i+12;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+13)) {
                     int j = i+13;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+14)) {
                     int j = i+14;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
                 if (rc.canGetFlag(i+15)) {
                     int j = i+15;
                     if (myID == j) { continue; }
-                    // First turn, not guarenteed that flag is set. Add to list to track later
-                    else if (currentRound == 1) {
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        potentialAllyECIDs[numPotentialAllyECs] = j;
+                        numPotentialAllyECs += 1;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
                         firstRoundIDsToConsider.add(j);
-                    }
-                    // hack to isolate 21-bit code of a FindAllyFlag without the expensive cost of initializing an object.
-                    // Please do not copy such bad style, the objects are there for a reason.
-                    else if (generateSecretCode(j) == (rc.getFlag(j) << 11) >>> 11) {
-                        allyECIds[numAllyECs] = j;
-                        numAllyECs += 1;
-                        System.out.println("Found an ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                     }
                 }
             }
             System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             searchRound += 1;
             if (searchRound == searchBounds.length-1) {
-                foundAllyECs = true;
+                scannedAllIDs = true;
                 System.out.println("Done finding allies.");
             }
             return;
-        }
-    }
-
-    /**
-     * TODO: update this comment?
-     * After completing initialFlagsAndAllies, this should run on the next round (currently 5)
-     * until round STOP_SENDING_LOCATION_ROUND.
-     * We tell our other ECs our location and check for their flags saying the same.
-     */
-    void setInitialLocationFlag() throws GameActionException {
-        // exist multiple allies, and all locations not found
-        if (numAllyECs > 0 && foundAllyECLocations.size() != numAllyECs) {
-            if (rc.canSetFlag(initialLof.flag)) {
-                System.out.println("Setting location flag to: " + initialLof.flag);
-                setFlag(initialLof.flag);
-            } else {
-                System.out.println("MAJOR ERROR: LocationFlag IS LIKELY WRONG: " + initialLof.flag);
-            }
-            // Give 1 turn for setting location flags.
-            if (searchRound < searchBounds.length) {
-                searchRound++;
-                return;
-            }
-            // loop through the list of Ally EC ID's found in initialFlagsAndAllies
-            // and check if they are displaying LocationFlags. If so, read and parse the data
-            // and add it to the RelativeMap.
-            for (int i=0; i<numAllyECs; i++) {
-                if(rc.canGetFlag(allyECIds[i])) {
-                    if (foundAllyECLocations.contains(i)) {
-                        continue;
-                    }
-                    int data = rc.getFlag(allyECIds[i]);
-                    Flag ff = new Flag(data);
-                    if (ff.getSchema() == Flag.LOCATION_SCHEMA) {
-                        LocationFlag new_lf = new LocationFlag(data);
-                        int[] locs = new_lf.readRelativeLocationFrom(myLocation); // relative locs
-                        System.out.println("Adding ally " + i + " at RELATIVE location (" + locs[0] + ", " + locs[1] + ")");
-                        map.set(locs[0], locs[1], RelativeMap.ALLY_EC);
-                        MapLocation allyECLoc = map.getAbsoluteLocation(locs[0], locs[1]);
-                        System.out.println("Adding ally " + i + " at location " + allyECLoc.toString());
-                        allyECLocs[i] = allyECLoc;
-                        foundAllyECLocations.add(i);
-                    }
-                }
-            }
         }
     }
 

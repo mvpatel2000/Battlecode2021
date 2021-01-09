@@ -60,15 +60,34 @@ public abstract class Robot {
         flagSetThisRound = true;
     }
 
+    public int[] getRelativeLocFromModuloLoc(int xMod, int yMod, MapLocation thisLoc) {
+        int xRel = xMod - (thisLoc.x & 127);
+        if (xRel > 64) {
+            xRel -= 128;
+        } else if (xRel < -64) {
+            xRel += 128;
+        }
+        int yRel = yMod - (thisLoc.y & 127);
+        if (yRel > 64) {
+            yRel -= 128;
+        } else if (yRel < -64) {
+            yRel += 128;
+        }
+        return new int[]{ xRel, yRel };
+    }
+
     /**
      * Converts Team enum to number.
      * 0 for Team A, 1 for team B.
      */
     public int getTeamNum(Team t) {
-        if (t == Team.A) {
-            return 0;
-        } else {
-            return 1;
+        switch (t) {
+            case A:
+                return 0;
+            case B:
+                return 1;
+            default:
+                return -1;
         }
     }
     /**
