@@ -4,14 +4,24 @@ import battlecode.common.*;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashSet;
+import static scoutplayer.UnitUpdate.*;
 
 public class EnlightmentCenter extends Robot {
     // Symmetries - horizontal, vertical, rotational, true until ruled out.
     boolean[] symmetries;
 
-    // EC to EC communication
+    // Initial EC to EC communication
     boolean scannedAllIDs;
     int searchRound;
+    Set<Integer> foundAllyECLocations;
+    FindAllyFlag initialFaf;    // initial flag used to communicate my existence and location
+    int[] searchBounds;
+    ArrayList<Integer> firstRoundIDsToConsider;
+    // Generate Secret Code. Change these two numbers before uploading to competition
+    final int CRYPTO_KEY = 92747502; // A random large number
+    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
+
+    // Ally ECs: Unverified and verified.
     int numPotentialAllyECs;
     int[] potentialAllyECIDs;
     MapLocation[] potentialAllyECLocs; // absolute locations
@@ -20,13 +30,14 @@ public class EnlightmentCenter extends Robot {
     int[] verifiedAllyECIDs;
     MapLocation[] verifiedAllyECLocs;
 
-    Set<Integer> foundAllyECLocations;
-    FindAllyFlag initialFaf;    // initial flags used to communicate my existence and location
-    int[] searchBounds;
-    ArrayList<Integer> firstRoundIDsToConsider;
-    // Change these two numbers before uploading to competition
-    final int CRYPTO_KEY = 92747502; // A random large number
-    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
+    // Environment and enemy
+    int numFoundEnemyECs;
+    int[] enemyECIDs;
+    MapLocation[] enemyECLocs;
+
+    int numFoundNeutralECs;
+    int[] neutralECIDs;
+    MapLocation[] neutralECLocs;
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -59,19 +70,25 @@ public class EnlightmentCenter extends Robot {
         scannedAllIDs = false;
         searchRound = 0;
         numPotentialAllyECs = 0;
-        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};
+        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
         potentialAllyECLocs = new MapLocation[5];
         numVerifiedAllyECs = 0;
         verifiedAllyECIDs = new int[]{0, 0};
         verifiedAllyECLocs = new MapLocation[2];
-
         foundAllyECLocations = new HashSet<Integer>();
-        // Underweight the first turn of searching since we initialize arrays on that turn.
-        searchBounds = new int[]{10000, 11072, 12584, 14096};
+        searchBounds = new int[]{10000, 11072, 12584, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
         firstRoundIDsToConsider = new ArrayList<Integer>();
+
+        // Initialize environment and enemy tracking variables
+        numFoundEnemyECs = 0;
+        enemyECIDs = new int[]{0, 0, 0};
+        enemyECLocs = new MapLocation[3];
+        numFoundNeutralECs = 0;
+        neutralECIDs = new int[]{0, 0, 0, 0, 0, 0};
+        neutralECLocs = new MapLocation[6];
 
         latestSpawnRound = -1;
 
@@ -96,9 +113,10 @@ public class EnlightmentCenter extends Robot {
         }
 
         setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
-        // if (turnCount > searchBounds.length) {
-        //     spawnOrUpdateScout();
-        // }
+        if (turnCount >= searchBounds.length) {
+            listenToComms();
+            // spawnOrUpdateScout();
+        }
         buildUnit();
     }
 
@@ -247,6 +265,39 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
         return spawnRobot(type, direction, influence, destination, instruction, false);
     }
+
+    /** Pseudocode for listening to communication.
+     * Real logic will go inside the cases of the switch statement once requisite classes exist.
+     * TODO: Implement UnitTracker.
+     */
+    void listenToComms() {
+        /*
+        for(UnitTracker ut: listOfUnitTrackers) {
+            UnitUpdate uu = ut.update();
+            switch(uu) {
+                case VERIFIED:
+                    break;
+                case ENEMY:
+                    break;
+                case NEUTRAL:
+                    break;
+                case ENEMYTOALLY:
+                    break;
+                case ENEMYTONEUTRAL:
+                    break;
+                case ALLYTOENEMY:
+                    break;
+                case ALLYTONEUTRAL:
+                    break;
+                case NETURALTOENEMY:
+                    break;
+                case NEUTRALTOALLY:
+                    break;
+            }
+        }
+        */
+    }
+
 
     /**
      * Sets an initial flag to let other ECs know I exist.
