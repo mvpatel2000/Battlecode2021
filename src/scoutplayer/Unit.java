@@ -16,6 +16,8 @@ public abstract class Unit extends Robot {
     MapLocation destination;
     boolean spawnedSilently;
 
+    // TODO @Nikhil: variables to keep track of EC sightings
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
@@ -63,6 +65,15 @@ public abstract class Unit extends Robot {
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
+        setECSightingFlag();
+    }
+
+    /**
+     * TODO: @Nikhil
+     * If I see an EC that I am not already aware of, send a flag
+     */
+    public void setECSightingFlag() throws GameActionException {
+        // TODO
     }
 
     /**

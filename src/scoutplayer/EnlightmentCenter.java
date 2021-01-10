@@ -4,7 +4,6 @@ import battlecode.common.*;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashSet;
-import static scoutplayer.UnitUpdate.*;
 
 public class EnlightmentCenter extends Robot {
     // Symmetries - horizontal, vertical, rotational, true until ruled out.
@@ -49,11 +48,15 @@ public class EnlightmentCenter extends Robot {
     int numSlanderers;
     int numMuckrakers;
     int numPoliticians;
+    int numScouts; // scouts don't count in troop counts
+
+    // UnitTrackers
+    List<UnitTracker> unitTrackerList;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
         RobotType.SLANDERER,
-        RobotType.MUCKRAKER,
+        RobotType.MUCKRAKER
     };
 
     RelativeMap map;
@@ -62,7 +65,6 @@ public class EnlightmentCenter extends Robot {
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
         map = new RelativeMap(rc.getLocation());
-        st = null; // ScoutTracker
 
         symmetries = new boolean[]{true, true, true};
 
@@ -96,13 +98,17 @@ public class EnlightmentCenter extends Robot {
         numSlanderers = 0;
         numMuckrakers = 0;
         numPoliticians = 0;
+        numScouts = 0;
+
+        // List of all unit trackers
+        unitTrackerList = new List<UnitTracker>();
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -113,10 +119,14 @@ public class EnlightmentCenter extends Robot {
         }
 
         setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
+
+        updateUnitTrackers();
+
         if (turnCount >= searchBounds.length) {
             listenToComms();
             // spawnOrUpdateScout();
         }
+
         buildUnit();
     }
 
@@ -128,23 +138,66 @@ public class EnlightmentCenter extends Robot {
         if (turnCount == 1) {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
+                spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
             }
         } else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
                 if (rc.getInfluence() > 145) {
-                    rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
+                    spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
                     numSlanderers++;
                 } else if (numPoliticians * 3 > numMuckrakers) {
-                    rc.buildRobot(RobotType.MUCKRAKER, optimalDir, 1);
+                    spawnRobotSilentlyWithTracker(RobotType.MUCKRAKER, optimalDir, 1);
                     numMuckrakers++;
                 } else {
-                    rc.buildRobot(RobotType.POLITICIAN, optimalDir, 14);
+                    spawnRobotSilentlyWithTracker(RobotType.POLITICIAN, optimalDir, 14);
                     numPoliticians++;
                 }
             }
         }
+    }
+
+    void updateUnitTrackers() throws GameActionException {
+        unitTrackerList.resetIter();
+        while(unitTrackerList.hasNext()) {
+            unitTrackerList.next().update();
+            // TODO: @Nikhil
+        }
+    }
+
+    /**
+     * Spawn robot silently (without flags) and add a generic unit tracker.
+     * @param type Type of the robot to build.
+     * @param direction Direction to build the robot in.
+     * @param influence Influence to allocate to the new robot.
+     * @return Whether the robot was successfully spawned.
+     */
+    boolean spawnRobotSilentlyWithTracker(RobotType type, Direction direction, int influence) throws GameActionException {
+        if (spawnRobotSilently(type, direction, influence)) {
+            int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
+            unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Spawn robot non-silently (with flags) and add a generic unit tracker.
+     * @param type Type of the robot to build.
+     * @param direction Direction to build the robot in.
+     * @param influence Influence to allocate to the new robot.
+     * @param destination Destination of the new robot.
+     * @param instruction Instruction to send to the new robot; the list
+     * of available instructions is in SpawnDestinationFlag.
+     * @return Whether the robot was successfully spawned.
+     */
+    boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
+        if (spawnRobot(type, direction, influence, destination, instruction)) {
+            int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
+            unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -193,16 +246,15 @@ public class EnlightmentCenter extends Robot {
      *
      * TODO: figure out direction to send scout in.
      */
-    void spawnOrUpdateScout() throws GameActionException {
-        if (st == null) { // no scout has been spawned yet
+    boolean spawnScout() throws GameActionException {
+        if (numScouts < 1) { // no scout has been spawned yet
             if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
-                st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?
+                unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
+                numScouts++;
+                return true;
             }
-        } else {
-            //System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-            st.update(); // check on existing scout
-            //System.out.println("After st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
         }
+        return false;
     }
 
     boolean spawnAttacker() throws GameActionException {
@@ -222,31 +274,20 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
-     * Spawn a robot and prepare its SpawnUnitFlag and the LocationFlag
-     * telling it where its destination will be. These flags will not
-     * actually be set by the EC here; that happens in another function,
-     * setSpawnOrDirectionFlag().
+     * Spawn a robot without sending it or the other ECs any flags.
      * @param type Type of the robot to build.
      * @param direction Direction to build the robot in.
      * @param influence Influence to allocate to the new robot.
-     * @param destination Destination of the new robot.
-     * @param silent Whether to suppress spawn flags.
      * @return Whether the robot was successfully spawned.
      * @throws GameActionException
      */
-    boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean silent) throws GameActionException {
+    boolean spawnRobotSilently(RobotType type, Direction direction, int influence) throws GameActionException {
         if (!rc.canBuildRobot(type, direction, influence)) {
             return false;
         }
         rc.buildRobot(type, direction, influence);
-        MapLocation spawnLoc = myLocation.add(Direction.EAST);
-        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
-        if (!silent) {
-            int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
-            latestSpawnRound = currentRound;
-            latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
-            latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
-        }
+        MapLocation spawnLoc = myLocation.add(direction);
+        System.out.println("Built " + type.toString() + " silently at " + spawnLoc.toString());
         return true;
     }
 
@@ -259,11 +300,23 @@ public class EnlightmentCenter extends Robot {
      * @param direction Direction to build the robot in.
      * @param influence Influence to allocate to the new robot.
      * @param destination Destination of the new robot.
+     * @param instruction Instruction to send to the new robot; the list
+     * of available instructions is in SpawnDestinationFlag.
      * @return Whether the robot was successfully spawned.
      * @throws GameActionException
      */
     boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
-        return spawnRobot(type, direction, influence, destination, instruction, false);
+        if (!rc.canBuildRobot(type, direction, influence)) {
+            return false;
+        }
+        rc.buildRobot(type, direction, influence);
+        MapLocation spawnLoc = myLocation.add(direction);
+        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
+        int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
+        latestSpawnRound = currentRound;
+        latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
+        latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
+        return true;
     }
 
     /** Pseudocode for listening to communication.

@@ -2,63 +2,49 @@ package scoutplayer;
 
 import battlecode.common.*;
 
-public class ScoutTracker {
+public class ScoutTracker extends UnitTracker {
 
-    int scoutID;
-    MapLocation scoutLoc;
-    RelativeMap map;
-    boolean alive;
-    RobotController rc;
     MapTerrainQueue mtq;
-    int turnCount;
+    int INITIAL_COOLDOWN;
 
-    public ScoutTracker(RobotController ecRC, int idToTrack, MapLocation startingLoc, RelativeMap ecMap) {
-        scoutID = idToTrack;
-        scoutLoc = startingLoc;
-        map = ecMap;
-        rc = ecRC;
-        alive = true;
-        turnCount = 1;
+    public ScoutTracker(EnlightmentCenter ec, RobotType type, int idToTrack, MapLocation spawnLoc) {
+        super(ec, type, idToTrack, spawnLoc);
+        switch (type) {
+            case POLITICIAN:
+                INITIAL_COOLDOWN = Politician.INITIAL_COOLDOWN;
+                break;
+            case SLANDERER:
+                INITIAL_COOLDOWN = Slanderer.INITIAL_COOLDOWN;
+                break;
+            case MUCKRAKER:
+                INITIAL_COOLDOWN = Muckraker.INITIAL_COOLDOWN;
+                break;
+            case ENLIGHTENMENT_CENTER:
+                break;
+        }
         // mtq is initialized as late as possible, after the initial cooldown,
         // in order to allow EC as many bytecodes as possible for initial comms.
     }
 
-    public boolean isAlive() {
-        return alive;
-    }
-
-    public boolean update() throws GameActionException {
-        // System.out.println("ScoutTracker.update() bp 0: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-        turnCount++;
-        if (turnCount < Politician.INITIAL_COOLDOWN) { // 10 turn cooldown for the scout hasn't passed yet; nothing to do.
-            return true;
+    public int update() throws GameActionException {
+        int returnVal = super.update();
+        if (turnCount < INITIAL_COOLDOWN) { // 10 turn cooldown for the scout hasn't passed yet; nothing to do.
+            return 0;
         }
-        if (turnCount == Politician.INITIAL_COOLDOWN) {
-            mtq = new MapTerrainQueue(); // lazy initialization at the last possible moment
+        if (turnCount == INITIAL_COOLDOWN) {
+            mtq = new MapTerrainQueue(type); // lazy initialization at the last possible moment
         }
-        if (!alive || !rc.canGetFlag(scoutID)) {
-            alive = false;
-            return false;
-        }
-        MapLocation myLoc = rc.getLocation();
-        MapTerrainFlag mtf = new MapTerrainFlag(rc.getFlag(scoutID));
-        // System.out.println("ScoutTracker.update() bp 1: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+        MapTerrainFlag mtf = new MapTerrainFlag(flagInt);
         if (mtf.getSchema() == Flag.MAP_TERRAIN_SCHEMA) { // TODO: better way of checking schema?
-            Direction lastMove = mtf.readLastMove();
-            scoutLoc = scoutLoc.add(lastMove);
-            // System.out.println("ScoutTracker.update() bp 2: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
-            mtq.step(null, lastMove, scoutLoc);
-            // System.out.println("ScoutTracker.update() bp 3: " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+            mtq.step(null, lastMove, currLoc);
             for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
                 if (mtq.isEmpty()) break;
                 MapLocation loc = mtq.pop().loc;
                 double pa = mtf.readPassability(i);
-                // System.out.println("I hear there's passability " + pa + " at " + loc.toString());
-                map.set(loc.x-myLoc.x, loc.y-myLoc.y, pa);
-                rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);
-                // System.out.println("ScoutTracker.update() bp 4." + i + ": " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());
+                ec.map.set(loc.x-ec.myLocation.x, loc.y-ec.myLocation.y, pa);
+                ec.rc.setIndicatorDot(loc, 0, (int) (255 * pa), 0);
             }
         }
-        return true;
+        return returnVal;
     }
 }

@@ -39,6 +39,9 @@ public class Muckraker extends Unit {
                 weightedFuzzyMove(destination);
             }
         }
+        if (!flagSetThisRound) {
+            setFlag((new UnitFlag(moveThisTurn)).flag);
+        }
     }
 
     /**

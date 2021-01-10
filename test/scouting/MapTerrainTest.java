@@ -9,7 +9,7 @@ public class MapTerrainTest {
 
 	@Test
 	public void testOneStep() throws GameActionException {
-        MapTerrainQueue mtq = new MapTerrainQueue();
+        MapTerrainQueue mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         mtq.step(null, Direction.NORTHWEST, new MapLocation(1,2));
         MapLocation loc = mtq.pop().loc;
         assertEquals(1, loc.x);
@@ -18,7 +18,7 @@ public class MapTerrainTest {
     
     @Test
 	public void testOverflow() throws GameActionException {
-        MapTerrainQueue mtq = new MapTerrainQueue();
+        MapTerrainQueue mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         mtq.step(null, Direction.NORTHEAST, new MapLocation(1,2));
         assertEquals(15, mtq.getSize());
         // assertEquals(0, mtq.start);

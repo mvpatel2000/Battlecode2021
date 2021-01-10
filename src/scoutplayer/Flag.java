@@ -1,6 +1,8 @@
 package scoutplayer;
 
 // TODO: add encryption scheme
+// TODO: refactor so that unit flags and location flags
+// can better share common elements.
 
 public class Flag {
 
@@ -21,6 +23,7 @@ public class Flag {
     public static final int LOCATION_SCHEMA = 3;
     public static final int SPAWN_UNIT_SCHEMA = 4;
 	public static final int SPAWN_DESTINATION_SCHEMA = 5;
+	public static final int UNIT_UPDATE_SCHEMA = 6;
 
     public Flag() {
         flag = 0;
@@ -30,10 +33,10 @@ public class Flag {
     /**
      * constructor for reading/parsing a flag
      */
-    public Flag(int inFlag) {
-        flag = inFlag;
+    public Flag(int received) {
+        flag = received;
         writtenTo = 32;
-    }
+	}
 
     public int getFlag() {
         return flag;
