@@ -34,6 +34,11 @@ public class EnlightmentCenter extends Robot {
     LocationFlag latestSpawnDestinationFlag;
     int latestSpawnRound;
 
+    // Troop Counts
+    int numSlanderers;
+    int numMuckrakers;
+    int numPoliticians;
+
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
         RobotType.SLANDERER,
@@ -69,6 +74,11 @@ public class EnlightmentCenter extends Robot {
         firstRoundIDsToConsider = new ArrayList<Integer>();
 
         latestSpawnRound = -1;
+
+        // Troop counts
+        numSlanderers = 0;
+        numMuckrakers = 0;
+        numPoliticians = 0;
     }
 
     @Override
@@ -103,7 +113,19 @@ public class EnlightmentCenter extends Robot {
                 rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
             }
         } else {
-            spawnAttacker();
+            Direction optimalDir = findOptimalSpawnDir();
+            if (optimalDir != null) {
+                if (rc.getInfluence() > 145) {
+                    rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
+                    numSlanderers++;
+                } else if (numPoliticians * 3 > numMuckrakers) {
+                    rc.buildRobot(RobotType.MUCKRAKER, optimalDir, 1);
+                    numMuckrakers++;
+                } else {
+                    rc.buildRobot(RobotType.POLITICIAN, optimalDir, 14);
+                    numPoliticians++;
+                }
+            }
         }
     }
 
