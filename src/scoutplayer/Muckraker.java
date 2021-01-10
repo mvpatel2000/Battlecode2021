@@ -56,6 +56,8 @@ public class Muckraker extends Unit {
         Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(), 
             toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
         double[] costs = new double[8];
+        // Ignore repel factor in beginning and when close to target
+        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
         for (int i = 0; i < dirs.length; i++) {
             MapLocation newLocation = myLocation.add(dirs[i]);
             // Movement invalid, set higher cost than starting value
@@ -68,8 +70,7 @@ public class Muckraker extends Unit {
             if (i >= 3) {
                 cost -= 60;
             }
-            // Ignore repel factor for beginning
-            if (turnCount > 50) {
+            if (shouldRepel) {
                 for (RobotInfo robot : nearbyAllies) {
                     cost -= 40 - newLocation.distanceSquaredTo(robot.location);
                 }
