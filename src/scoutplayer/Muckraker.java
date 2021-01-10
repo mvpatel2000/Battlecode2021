@@ -6,23 +6,15 @@ public class Muckraker extends Unit {
 
     public final static int INITIAL_COOLDOWN = 10;
     
-    MapLocation destination;
-
     public Muckraker(RobotController rc) throws GameActionException {
         super(rc);
-        // TODO: Delete! Hard coded destination for testing
-        if (allyTeam == Team.A) {
-            destination = baseLocation.translate(60, 60);
-        } else {
-            destination = baseLocation.translate(-60, -60);
-        }
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
 
-        updateDestination();
+        updateDestinationForExploration();
 
         // Search for nearest slanderer. If one exists, kill it or move towards it.
         if (rc.isReady()) {
@@ -46,26 +38,6 @@ public class Muckraker extends Unit {
                 // Continue towards destination
                 weightedFuzzyMove(destination);
             }
-        }
-    }
-
-    /**
-     * Update destination to encourage exploration if destination is off map or destination is not
-     * an enemy target.
-     * @throws GameActionException
-     */
-    void updateDestination() throws GameActionException {
-        MapLocation nearDestionation = myLocation;
-        for (int i = 0; i < 3; i++) {
-            nearDestionation = nearDestionation.add(nearDestionation.directionTo(destination));
-        }
-        if (!rc.onTheMap(nearDestionation) ||
-            myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
-            && (!rc.onTheMap(destination) || !rc.isLocationOccupied(destination))) {
-            // TODO: Regenerate destination
-            System.out.println("Regenerating destination: " + destination);
-            destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-            System.out.println("New destination: " + destination);
         }
     }
 

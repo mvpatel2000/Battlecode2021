@@ -28,6 +28,9 @@ public class Politician extends Unit {
     @Override
     public void run() throws GameActionException {
         super.run();
+
+        updateDestinationForExploration();
+
         if (considerAttack()) {
             System.out.println("Attacking!");
         } else if (mtq.hasRoom() && tryMove(randomDirection())) { // move if queue isn't full

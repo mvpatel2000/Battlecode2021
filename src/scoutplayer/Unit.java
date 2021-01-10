@@ -46,6 +46,14 @@ public abstract class Unit extends Robot {
                 baseID = robot.ID;
             }
         }
+
+        // TODO: Delete! Hard default destination. We should instead give a default destination
+        // in silentSpawning and discuss what this actually looks like.
+        if (allyTeam == Team.A) {
+            destination = baseLocation.translate(60, 60);
+        } else {
+            destination = baseLocation.translate(-60, -60);
+        }
     }
 
     @Override
@@ -137,6 +145,23 @@ public abstract class Unit extends Robot {
         }
         if (optimalDir != null) {
             move(optimalDir);
+        }
+    }
+
+    /**
+     * Update destination to encourage exploration if destination is off map or destination is not
+     * an enemy target.
+     * @throws GameActionException
+     */
+    void updateDestinationForExploration() throws GameActionException {
+        MapLocation nearDestination = myLocation;
+        for (int i = 0; i < 3; i++) {
+            nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+        }
+        if (!rc.onTheMap(nearDestination) ||
+            myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
+            && (!rc.onTheMap(destination) || !rc.isLocationOccupied(destination))) {
+            destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
         }
     }
 }
