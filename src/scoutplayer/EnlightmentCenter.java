@@ -70,7 +70,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 100) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -126,18 +126,18 @@ public class EnlightmentCenter extends Robot {
     }
 
     boolean spawnAttacker() throws GameActionException {
-        // if (rc.isReady()) {
-        //     RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-        //     int influence = allyTeam == Team.A ? 1 : 50;
-        //     if (rc.getInfluence() < influence) {
-        //         return false;
-        //     }
-        //     for (Direction dir : directions) {
-        //         if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
-        //             return true;
-        //         }
-        //     }
-        // }
+        if (rc.isReady()) {
+            RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
+            int influence = allyTeam == Team.A ? 1 : 50;
+            if (rc.getInfluence() < influence) {
+                return false;
+            }
+            for (Direction dir : directions) {
+                if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
