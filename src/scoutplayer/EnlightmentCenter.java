@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class EnlightmentCenter extends Robot {
+    // Symmetries - horizontal, vertical, rotational, true until ruled out.
+    boolean[] symmetries;
+
     // EC to EC communication
     boolean scannedAllIDs;
     int searchRound;
@@ -45,6 +48,8 @@ public class EnlightmentCenter extends Robot {
         map = new RelativeMap(rc.getLocation());
         st = null; // ScoutTracker
 
+        symmetries = new boolean[]{true, true, true};
+
         // Initialize EC to EC communication variables
         scannedAllIDs = false;
         searchRound = 0;
@@ -81,10 +86,45 @@ public class EnlightmentCenter extends Robot {
         }
 
         setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
-        if (turnCount > searchBounds.length) {
-            spawnOrUpdateScout();
+        // if (turnCount > searchBounds.length) {
+        //     spawnOrUpdateScout();
+        // }
+        buildUnit();
+    }
+
+    /**
+     * Wrapper function for spawnRobot. Determines build order.
+     * @throws GameActionException
+     */
+    void buildUnit() throws GameActionException {
+        if (turnCount == 1) {
+            Direction optimalDir = findOptimalSpawnDir();
+            if (optimalDir != null) {
+                rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
+            }
+        } else {
+            spawnAttacker();
         }
-        spawnAttacker();
+    }
+
+    /**
+     * Finds best terrain that a unit can spawn on. Returns null if no valid direction exists.
+     * @throws GameActionException
+     */
+    Direction findOptimalSpawnDir() throws GameActionException {
+        Direction optimalDir = null;
+        double optimalPassability = -1;
+        for (Direction dir : directions) {
+            // Dummy robot build check for valid direction
+            if (rc.canBuildRobot(RobotType.MUCKRAKER, dir, 1)) {
+                double passabilty = rc.sensePassability(myLocation.add(dir));
+                if (passabilty > optimalPassability) {
+                    optimalDir = dir;
+                    optimalPassability = passabilty;
+                }
+            }
+        }
+        return optimalDir;
     }
 
     /**
