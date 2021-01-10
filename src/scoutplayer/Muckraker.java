@@ -69,7 +69,7 @@ public class Muckraker extends Unit {
                 cost -= 60;
             }
             // Ignore repel factor for beginning
-            if (turnCount > 20 && currentRound > 50) {
+            if (turnCount > 50) {
                 for (RobotInfo robot : nearbyAllies) {
                     cost -= 40 - newLocation.distanceSquaredTo(robot.location);
                 }
