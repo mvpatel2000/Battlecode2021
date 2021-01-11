@@ -16,6 +16,8 @@ public abstract class Unit extends Robot {
     MapLocation destination;
     boolean spawnedSilently;
 
+    // TODO @Nikhil: variables to keep track of EC sightings
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;

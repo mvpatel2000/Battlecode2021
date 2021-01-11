@@ -161,6 +161,7 @@ public class EnlightmentCenter extends Robot {
         unitTrackerList.resetIter();
         while(unitTrackerList.hasNext()) {
             unitTrackerList.next().update();
+            // TODO: @Nikhil
         }
     }
 
