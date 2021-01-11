@@ -1,5 +1,7 @@
 package scoutplayer;
 
+import static org.mockito.Mockito.calls;
+
 import battlecode.common.*;
 
 // FIFO queue implemented as circular buffer with overwriting
@@ -10,13 +12,15 @@ public class MapTerrainQueue {
     final int MAX_NEW_TILES_PER_STEP = 15;
 
     MapTerrain[] queue;
+    RobotType type;
     int start;
     int size;
 
-    public MapTerrainQueue() {
+    public MapTerrainQueue(RobotType type) {
         queue = new MapTerrain[CAPACITY];
         start = 0;
         size = 0;
+        this.type = type;
     }
 
     public int getSize() {
@@ -42,7 +46,18 @@ public class MapTerrainQueue {
     public void step(RobotController rc, Direction di, MapLocation currentLoc) throws GameActionException {
         // System.out.println("MapTerrainQueue stepping, lastMove was " + di.toString());
         // Call the function specific to the unit; for now, it is Politician
-        int[][] newTiles = Politician.newSensedLocationsRelative(di);
+        int[][] newTiles;
+        switch(type) {
+            case MUCKRAKER:
+                return;
+                // newTiles = Muckraker.newSensedLocationsRelative(di);
+            case SLANDERER:
+                newTiles = Slanderer.newSensedLocationsRelative(di);
+                break;
+            default:
+                newTiles = Politician.newSensedLocationsRelative(di);
+                break;
+        }
         int idx = start + size;
         if (idx >= CAPACITY) idx -= CAPACITY; // modulo expensive, use if instead
         for (int i = 0; i < newTiles.length; i++) {

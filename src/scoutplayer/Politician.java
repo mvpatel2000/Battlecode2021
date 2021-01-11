@@ -22,7 +22,7 @@ public class Politician extends Unit {
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        mtq = new MapTerrainQueue();
+        mtq = new MapTerrainQueue(RobotType.POLITICIAN);
     }
 
     @Override
@@ -45,6 +45,10 @@ public class Politician extends Unit {
             // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         }
         setFlag(mtf.getFlag());
+
+        if (!flagSetThisRound) {
+            setFlag((new UnitFlag(moveThisTurn)).flag);
+        }
     }
 
     /**

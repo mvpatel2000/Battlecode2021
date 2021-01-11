@@ -116,7 +116,7 @@ public class EnlightmentCenter extends Robot {
     void spawnOrUpdateScout() throws GameActionException {
         if (st == null) { // no scout has been spawned yet
             if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
-                st = new ScoutTracker(rc, latestSpawnFlag.readID(), myLocation.add(Direction.EAST), map); // TODO: cache id inside SpawnUnitFlag?
+                st = new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)); // TODO: cache id inside SpawnUnitFlag?
             }
         } else {
             //System.out.println("Before st.update(): " + Clock.getBytecodesLeft() + " bytecodes left in round " + rc.getRoundNum());

@@ -55,6 +55,15 @@ public abstract class Unit extends Robot {
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
+        setECSightingFlag();
+    }
+
+    /**
+     * TODO: @Nikhil
+     * If I see an EC that I am not already aware of, send a flag
+     */
+    public void setECSightingFlag() throws GameActionException {
+        setFlag((new ECSightingFlag()).flag);
     }
 
     /**
