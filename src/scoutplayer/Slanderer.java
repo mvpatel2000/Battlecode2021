@@ -19,6 +19,10 @@ public class Slanderer extends Unit {
 
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
+        // if no destination was provided from parent EC, set one:
+        if (spawnedSilently) {
+            destination = myLocation.add(myLocation.directionTo(baseLocation).opposite());
+        }
     }
 
     @Override
@@ -37,12 +41,11 @@ public class Slanderer extends Unit {
             }
             if (nearestMuckraker != null) {
                 // Flee from nearest Muckraker.
-                MapLocation fleeLocation = myLocation.add(myLocation.directionTo(nearestMuckraker.location).opposite());
-                fuzzyMove(fleeLocation);
-            } else {
-                // Continue towards destination
-                fuzzyMove(destination);
-            }
+                int diffX = myLocation.x - nearestMuckraker.location.x;
+                int diffY = myLocation.y - nearestMuckraker.location.y;
+                destination = destination.translate(diffX, diffY);
+            } 
+            fuzzyMove(destination);
         }
 
         if (!flagSetThisRound) {

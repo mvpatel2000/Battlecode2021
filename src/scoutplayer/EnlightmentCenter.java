@@ -4,11 +4,24 @@ import battlecode.common.*;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashSet;
+import static scoutplayer.UnitUpdate.*;
 
 public class EnlightmentCenter extends Robot {
-    // EC to EC communication
+    // Symmetries - horizontal, vertical, rotational, true until ruled out.
+    boolean[] symmetries;
+
+    // Initial EC to EC communication
     boolean scannedAllIDs;
     int searchRound;
+    Set<Integer> foundAllyECLocations;
+    FindAllyFlag initialFaf;    // initial flag used to communicate my existence and location
+    int[] searchBounds;
+    ArrayList<Integer> firstRoundIDsToConsider;
+    // Generate Secret Code. Change these two numbers before uploading to competition
+    final int CRYPTO_KEY = 92747502; // A random large number
+    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
+
+    // Ally ECs: Unverified and verified.
     int numPotentialAllyECs;
     int[] potentialAllyECIDs;
     MapLocation[] potentialAllyECLocs; // absolute locations
@@ -17,13 +30,14 @@ public class EnlightmentCenter extends Robot {
     int[] verifiedAllyECIDs;
     MapLocation[] verifiedAllyECLocs;
 
-    Set<Integer> foundAllyECLocations;
-    FindAllyFlag initialFaf;    // initial flags used to communicate my existence and location
-    int[] searchBounds;
-    ArrayList<Integer> firstRoundIDsToConsider;
-    // Change these two numbers before uploading to competition
-    final int CRYPTO_KEY = 92747502; // A random large number
-    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
+    // Environment and enemy
+    int numFoundEnemyECs;
+    int[] enemyECIDs;
+    MapLocation[] enemyECLocs;
+
+    int numFoundNeutralECs;
+    int[] neutralECIDs;
+    MapLocation[] neutralECLocs;
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -45,23 +59,31 @@ public class EnlightmentCenter extends Robot {
         map = new RelativeMap(rc.getLocation());
         st = null; // ScoutTracker
 
+        symmetries = new boolean[]{true, true, true};
+
         // Initialize EC to EC communication variables
         scannedAllIDs = false;
         searchRound = 0;
         numPotentialAllyECs = 0;
-        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};
+        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
         potentialAllyECLocs = new MapLocation[5];
         numVerifiedAllyECs = 0;
         verifiedAllyECIDs = new int[]{0, 0};
         verifiedAllyECLocs = new MapLocation[2];
-
         foundAllyECLocations = new HashSet<Integer>();
-        // Underweight the first turn of searching since we initialize arrays on that turn.
-        searchBounds = new int[]{10000, 11072, 12584, 14096};
+        searchBounds = new int[]{10000, 11072, 12584, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
         firstRoundIDsToConsider = new ArrayList<Integer>();
+
+        // Initialize environment and enemy tracking variables
+        numFoundEnemyECs = 0;
+        enemyECIDs = new int[]{0, 0, 0};
+        enemyECLocs = new MapLocation[3];
+        numFoundNeutralECs = 0;
+        neutralECIDs = new int[]{0, 0, 0, 0, 0, 0};
+        neutralECLocs = new MapLocation[6];
 
         latestSpawnRound = -1;
     }
@@ -70,7 +92,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 100) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -81,10 +103,46 @@ public class EnlightmentCenter extends Robot {
         }
 
         setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
-        if (turnCount > searchBounds.length) {
-            spawnOrUpdateScout();
+        if (turnCount >= searchBounds.length) {
+            listenToComms();
+            // spawnOrUpdateScout();
         }
-        spawnAttacker();
+        buildUnit();
+    }
+
+    /**
+     * Wrapper function for spawnRobot. Determines build order.
+     * @throws GameActionException
+     */
+    void buildUnit() throws GameActionException {
+        if (turnCount == 1) {
+            Direction optimalDir = findOptimalSpawnDir();
+            if (optimalDir != null) {
+                rc.buildRobot(RobotType.SLANDERER, optimalDir, 140);
+            }
+        } else {
+            spawnAttacker();
+        }
+    }
+
+    /**
+     * Finds best terrain that a unit can spawn on. Returns null if no valid direction exists.
+     * @throws GameActionException
+     */
+    Direction findOptimalSpawnDir() throws GameActionException {
+        Direction optimalDir = null;
+        double optimalPassability = -1;
+        for (Direction dir : directions) {
+            // Dummy robot build check for valid direction
+            if (rc.canBuildRobot(RobotType.MUCKRAKER, dir, 1)) {
+                double passabilty = rc.sensePassability(myLocation.add(dir));
+                if (passabilty > optimalPassability) {
+                    optimalDir = dir;
+                    optimalPassability = passabilty;
+                }
+            }
+        }
+        return optimalDir;
     }
 
     /**
@@ -126,18 +184,18 @@ public class EnlightmentCenter extends Robot {
     }
 
     boolean spawnAttacker() throws GameActionException {
-        // if (rc.isReady()) {
-        //     RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-        //     int influence = allyTeam == Team.A ? 1 : 50;
-        //     if (rc.getInfluence() < influence) {
-        //         return false;
-        //     }
-        //     for (Direction dir : directions) {
-        //         if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
-        //             return true;
-        //         }
-        //     }
-        // }
+        if (rc.isReady()) {
+            RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
+            int influence = allyTeam == Team.A ? 1 : 50;
+            if (rc.getInfluence() < influence) {
+                return false;
+            }
+            for (Direction dir : directions) {
+                if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -185,6 +243,39 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
         return spawnRobot(type, direction, influence, destination, instruction, false);
     }
+
+    /** Pseudocode for listening to communication.
+     * Real logic will go inside the cases of the switch statement once requisite classes exist.
+     * TODO: Implement UnitTracker.
+     */
+    void listenToComms() {
+        /*
+        for(UnitTracker ut: listOfUnitTrackers) {
+            UnitUpdate uu = ut.update();
+            switch(uu) {
+                case VERIFIED:
+                    break;
+                case ENEMY:
+                    break;
+                case NEUTRAL:
+                    break;
+                case ENEMYTOALLY:
+                    break;
+                case ENEMYTONEUTRAL:
+                    break;
+                case ALLYTOENEMY:
+                    break;
+                case ALLYTONEUTRAL:
+                    break;
+                case NETURALTOENEMY:
+                    break;
+                case NEUTRALTOALLY:
+                    break;
+            }
+        }
+        */
+    }
+
 
     /**
      * Sets an initial flag to let other ECs know I exist.
