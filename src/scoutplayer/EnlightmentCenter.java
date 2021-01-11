@@ -160,7 +160,6 @@ public class EnlightmentCenter extends Robot {
     /**
      * Reads flags from Ally ECs.
      * Handles logic: Given a flag from an Ally EC, what does this EC do?
-     * TODO: @Vinjai: Add in logic for other cases.
      */
     void readAllyECUpdates() throws GameActionException {
         for (int i=0; i<numAllyECs; i++) {
@@ -188,7 +187,8 @@ public class EnlightmentCenter extends Robot {
                         System.out.println("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
                         break;
                     case Flag.SPAWN_DESTINATION_SCHEMA:
-                        // Not relevant, ECs do not send such flags to ECs.
+                        // TODO: @Vinjai: handle the case where scouts are spawned
+                        // and we want to set up a ScoutTracker instead of UnitTracker.
                         break;
                     case Flag.UNIT_UPDATE_SCHEMA:
                         // Not relevant, ECs do not send such flags to ECs.
