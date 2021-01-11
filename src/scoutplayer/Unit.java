@@ -88,6 +88,8 @@ public abstract class Unit extends Robot {
     public void setECSightingFlag(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
         int ecType = (t == enemyTeam) ? ECSightingFlag.ENEMY_EC : ECSightingFlag.NEUTRAL_EC;
         ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
+        setFlag(ecsf.flag);
+        System.out.println("Sending EC Sighting at " + ecLoc);
     }
 
     /**

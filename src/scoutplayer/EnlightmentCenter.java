@@ -221,6 +221,7 @@ public class EnlightmentCenter extends Robot {
                         if (!neutralECLocs.contains(ecLoc)) {
                             neutralECLocs.add(ecLoc);
                         }
+                        System.out.println("Informed about NEUTRAL EC at " + ecLoc);
                     } else {
                         if (!enemyECLocs.contains(ecLoc)) {
                             enemyECLocs.add(ecLoc);
@@ -229,6 +230,7 @@ public class EnlightmentCenter extends Robot {
                                 neutralECLocs.remove(ecLoc);
                             }
                         }
+                        System.out.println("Informed about ENEMY EC at " + ecLoc);
                     }
                     break;
                 case Flag.MAP_TERRAIN_SCHEMA:
