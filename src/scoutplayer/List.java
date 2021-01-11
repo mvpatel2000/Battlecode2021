@@ -29,8 +29,9 @@ public class List<T> {
     }
     
     public T next() {
+        ListNode toReturn = curr;
         curr = curr.next;
-        return curr.val;
+        return toReturn.val;
     }
     
     public void resetIter() {
@@ -38,6 +39,6 @@ public class List<T> {
     }
 
     public boolean hasNext() {
-        return (curr.next != null);
+        return curr != null;
     }
 }

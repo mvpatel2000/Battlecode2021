@@ -25,6 +25,7 @@ public class UnitTracker {
         this.type = type;
         lastMove = Direction.CENTER;
         flagInt = 0;
+        // System.out.println("I am a UnitTracker tracking " + type.toString() + " at " + spawnLoc.toString() + " with ID " + idToTrack);
     }
 
     public boolean isAlive() {
@@ -45,6 +46,9 @@ public class UnitTracker {
         flagInt = ec.rc.getFlag(robotID);
         lastMove = getLastMoveFromFlag(flagInt);
         currLoc = currLoc.add(lastMove);
+        System.out.println("Robot with ID " + robotID + " is now at " + currLoc.toString());
+        System.out.println("Last move: " + lastMove.toString());
+        System.out.println("Flag seen: " + flagInt);
         return Flag.getSchema(flagInt);
     }
 
@@ -56,9 +60,11 @@ public class UnitTracker {
             case Flag.EC_SIGHTING_SCHEMA:
                 ECSightingFlag ecsf = new ECSightingFlag(flag);
                 return ecsf.readLastMove();
-            default:
+            case Flag.UNIT_UPDATE_SCHEMA:
                 UnitFlag uf = new UnitFlag(flag);
                 return uf.readLastMove();
+            default:
+                return Direction.CENTER;
         }
     }
 }

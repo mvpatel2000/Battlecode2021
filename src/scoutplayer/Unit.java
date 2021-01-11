@@ -63,7 +63,7 @@ public abstract class Unit extends Robot {
      * If I see an EC that I am not already aware of, send a flag
      */
     public void setECSightingFlag() throws GameActionException {
-        setFlag((new ECSightingFlag()).flag);
+        // TODO
     }
 
     /**
