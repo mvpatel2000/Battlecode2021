@@ -84,7 +84,7 @@ public class Muckraker extends Unit {
         Direction optimalDir = null;
         for (int i = 0; i < dirs.length; i++) {
             Direction dir = dirs[i];
-            System.out.println(dir + " " + rc.canMove(dir) + " " + costs[i]);
+            // System.out.println(dir + " " + rc.canMove(dir) + " " + costs[i]);
             if (rc.canMove(dir)) {
                 double newCost = costs[i];
                 if (newCost > cost) {
