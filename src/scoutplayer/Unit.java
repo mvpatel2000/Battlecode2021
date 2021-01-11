@@ -1,6 +1,7 @@
 package scoutplayer;
 
 import battlecode.common.*;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.lang.Integer;
@@ -25,6 +26,8 @@ public abstract class Unit extends Robot {
     // But we may want to use the IDs later, in which case we will need maps.
     Map<MapLocation, Integer> enemyECLocsToIDs;
     Map<MapLocation, Integer> neutralECLocsToIDs;
+
+    ArrayList<MapLocation> priorDestinations;
 
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
@@ -69,6 +72,8 @@ public abstract class Unit extends Robot {
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
+
+        priorDestinations = new ArrayList<MapLocation>();
     }
 
     @Override
@@ -202,7 +207,7 @@ public abstract class Unit extends Robot {
 
     /**
      * Update destination to encourage exploration if destination is off map or destination is not
-     * an enemy target.
+     * an enemy target. Uses rejection sampling to avoid destinations near already explored areas.
      * @throws GameActionException
      */
     void updateDestinationForExploration() throws GameActionException {
@@ -213,7 +218,24 @@ public abstract class Unit extends Robot {
         if (!rc.onTheMap(nearDestination) ||
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
             && (!rc.onTheMap(destination) || !rc.isLocationOccupied(destination))) {
+            priorDestinations.add(destination);
+            boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            for (int i = 0; i < priorDestinations.size(); i++) {
+                if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
+                    valid = false;
+                    break;
+                }
+            }
+            while (!valid) {
+                destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+                for (int i = 0; i < priorDestinations.size(); i++) {
+                    if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
         }
     }
 }

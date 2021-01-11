@@ -106,7 +106,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 800) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -121,7 +121,7 @@ public class EnlightmentCenter extends Robot {
             // spawnOrUpdateScout();
         }
 
-        //setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
+        setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
         updateUnitTrackers();
         buildUnit();
 
@@ -131,26 +131,49 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
-     * Wrapper function for spawnRobot. Determines build order.
+     * Wrapper function for spawnRobot. Determines build order. Spawns an initial silent slanderer
+     * and subsequently builds a mix of all units based on ratios. Destination is based on the 
+     * nearest enemy EC or a random exploration destination.
      * @throws GameActionException
      */
     void buildUnit() throws GameActionException {
+        // Turn 1 spawn silent slanderer
         if (turnCount == 1) {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
                 spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
             }
-        } else {
+        } 
+        // Otherwise, do normal build order
+        else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                if (rc.getInfluence() > 145) {
-                    spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
+                // Determine destination by taking closest enemyECLoc or random exploration
+                // destination if no ECs are found.
+                MapLocation enemyLocation = myLocation;
+                if (enemyECLocs.size() > 0) {
+                    for (MapLocation enemyECLoc : enemyECLocs) {
+                        enemyLocation = enemyECLoc;
+                        break;
+                    }
+                } else {
+                    // TODO: Come up with better exploration heuristic. Use map bounds we calculate
+                    // in scouting to better guess locations.
+                    int signx = Math.random() < .5 ? -1 : 1;
+                    int signy = Math.random() < .5 ? -1 : 1;
+                    int dx = (int)(Math.random()*20 + 20) * signx;
+                    int dy = (int)(Math.random()*20 + 20) * signy;
+                    enemyLocation = enemyLocation.translate(dx, dy);
+                }
+                if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
+                    int maxInfluence = Math.max(949, rc.getInfluence() - 5);
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, myLocation.add(optimalDir).add(optimalDir).add(optimalDir), 0);
                     numSlanderers++;
                 } else if (numPoliticians * 3 > numMuckrakers) {
-                    spawnRobotSilentlyWithTracker(RobotType.MUCKRAKER, optimalDir, 1);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
-                    spawnRobotSilentlyWithTracker(RobotType.POLITICIAN, optimalDir, 14);
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
                     numPoliticians++;
                 }
             }
