@@ -9,16 +9,16 @@ public class RelativeMap {
     // Vars used to determine map boundaries
     public int xLineAbove; // between 1 and 64
     public int xLineBelow; // between -64 and -1
-    public int yLineAbove; // between 1 and 64
-    public int yLineBelow; // between -64 and -1
+    public int yLineRight; // between 1 and 64
+    public int yLineLeft; // between -64 and -1
     MapLocation myLocation;
-    
+
     public RelativeMap(MapLocation myLocation) {
         map = new double[64][64];
         xLineAbove = 64;
         xLineBelow = -64;
-        yLineAbove = 64;
-        yLineBelow = -64;
+        yLineRight = 64;
+        yLineLeft = -64;
         this.myLocation = myLocation;
     }
 
@@ -32,15 +32,15 @@ public class RelativeMap {
             // impassable tile spotted; update edges of map
             if (xRel > 0 && xRel < xLineAbove) xLineAbove = xRel;
             if (xRel < 0 && xRel > xLineBelow) xLineBelow = xRel;
-            if (yRel > 0 && yRel < yLineAbove) yLineAbove = yRel;
-            if (yRel < 0 && yRel > yLineBelow) yLineBelow = yRel;
+            if (yRel > 0 && yRel < yLineRight) yLineRight = yRel;
+            if (yRel < 0 && yRel > yLineLeft) yLineLeft = yRel;
         }
         else {
             // update bounds on boundaries where applicable
             if (xRel < 0 && xRel + 64 < xLineAbove) xLineAbove = xRel + 64;
             if (xRel > 0 && xRel - 64 > xLineBelow) xLineBelow = xRel - 64;
-            if (yRel < 0 && yRel + 64 < yLineAbove) yLineAbove = yRel + 64;
-            if (yRel > 0 && yRel - 64 > yLineBelow) yLineBelow = yRel - 64;
+            if (yRel < 0 && yRel + 64 < yLineRight) yLineRight = yRel + 64;
+            if (yRel > 0 && yRel - 64 > yLineLeft) yLineLeft = yRel - 64;
             map[xRel & 63][yRel & 63] = pa;
         }
     }
@@ -89,7 +89,7 @@ public class RelativeMap {
         int x = myLocation.x + xRel;
         int y = myLocation.y + yRel;
         if (xRel > xLineAbove) x -= 65;
-        if (yRel > yLineAbove) y -= 65;
+        if (yRel > yLineRight) y -= 65;
         return new MapLocation(x, y);
     }
 }

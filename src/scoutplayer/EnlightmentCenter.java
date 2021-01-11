@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 public class EnlightmentCenter extends Robot {
+    final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{2,5},{5,2},{5,-2},{2,-5},{-2,-5},{-5,-2},{-5,2},{-2,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{1,6},{6,1},{6,-1},{1,-6},{-1,-6},{-6,-1},{-6,1},{-1,6},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6}};
     // Symmetries - horizontal, vertical, rotational, true until ruled out.
     boolean[] symmetries;
 
@@ -115,7 +116,10 @@ public class EnlightmentCenter extends Robot {
         if (currentRound < searchBounds.length) {
             initialFlagsAndAllies();
         }
-
+        if (turnCount == searchBounds.length) {
+            putVisionTilesOnTheMap();
+            updateSymmetryFromAllies();
+        }
         if (turnCount >= searchBounds.length) {
             readAllyECUpdates(); // read EC updates before building units/prod logic.
             // spawnOrUpdateScout();
@@ -132,7 +136,7 @@ public class EnlightmentCenter extends Robot {
 
     /**
      * Wrapper function for spawnRobot. Determines build order. Spawns an initial silent slanderer
-     * and subsequently builds a mix of all units based on ratios. Destination is based on the 
+     * and subsequently builds a mix of all units based on ratios. Destination is based on the
      * nearest enemy EC or a random exploration destination.
      * @throws GameActionException
      */
@@ -143,7 +147,7 @@ public class EnlightmentCenter extends Robot {
             if (optimalDir != null) {
                 spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
             }
-        } 
+        }
         // Otherwise, do normal build order
         else {
             Direction optimalDir = findOptimalSpawnDir();
@@ -171,11 +175,54 @@ public class EnlightmentCenter extends Robot {
                 } else {
                     // TODO: Come up with better exploration heuristic. Use map bounds we calculate
                     // in scouting to better guess locations.
-                    int signx = Math.random() < .5 ? -1 : 1;
-                    int signy = Math.random() < .5 ? -1 : 1;
-                    int dx = (int)(Math.random()*20 + 20) * signx;
-                    int dy = (int)(Math.random()*20 + 20) * signy;
-                    enemyLocation = myLocation.translate(dx, dy);
+                    // Horizontal symmetry
+                    int horizAbsSum = 0;
+                    int horizSum = 0;
+                    int horizFurthestWall = 0;
+                    int vertAbsSum = 0;
+                    int vertsum = 0;
+                    int vertFurthestWall = 0;
+                    Direction horizFurthestDirection = Direction.WEST;
+                    Direction vertFurthestDirection = Direction.SOUTH;
+
+                    if (symmetry[0] == True) {
+                        horizAbsSum = map.yLineRight - map.yLineLeft;
+                        horizSum = map.yLineRight + map.yLineLeft;
+                        horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
+                        horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
+                    }
+                    if (symmetry[1] == True) {
+                        vertAbsSum = map.xLineAbove - map.xLineBelow;
+                        vertSum = map.xLineAbove + map.xLineBelow;
+                        vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
+                        vertFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
+                    }
+
+                    int[] dArr = new int[]{0, 0};
+                    int threshold = vertFurthestWall / (vertFurthestWall + horizFurthestWall);
+                    if (symmetry[0] == true && symmetry[1] == true) {
+                        int rand = Math.random();
+                        if (rand < threshold) {
+                            dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                        } else {
+                            dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        }
+                    } else if (symmetry[0] == true) {
+                        dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                    } else if (symmetry[1] == true) {
+                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                    } else {
+                        // only rotational symmetry possible
+                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                        int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        dArr[0] = dHoriz[0];
+                        dArr[1] = dVert[1];
+                    }
+                    //int signx = Math.random() < .5 ? -1 : 1;
+                    //int signy = Math.random() < .5 ? -1 : 1;
+                    //int dx = (int)(Math.random()*20 + 20) * signx;
+                    //int dy = (int)(Math.random()*20 + 20) * signy;
+                    enemyLocation = myLocation.translate(dArr[0], dArr[1]);
                 }
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
@@ -250,6 +297,7 @@ public class EnlightmentCenter extends Robot {
             int unitUpdate = ut.update();
             switch(unitUpdate) {
                 case -1:
+                    // TODO: Remove unit from list and decrement necessary vars.
                     break;
                 case Flag.NO_SCHEMA:
                     break;
@@ -378,22 +426,6 @@ public class EnlightmentCenter extends Robot {
         return false;
     }
 
-    boolean spawnAttacker() throws GameActionException {
-        if (rc.isReady()) {
-            RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-            int influence = allyTeam == Team.A ? 1 : 50;
-            if (rc.getInfluence() < influence) {
-                return false;
-            }
-            for (Direction dir : directions) {
-                if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     /**
      * Spawn a robot without sending it or the other ECs any flags.
      * @param type Type of the robot to build.
@@ -440,16 +472,90 @@ public class EnlightmentCenter extends Robot {
         return true;
     }
 
+    int[] optimalHorizontalDestination(int horizAbsSum, int horizSum, Direction horizFurthestDirection, int horizFurthestWall) {
+        int dx = 0;
+        int dy = 0;
+        if (Math.abs(horizSum) >= 32) {
+            if (horixFurthestDirection == Direction.WEST) {
+                dx = -horizFurthestWall;
+                dy = (int)(Math.random()*3);    // add small x-randomness
+            } else {
+                dx = horizFurthestWall;
+                dy = (int)(Math.random()*3);    // add small x-randomness
+            }
+        } else {
+            double k = Math.random();
+            if (k < map.yLineRight/horizAbsSum) {
+                // generate east
+                dx = map.yLineRight;
+                dy = (int)(Math.random()*3);    // add small x-randomness
+            } else {
+                // generate west
+                dx = map.yLineLeft;
+                dy = (int)(Math.random()*3);    // add small x-randomness
+            }
+        }
+        return new int[]{dx, dy};
+    }
 
+    int[] optimalVerticalDestination(int vertAbsSum, int vertSum, Direction vertFurthestDirection, int vertFurthestWall) {
+        int dx = 0;
+        int dy = 0;
+        if (Math.abs(vertSum) >= 32) {
+            if (vertFurthestDirection == Direction.NORTH) {
+                dy = -vertFurthestWall;
+                dx = (int)(Math.random()*3);    // add small x-randomness
+            } else {
+                dy = vertFurthestWall;
+                dx = (int)(Math.random()*3);    // add small x-randomness
+            }
+        } else {
+            double k = Math.random();
+            if (k < map.xLineAbove/vertAbsSum) {
+                // generate north
+                dy = map.xLineAbove;
+                dx = (int)(Math.random()*3);    // add small x-randomness
+            } else {
+                // generate south
+                dy = map.xLineBelow;
+                dx = (int)(Math.random()*3);    // add small x-randomness
+            }
+        }
+        return new int[]{dx, dy};
+    }
+
+    void putVisionTilesOnTheMap() {
+        for (int[] tile : SENSE_SPIRAL_ORDER) {
+            if (rc.onTheMap(myLocation.x + tile[0], myLocation.y + tile[1])) {
+                double pa = rc.sensePassability(myLocation.x + tile[0], myLocation.y + tile[1]);
+                map.set(tile[0], tile[1], pa);
+            } else {
+                map.set(tile[0], tile[1], 0);
+            }
+        }
+    }
     /**
-     * Begin by only comparing ally EC locations to rule out symmetry.
+     * Begin by comparing ally EC locations to rule out symmetry.
      * Call at the end of initialFlagsAndAllies.
-     * ADVANCED: Use enemy EC lcoations to rule out symmetry axes. Also, use neutral ECs.
-     * To implement this, consider calling after case Flag.EC_SIGHTING_SCHEMA in updateUnitTrackers(), but be careful:
-     * Enemy ECs could have started out as neutral ECs or ally ECs.
      */
-    void updateSymmetry() {
-        return;
+    void updateSymmetryFromAllies() {
+        boolean canEliminateHorizontal = True;
+        boolean canEliminateVertical = True;
+        for (int i=0; i<numAllyECs; i++) {
+            // ALLY_EC * * * * me
+            if(allyECLocs[i].y == myLocation.y) {
+                canEliminateHorizontal = False;
+                break;
+            }
+        }
+        for (int i=0; i<numAllyECs; i++) {
+            if(allyECLocs[i].x == myLocation.x) {
+                canEliminateVertical = False;
+                break;
+            }
+        }
+        symmetries[0] = !canEliminateHorizontal;
+        symmetries[1] = !canEliminateVertical;
     }
 
 
