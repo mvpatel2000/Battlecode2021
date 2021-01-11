@@ -15,8 +15,11 @@ public class Slanderer extends Unit {
     final static int[][] NEW_SENSED_LOCS_NORTHWEST = {{-3,2},{-2,3},{0,4},{-4,0},{1,4},{-4,-1},{-4,1},{-1,4},{-3,3},{2,4},{-4,-2},{-4,2},{-2,4}};
     final static int[][] NEW_SENSED_LOCS_CENTER = {};
 
+    MapLocation destination;
+
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
+        destination = myLocation.add(myLocation.directionTo(baseLocation).opposite());
     }
 
     @Override
@@ -35,12 +38,11 @@ public class Slanderer extends Unit {
             }
             if (nearestMuckraker != null) {
                 // Flee from nearest Muckraker.
-                MapLocation fleeLocation = myLocation.add(myLocation.directionTo(nearestMuckraker.location).opposite());
-                fuzzyMove(fleeLocation);
-            } else {
-                // Continue towards destination
-                fuzzyMove(destination);
-            }
+                int diffX = myLocation.x - nearestMuckraker.location.x;
+                int diffY = myLocation.y - nearestMuckraker.location.y;
+                destination = destination.translate(diffX, diffY);
+            } 
+            fuzzyMove(destination);
         }
     }
 
