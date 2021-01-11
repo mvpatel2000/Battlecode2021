@@ -206,6 +206,37 @@ public abstract class Unit extends Robot {
     }
 
     /**
+     * Moves towards destination, in the optimal direction or diagonal offsets based on which is
+     * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
+     * unnecessary computation. Allows orthogonal moves to unlodge.
+     */
+    void wideFuzzyMove(MapLocation destination) throws GameActionException {
+        // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
+        MapLocation myLocation = rc.getLocation();
+        Direction toDest = myLocation.directionTo(destination);
+        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(), toDest.rotateRight().rotateRight()};
+        double cost = -1;
+        Direction optimalDir = null;
+        for (int i = 0; i < dirs.length; i++) {
+            // Prefer forward moving steps over horizontal shifts
+            if (i > 2 && cost > 0) {
+                break;
+            }
+            Direction dir = dirs[i];
+            if (rc.canMove(dir)) {
+                double newCost = rc.sensePassability(myLocation.add(dir));
+                if (newCost > cost) {
+                    cost = newCost;
+                    optimalDir = dir;
+                }
+            }
+        }
+        if (optimalDir != null) {
+            move(optimalDir);
+        }
+    }
+
+    /**
      * Update destination to encourage exploration if destination is off map or destination is not
      * an enemy target. Uses rejection sampling to avoid destinations near already explored areas.
      * @throws GameActionException

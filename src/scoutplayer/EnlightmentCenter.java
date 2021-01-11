@@ -181,7 +181,7 @@ public class EnlightmentCenter extends Robot {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, myLocation.add(optimalDir).add(optimalDir).add(optimalDir), 0);
                     numSlanderers++;
-                } else if (false && numPoliticians * 3 > numMuckrakers) {
+                } else if (numPoliticians * 3 > numMuckrakers) {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
@@ -373,22 +373,6 @@ public class EnlightmentCenter extends Robot {
                 unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
                 numScouts++;
                 return true;
-            }
-        }
-        return false;
-    }
-
-    boolean spawnAttacker() throws GameActionException {
-        if (rc.isReady()) {
-            RobotType toBuild = allyTeam == Team.A ? RobotType.MUCKRAKER : RobotType.POLITICIAN;
-            int influence = allyTeam == Team.A ? 1 : 50;
-            if (rc.getInfluence() < influence) {
-                return false;
-            }
-            for (Direction dir : directions) {
-                if (spawnRobot(toBuild, dir, influence, myLocation, SpawnDestinationFlag.INSTR_ATTACK)) {
-                    return true;
-                }
             }
         }
         return false;

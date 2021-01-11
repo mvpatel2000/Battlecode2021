@@ -39,7 +39,7 @@ public class Politician extends Unit {
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
         } else if (mtq.hasRoom()) { // move if queue isn't full
-            fuzzyMove(destination);
+            wideFuzzyMove(destination);
         } else if (!mtq.hasRoom()) {
             // System.out.println("MapTerrainQueue full; not moving this round.");
         }
