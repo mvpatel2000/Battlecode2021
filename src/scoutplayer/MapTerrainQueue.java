@@ -1,7 +1,5 @@
 package scoutplayer;
 
-import static org.mockito.Mockito.calls;
-
 import battlecode.common.*;
 
 // FIFO queue implemented as circular buffer with overwriting
