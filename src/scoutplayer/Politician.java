@@ -18,11 +18,14 @@ public class Politician extends Unit {
     
     public final static int INITIAL_COOLDOWN = 10;
 
+    boolean onlyECHunter;
+
     MapTerrainQueue mtq;
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
         mtq = new MapTerrainQueue(RobotType.POLITICIAN);
+        onlyECHunter = rc.getInfluence() > 999;
     }
 
     @Override
@@ -31,12 +34,14 @@ public class Politician extends Unit {
 
         updateDestinationForExploration();
 
-        if (considerAttack()) {
+        System.out.println(destination);
+
+        if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
-        } else if (mtq.hasRoom() && tryMove(randomDirection())) { // move if queue isn't full
-            System.out.println("I moved "+moveThisTurn.toString()+" to "+rc.getLocation().toString());
+        } else if (mtq.hasRoom()) { // move if queue isn't full
+            fuzzyMove(destination);
         } else if (!mtq.hasRoom()) {
-            System.out.println("MapTerrainQueue full; not moving this round.");
+            // System.out.println("MapTerrainQueue full; not moving this round.");
         }
         mtq.step(rc, moveThisTurn, rc.getLocation());
         MapTerrainFlag mtf = new MapTerrainFlag();
@@ -83,9 +88,10 @@ public class Politician extends Unit {
 
     /**
      * Analyzes if politician should attack. Returns true if it attacked. Sorts nearbyRobots and
-     * considers various ranges of empowerment to optimize kills.
+     * considers various ranges of empowerment to optimize kills. Only kills ECs if parameter
+     * passed in.
      */
-    public boolean considerAttack() throws GameActionException {
+    public boolean considerAttack(boolean onlyECs) throws GameActionException {
         double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
@@ -121,9 +127,9 @@ public class Politician extends Unit {
             for (int j = 0; j < i; j++) {
                 RobotInfo robot = nearbyRobots[j];
                 if (robot.team == enemyTeam && perUnitDamage > robot.conviction) {
-                    if (robot.type == RobotType.MUCKRAKER) {
+                    if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
                         numEnemiesKilled++;
-                    } else if (robot.type == RobotType.POLITICIAN) {
+                    } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         numEnemiesKilled += 10;
                     }
                 }

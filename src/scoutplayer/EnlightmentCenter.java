@@ -106,7 +106,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 800) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 150) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -150,11 +150,23 @@ public class EnlightmentCenter extends Robot {
             if (optimalDir != null) {
                 // Determine destination by taking closest enemyECLoc or random exploration
                 // destination if no ECs are found.
-                MapLocation enemyLocation = myLocation;
+                MapLocation enemyLocation = null;
+                int enemyLocationDistance = 999999999;
                 if (enemyECLocs.size() > 0) {
                     for (MapLocation enemyECLoc : enemyECLocs) {
-                        enemyLocation = enemyECLoc;
-                        break;
+                        int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                        if (enemyLocationDistance < enemyECLocDestination) {
+                            enemyLocation = enemyECLoc;
+                            enemyLocationDistance = enemyECLocDestination;
+                        }
+                    }
+                } else if (neutralECLocs.size() > 0) {
+                    for (MapLocation neutralECLoc : neutralECLocs) {
+                        int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                        if (enemyLocationDistance < neutralECLocDestination) {
+                            enemyLocation = neutralECLoc;
+                            enemyLocationDistance = neutralECLocDestination;
+                        }
                     }
                 } else {
                     // TODO: Come up with better exploration heuristic. Use map bounds we calculate
@@ -163,17 +175,21 @@ public class EnlightmentCenter extends Robot {
                     int signy = Math.random() < .5 ? -1 : 1;
                     int dx = (int)(Math.random()*20 + 20) * signx;
                     int dy = (int)(Math.random()*20 + 20) * signy;
-                    enemyLocation = enemyLocation.translate(dx, dy);
+                    enemyLocation = myLocation.translate(dx, dy);
                 }
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
-                    int maxInfluence = Math.max(949, rc.getInfluence() - 5);
+                    int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, myLocation.add(optimalDir).add(optimalDir).add(optimalDir), 0);
                     numSlanderers++;
-                } else if (numPoliticians * 3 > numMuckrakers) {
+                } else if (false && numPoliticians * 3 > numMuckrakers) {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
+                    if (rc.getInfluence() > 1000) {
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0);
+                    } else {
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
+                    }
                     numPoliticians++;
                 }
             }
