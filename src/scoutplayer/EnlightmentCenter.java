@@ -21,9 +21,11 @@ public class EnlightmentCenter extends Robot {
     final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
 
     // Ally ECs: Unverified and verified.
-    int numPotentialAllyECs;
-    int[] potentialAllyECIDs;
-    MapLocation[] potentialAllyECLocs; // absolute locations
+    // We are treating unverified allies as ground truth for now.
+    // For better security, eventually implement and use the verified variables
+    int numAllyECs;
+    int[] allyECIDs;
+    MapLocation[] allyECLocs; // absolute locations
 
     int numVerifiedAllyECs;
     int[] verifiedAllyECIDs;
@@ -31,12 +33,10 @@ public class EnlightmentCenter extends Robot {
 
     // Environment and enemy
     int numFoundEnemyECs;
-    int[] enemyECIDs;
-    MapLocation[] enemyECLocs;
+    Set<MapLocation> enemyECLocs;
 
     int numFoundNeutralECs;
-    int[] neutralECIDs;
-    MapLocation[] neutralECLocs;
+    Set<MapLocation> neutralECLocs;
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -71,9 +71,9 @@ public class EnlightmentCenter extends Robot {
         // Initialize EC to EC communication variables
         scannedAllIDs = false;
         searchRound = 0;
-        numPotentialAllyECs = 0;
-        potentialAllyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
-        potentialAllyECLocs = new MapLocation[5];
+        numAllyECs = 0;
+        allyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
+        allyECLocs = new MapLocation[5];
         numVerifiedAllyECs = 0;
         verifiedAllyECIDs = new int[]{0, 0};
         verifiedAllyECLocs = new MapLocation[2];
@@ -86,11 +86,9 @@ public class EnlightmentCenter extends Robot {
 
         // Initialize environment and enemy tracking variables
         numFoundEnemyECs = 0;
-        enemyECIDs = new int[]{0, 0, 0};
-        enemyECLocs = new MapLocation[3];
+        enemyECLocs = new HashSet<MapLocation>();
         numFoundNeutralECs = 0;
-        neutralECIDs = new int[]{0, 0, 0, 0, 0, 0};
-        neutralECLocs = new MapLocation[6];
+        neutralECLocs = new HashSet<MapLocation>();
 
         latestSpawnRound = -1;
 
@@ -118,16 +116,18 @@ public class EnlightmentCenter extends Robot {
             initialFlagsAndAllies();
         }
 
-        setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
-
-        updateUnitTrackers();
-
         if (turnCount >= searchBounds.length) {
-            listenToComms();
+            readAllyECUpdates(); // read EC updates before building units/prod logic.
             // spawnOrUpdateScout();
         }
 
+        //setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
+        updateUnitTrackers();
         buildUnit();
+
+        if (currentRound >= searchBounds.length && !flagSetThisRound) {
+            setFlag(0);
+        }
     }
 
     /**
@@ -157,11 +157,91 @@ public class EnlightmentCenter extends Robot {
         }
     }
 
+    /**
+     * Reads flags from Ally ECs.
+     * Handles logic: Given a flag from an Ally EC, what does this EC do?
+     * TODO: @Vinjai: Add in logic for other cases.
+     */
+    void readAllyECUpdates() throws GameActionException {
+        for (int i=0; i<numAllyECs; i++) {
+            if(rc.canGetFlag(allyECIDs[i])) { // should always be true
+                int flagInt = rc.getFlag(allyECIDs[i]);
+                int flagSchema = Flag.getSchema(flagInt);
+                switch (flagSchema) {
+                    case Flag.NO_SCHEMA:
+                        break;
+                    case Flag.EC_SIGHTING_SCHEMA:
+                        // Not relevant, ECs do not send such flags to ECs.
+                        break;
+                    case Flag.MAP_TERRAIN_SCHEMA:
+                        // Not relevant, ECs do not send such flags to ECs.
+                        break;
+                    case Flag.LOCATION_SCHEMA:
+                        break;
+                    case Flag.SPAWN_UNIT_SCHEMA:
+                        // Track new unit our ally EC produced.
+                        SpawnUnitFlag suf = new SpawnUnitFlag(flagInt);
+                        RobotType spawnType = suf.readUnitType();
+                        int spawnID = suf.readID();
+                        Direction spawnDir = suf.readSpawnDir();
+                        unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
+                        System.out.println("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
+                        break;
+                    case Flag.SPAWN_DESTINATION_SCHEMA:
+                        // Not relevant, ECs do not send such flags to ECs.
+                        break;
+                    case Flag.UNIT_UPDATE_SCHEMA:
+                        // Not relevant, ECs do not send such flags to ECs.
+                        break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Reads flags from all tracked units (not ally ECs).
+     * Handles logic: Given a flag from a unit we're tracking,
+     * what does this EC do?
+     * TODO: @Vinjai: Handle the other cases. For example, MapTerrainFlag.
+     */
     void updateUnitTrackers() throws GameActionException {
         unitTrackerList.resetIter();
         while(unitTrackerList.hasNext()) {
-            unitTrackerList.next().update();
-            // TODO: @Nikhil
+            UnitTracker ut = unitTrackerList.next();
+            int unitUpdate = ut.update();
+            switch(unitUpdate) {
+                case -1:
+                    break;
+                case Flag.NO_SCHEMA:
+                    break;
+                case Flag.EC_SIGHTING_SCHEMA:
+                    ECSightingFlag ecsf = new ECSightingFlag(ut.flagInt);
+                    MapLocation ecLoc = ecsf.readAbsoluteLocation(myLocation);
+                    if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
+                        if (!neutralECLocs.contains(ecLoc)) {
+                            neutralECLocs.add(ecLoc);
+                        }
+                    } else {
+                        if (!enemyECLocs.contains(ecLoc)) {
+                            enemyECLocs.add(ecLoc);
+                            // This EC has been converted from neutral to enemy since we last saw it.
+                            if(neutralECLocs.contains(ecLoc)) {
+                                neutralECLocs.remove(ecLoc);
+                            }
+                        }
+                    }
+                    break;
+                case Flag.MAP_TERRAIN_SCHEMA:
+                    break;
+                case Flag.LOCATION_SCHEMA:
+                    break;
+                case Flag.SPAWN_UNIT_SCHEMA:
+                    break;
+                case Flag.SPAWN_DESTINATION_SCHEMA:
+                    break;
+                case Flag.UNIT_UPDATE_SCHEMA:
+                    break;
+            }
         }
     }
 
@@ -319,36 +399,16 @@ public class EnlightmentCenter extends Robot {
         return true;
     }
 
-    /** Pseudocode for listening to communication.
-     * Real logic will go inside the cases of the switch statement once requisite classes exist.
-     * TODO: Implement UnitTracker.
+
+    /**
+     * Begin by only comparing ally EC locations to rule out symmetry.
+     * Call at the end of initialFlagsAndAllies.
+     * ADVANCED: Use enemy EC lcoations to rule out symmetry axes. Also, use neutral ECs.
+     * To implement this, consider calling after case Flag.EC_SIGHTING_SCHEMA in updateUnitTrackers(), but be careful:
+     * Enemy ECs could have started out as neutral ECs or ally ECs.
      */
-    void listenToComms() {
-        /*
-        for(UnitTracker ut: listOfUnitTrackers) {
-            UnitUpdate uu = ut.update();
-            switch(uu) {
-                case VERIFIED:
-                    break;
-                case ENEMY:
-                    break;
-                case NEUTRAL:
-                    break;
-                case ENEMYTOALLY:
-                    break;
-                case ENEMYTONEUTRAL:
-                    break;
-                case ALLYTOENEMY:
-                    break;
-                case ALLYTONEUTRAL:
-                    break;
-                case NETURALTOENEMY:
-                    break;
-                case NEUTRALTOALLY:
-                    break;
-            }
-        }
-        */
+    void updateSymmetry() {
+        return;
     }
 
 
@@ -380,13 +440,13 @@ public class EnlightmentCenter extends Robot {
                 // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                 if (generateSecretCode(i) == newFaf.readCode())  {
                     // add RobotID to potentialAlly list and decoded location to map.
-                    potentialAllyECIDs[numPotentialAllyECs] = i;
-                    numPotentialAllyECs += 1;
+                    allyECIDs[numAllyECs] = i;
                     int[] moduloLocs = newFaf.readLocation();
                     int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                     map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                    MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                    System.out.println("Found a POTENTIAL ally! ID: " + i + ". I now have: " + numPotentialAllyECs + " allies.");
+                    allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                    numAllyECs += 1;
+                    System.out.println("Found a POTENTIAL ally! ID: " + i + ". I now have: " + numAllyECs + " allies.");
                     System.out.println("Adding POTENTIAL ally " + i + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                 }
             }
@@ -408,13 +468,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(i) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -429,13 +489,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(i) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -450,13 +510,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -471,13 +531,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -492,13 +552,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -513,13 +573,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -534,13 +594,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -555,13 +615,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -576,13 +636,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -597,13 +657,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -618,13 +678,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -639,13 +699,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -660,13 +720,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -681,13 +741,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -702,13 +762,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -723,13 +783,13 @@ public class EnlightmentCenter extends Robot {
                     // Check to see if code matches. If so, the Robot with ID i is a potential ally.
                     if (generateSecretCode(j) == newFaf.readCode())  {
                         // add RobotID to potentialAlly list and decoded location to map.
-                        potentialAllyECIDs[numPotentialAllyECs] = j;
-                        numPotentialAllyECs += 1;
+                        allyECIDs[numAllyECs] = j;
                         int[] moduloLocs = newFaf.readLocation();
                         int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
-                        MapLocation potentialAllyECLocs = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numPotentialAllyECs + " allies.");
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.

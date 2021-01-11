@@ -1,12 +1,11 @@
 package scoutplayer;
 
 import battlecode.common.*;
-
 /**
  * Used by ECs to track units roaming around.
  */
 public class UnitTracker {
-    
+
     int robotID;
     MapLocation currLoc;
     EnlightmentCenter ec;
@@ -15,7 +14,7 @@ public class UnitTracker {
     RobotType type;
     Direction lastMove;
     int flagInt;
-    
+
     public UnitTracker(EnlightmentCenter ec, RobotType type, int idToTrack, MapLocation spawnLoc) {
         robotID = idToTrack;
         this.ec = ec;
@@ -48,8 +47,7 @@ public class UnitTracker {
         // System.out.println("Robot with ID " + robotID + " is now at " + currLoc.toString());
         // System.out.println("Last move: " + lastMove.toString());
         // System.out.println("Flag seen: " + flagInt);
-        
-        // TOOD: @Nikhil parse ECSightingFlag
+
         return Flag.getSchema(flagInt);
     }
 

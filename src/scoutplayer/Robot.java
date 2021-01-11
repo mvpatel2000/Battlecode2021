@@ -10,6 +10,7 @@ public abstract class Robot {
     int myID;
     Team allyTeam;
     Team enemyTeam;
+    Team neutralTeam;
     MapLocation startLocation;
     MapLocation myLocation;
     boolean flagSetThisRound;
@@ -43,6 +44,7 @@ public abstract class Robot {
         turnCount = 0;
         allyTeam = rc.getTeam();
         enemyTeam = allyTeam.opponent();
+        neutralTeam = Team.NEUTRAL;
         myID = rc.getID();
         startLocation = rc.getLocation();
         myLocation = startLocation;
@@ -86,6 +88,8 @@ public abstract class Robot {
                 return 0;
             case B:
                 return 1;
+            case NEUTRAL:
+                return 2;
             default:
                 return -1;
         }

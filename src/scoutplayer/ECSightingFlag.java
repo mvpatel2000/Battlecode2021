@@ -13,7 +13,7 @@ public class ECSightingFlag extends LocationFlag {
      * - y coordinate mod 128 (COORD_BITS)
      * - type of EC that was sighted (EC_TYPE_BITS)
      * - the scouting unit's last move (LAST_MOVE_BITS)
-     * 
+     *
      * Total bits used: 3 + 7 + 7 + 1 + 4 = 22.
      */
 
@@ -44,7 +44,7 @@ public class ECSightingFlag extends LocationFlag {
         return writeToFlag(ecType, EC_TYPE_BITS);
     }
 
-    public int readECType(int ecType) {
+    public int readECType() {
         return readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS, EC_TYPE_BITS);
     }
 

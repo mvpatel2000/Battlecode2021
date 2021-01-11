@@ -1,26 +1,35 @@
 package scoutplayer;
 
 import battlecode.common.*;
+import java.util.Map;
+import java.util.HashMap;
+import java.lang.Integer;
 
 public abstract class Unit extends Robot {
-    
+
     // Base EnlightmentCenter information
     MapLocation baseLocation;
     int baseID;
 
     RobotInfo[] nearbyAllies;
     RobotInfo[] nearbyEnemies;
+    RobotInfo[] nearbyNeutral;
     RobotInfo[] nearbyRobots;
     Direction moveThisTurn;
-
+    Direction moveLastTurn;
     MapLocation destination;
     boolean spawnedSilently;
 
-    // TODO @Nikhil: variables to keep track of EC sightings
+    // variables to keep track of EC sightings
+    // May only need sets instead of maps.
+    // But we may want to use the IDs later, in which case we will need maps.
+    Map<MapLocation, Integer> enemyECLocsToIDs;
+    Map<MapLocation, Integer> neutralECLocsToIDs;
 
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
+        moveLastTurn = Direction.CENTER;
         // Add base information. If no base is found, baseID will be 0.
         // If spawned silently, then baseLocation will be any base that
         // is adjacent to the unit when it spawns, and is not necessarily
@@ -56,24 +65,29 @@ public abstract class Unit extends Robot {
         } else {
             destination = baseLocation.translate(-60, -60);
         }
+
+        // variables to keep track of EC sightings
+        enemyECLocsToIDs = new HashMap<>();
+        neutralECLocsToIDs = new HashMap<>();
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
+        moveLastTurn = moveThisTurn;
         moveThisTurn = Direction.CENTER;
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
-        setECSightingFlag();
     }
 
     /**
      * TODO: @Nikhil
      * If I see an EC that I am not already aware of, send a flag
      */
-    public void setECSightingFlag() throws GameActionException {
-        // TODO
+    public void setECSightingFlag(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
+        int ecType = (t == enemyTeam) ? ECSightingFlag.ENEMY_EC : ECSightingFlag.NEUTRAL_EC;
+        ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
     }
 
     /**
@@ -105,6 +119,31 @@ public abstract class Unit extends Robot {
         nearbyRobots = rc.senseNearbyRobots();
         nearbyEnemies = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, enemyTeam);
         nearbyAllies = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, allyTeam);
+        nearbyNeutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, neutralTeam);
+        for (RobotInfo ri : nearbyEnemies) {
+            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                if (!enemyECLocsToIDs.containsKey(ri.location)) {
+                    enemyECLocsToIDs.put(ri.location, ri.ID);
+                    // If EC used be neutral, remove it from neutral map.
+                    if (neutralECLocsToIDs.containsKey(ri.location)) {
+                        neutralECLocsToIDs.remove(ri.location);
+                    }
+                    setECSightingFlag(ri.location, enemyTeam, moveLastTurn);
+                    // we may not want to return in the future when there is more computation to be done.
+                    // than just setting a flag.
+                    return;
+                }
+            }
+        }
+        for (RobotInfo ri : nearbyNeutral) {
+            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                if (!neutralECLocsToIDs.containsKey(ri.location)) {
+                    neutralECLocsToIDs.put(ri.location, ri.ID);
+                    setECSightingFlag(ri.location, neutralTeam, moveLastTurn);
+                    return;
+                }
+            }
+        }
     }
 
     /**
