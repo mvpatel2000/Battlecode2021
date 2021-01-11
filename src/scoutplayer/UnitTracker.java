@@ -33,9 +33,8 @@ public class UnitTracker {
     }
 
     /**
-     * Returns:
-     * * if the robot is dead/inactive, -1
-     * * otherwise, the received flag schema
+     * Returns -1 if the robot is dead/inactive, and otherwise
+     * returns the schema of the received flag.
      */
     public int update() throws GameActionException {
         turnCount++;
@@ -46,9 +45,10 @@ public class UnitTracker {
         flagInt = ec.rc.getFlag(robotID);
         lastMove = getLastMoveFromFlag(flagInt);
         currLoc = currLoc.add(lastMove);
-        System.out.println("Robot with ID " + robotID + " is now at " + currLoc.toString());
-        System.out.println("Last move: " + lastMove.toString());
-        System.out.println("Flag seen: " + flagInt);
+        // System.out.println("Robot with ID " + robotID + " is now at " + currLoc.toString());
+        // System.out.println("Last move: " + lastMove.toString());
+        // System.out.println("Flag seen: " + flagInt);
+        // TOOD: parse ECSightingFlag
         return Flag.getSchema(flagInt);
     }
 
