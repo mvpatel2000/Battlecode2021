@@ -34,8 +34,6 @@ public class Politician extends Unit {
 
         updateDestinationForExploration();
 
-        System.out.println(destination);
-
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
         } else if (mtq.hasRoom()) { // move if queue isn't full

@@ -155,7 +155,7 @@ public class EnlightmentCenter extends Robot {
                 if (enemyECLocs.size() > 0) {
                     for (MapLocation enemyECLoc : enemyECLocs) {
                         int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                        if (enemyLocationDistance < enemyECLocDestination) {
+                        if (enemyECLocDestination < enemyLocationDistance) {
                             enemyLocation = enemyECLoc;
                             enemyLocationDistance = enemyECLocDestination;
                         }
@@ -163,7 +163,7 @@ public class EnlightmentCenter extends Robot {
                 } else if (neutralECLocs.size() > 0) {
                     for (MapLocation neutralECLoc : neutralECLocs) {
                         int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
-                        if (enemyLocationDistance < neutralECLocDestination) {
+                        if (neutralECLocDestination < enemyLocationDistance) {
                             enemyLocation = neutralECLoc;
                             enemyLocationDistance = neutralECLocDestination;
                         }
@@ -179,7 +179,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
-                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, myLocation.add(optimalDir).add(optimalDir).add(optimalDir), 0);
+                    MapLocation shiftedLocation = myLocation.add(optimalDir).add(optimalDir).add(optimalDir);
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
                     numSlanderers++;
                 } else if (numPoliticians * 3 > numMuckrakers) {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
@@ -416,7 +417,7 @@ public class EnlightmentCenter extends Robot {
         }
         rc.buildRobot(type, direction, influence);
         MapLocation spawnLoc = myLocation.add(direction);
-        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString());
+        System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination);
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
         latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
