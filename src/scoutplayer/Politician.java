@@ -42,10 +42,17 @@ public class Politician extends Unit {
             }
         }
 
+        // TODO: Only attack if u can kill > 1 or if theres a slanderer in vision
+        // TODO: follow nearest muckraker if ur nearest slanderer
+
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
         } else if (mtq.hasRoom()) { // move if queue isn't full
-            wideFuzzyMove(destination);
+            if (onlyECHunter) {
+                fuzzyMove(destination);
+            } else {
+                weightedFuzzyMove(destination);
+            }
         } else if (!mtq.hasRoom()) {
             // System.out.println("MapTerrainQueue full; not moving this round.");
         }
