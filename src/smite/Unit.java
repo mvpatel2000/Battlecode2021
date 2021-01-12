@@ -1,4 +1,4 @@
-package scoutplayer;
+package smite;
 
 import battlecode.common.*;
 import java.util.ArrayList;
@@ -45,7 +45,7 @@ public abstract class Unit extends Robot {
                 if (rc.canGetFlag(robot.ID)) {
                     SpawnUnitFlag suf = new SpawnUnitFlag(rc.getFlag(robot.ID));
                     if (suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA && suf.readID() == rc.getID()) {
-                        System.out.println("Not spawned silently");
+                        //System.out.println\("Not spawned silently");
                         spawnedSilently = false;
                         baseLocation = robot.location;
                         baseID = robot.ID;
@@ -62,7 +62,7 @@ public abstract class Unit extends Robot {
         }
 
         // Set destination as baseLocation until it's set by EC message
-        destination = baseLocation;
+        destination = baseLocation.add(Direction.NORTH).add(Direction.NORTH);
 
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
@@ -79,7 +79,6 @@ public abstract class Unit extends Robot {
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
-        System.out.println("Destination: " + destination);
     }
 
     /**
@@ -90,7 +89,7 @@ public abstract class Unit extends Robot {
         int ecType = (t == enemyTeam) ? ECSightingFlag.ENEMY_EC : ECSightingFlag.NEUTRAL_EC;
         ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
         setFlag(ecsf.flag);
-        System.out.println("Sending EC Sighting at " + ecLoc);
+        //System.out.println\("Sending EC Sighting at " + ecLoc);
     }
 
     /**
@@ -103,16 +102,16 @@ public abstract class Unit extends Robot {
         }
         if (turnCount == 2) { // expect SpawnDestinationFlag
             if (!rc.canGetFlag(baseID)) {
-                System.out.println("MAJOR ERROR: I was expecting a flag from the EC, but can't see one!");
+                //System.out.println\("MAJOR ERROR: I was expecting a flag from the EC, but can't see one!");
                 return false;
             }
             SpawnDestinationFlag sdf = new SpawnDestinationFlag(rc.getFlag(baseID));
             if (sdf.getSchema() != Flag.SPAWN_DESTINATION_SCHEMA) {
-                System.out.println("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
+                //System.out.println\("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
-            System.out.println("I have my destination: " + destination.toString());
+            //System.out.println\("I have my destination: " + destination.toString());
             return true;
         }
         return false;
