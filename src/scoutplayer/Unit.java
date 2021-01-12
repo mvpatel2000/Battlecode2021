@@ -61,6 +61,9 @@ public abstract class Unit extends Robot {
             }
         }
 
+        // Set destination as baseLocation until it's set by EC message
+        destination = baseLocation.add(Direction.NORTH).add(Direction.NORTH);
+
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
