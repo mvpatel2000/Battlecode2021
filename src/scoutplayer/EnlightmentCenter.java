@@ -13,7 +13,6 @@ public class EnlightmentCenter extends Robot {
     // Initial EC to EC communication
     boolean scannedAllIDs;
     int searchRound;
-    Set<Integer> foundAllyECLocations;
     FindAllyFlag initialFaf;    // initial flag used to communicate my existence and location
     int[] searchBounds;
     ArrayList<Integer> firstRoundIDsToConsider;
@@ -74,7 +73,6 @@ public class EnlightmentCenter extends Robot {
         //numVerifiedAllyECs = 0;
         //verifiedAllyECIDs = new int[]{0, 0};
         //verifiedAllyECLocs = new MapLocation[2];
-        foundAllyECLocations = new HashSet<Integer>();
         searchBounds = new int[]{10000, 11072, 12584, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
@@ -116,16 +114,13 @@ public class EnlightmentCenter extends Robot {
         }
         if (turnCount >= searchBounds.length) {
             readAllyECUpdates(); // read EC updates before building units/prod logic.
-            System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
             // spawnOrUpdateScout();
         }
-        // Be careful about bytecode usage on rounds < searchBounds.length
-        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
+        // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
+        // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
         updateUnitTrackers();
-        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
         buildUnit();
-        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
 
 
         if (currentRound >= searchBounds.length && !flagSetThisRound) {
@@ -153,6 +148,7 @@ public class EnlightmentCenter extends Robot {
             if (optimalDir != null) {
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
+                    MapLocation enemyLocation = optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
                     numSlanderers++;
