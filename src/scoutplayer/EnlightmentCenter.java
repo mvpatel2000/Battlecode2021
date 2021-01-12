@@ -175,41 +175,28 @@ public class EnlightmentCenter extends Robot {
                 } else {
                     // TODO: Come up with better exploration heuristic. Use map bounds we calculate
                     // in scouting to better guess locations.
-                    // Horizontal symmetry
-                    int horizAbsSum = 0;
-                    int horizSum = 0;
-                    int horizFurthestWall = 0;
-                    int vertAbsSum = 0;
-                    int vertsum = 0;
-                    int vertFurthestWall = 0;
-                    Direction horizFurthestDirection = Direction.WEST;
-                    Direction vertFurthestDirection = Direction.SOUTH;
+                    int horizAbsSum = Math.abs(map.yLineRight) + Math.abs(map.yLineLeft);
+                    int horizSum = map.yLineRight + map.yLineLeft;
+                    Direction horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
+                    int horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
 
-                    if (symmetry[0] == True) {
-                        horizAbsSum = map.yLineRight - map.yLineLeft;
-                        horizSum = map.yLineRight + map.yLineLeft;
-                        horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
-                        horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
-                    }
-                    if (symmetry[1] == True) {
-                        vertAbsSum = map.xLineAbove - map.xLineBelow;
-                        vertSum = map.xLineAbove + map.xLineBelow;
-                        vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
-                        vertFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
-                    }
+                    int vertAbsSum = Math.abs(map.xLineAbove) + Math.abs(map.xLineBelow);
+                    int vertSum = map.xLineAbove + map.xLineBelow;
+                    Direction vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
+                    int vertFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
 
                     int[] dArr = new int[]{0, 0};
                     int threshold = vertFurthestWall / (vertFurthestWall + horizFurthestWall);
-                    if (symmetry[0] == true && symmetry[1] == true) {
-                        int rand = Math.random();
+                    if (symmetries[0] == true && symmetries[1] == true) {
+                        double rand = Math.random();
                         if (rand < threshold) {
                             dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         } else {
                             dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         }
-                    } else if (symmetry[0] == true) {
+                    } else if (symmetries[0] == true) {
                         dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                    } else if (symmetry[1] == true) {
+                    } else if (symmetries[1] == true) {
                         dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                     } else {
                         // only rotational symmetry possible
@@ -477,7 +464,7 @@ public class EnlightmentCenter extends Robot {
         int dx = 0;
         int dy = 0;
         if (Math.abs(horizSum) >= 32) {
-            if (horixFurthestDirection == Direction.WEST) {
+            if (horizFurthestDirection == Direction.WEST) {
                 dx = -horizFurthestWall;
                 dy = (int)(Math.random()*3);    // add small x-randomness
             } else {
@@ -525,10 +512,11 @@ public class EnlightmentCenter extends Robot {
         return new int[]{dx, dy};
     }
 
-    void putVisionTilesOnTheMap() {
+    void putVisionTilesOnTheMap() throws GameActionException {
         for (int[] tile : SENSE_SPIRAL_ORDER) {
-            if (rc.onTheMap(myLocation.x + tile[0], myLocation.y + tile[1])) {
-                double pa = rc.sensePassability(myLocation.x + tile[0], myLocation.y + tile[1]);
+            MapLocation newML = new MapLocation(myLocation.x + tile[0], myLocation.y + tile[1]);
+            if (rc.onTheMap(newML)) {
+                double pa = rc.sensePassability(newML);
                 map.set(tile[0], tile[1], pa);
             } else {
                 map.set(tile[0], tile[1], 0);
@@ -540,18 +528,18 @@ public class EnlightmentCenter extends Robot {
      * Call at the end of initialFlagsAndAllies.
      */
     void updateSymmetryFromAllies() {
-        boolean canEliminateHorizontal = True;
-        boolean canEliminateVertical = True;
+        boolean canEliminateHorizontal = true;
+        boolean canEliminateVertical = true;
         for (int i=0; i<numAllyECs; i++) {
             // ALLY_EC * * * * me
             if(allyECLocs[i].y == myLocation.y) {
-                canEliminateHorizontal = False;
+                canEliminateHorizontal = false;
                 break;
             }
         }
         for (int i=0; i<numAllyECs; i++) {
             if(allyECLocs[i].x == myLocation.x) {
-                canEliminateVertical = False;
+                canEliminateVertical = false;
                 break;
             }
         }
