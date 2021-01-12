@@ -179,11 +179,10 @@ public class EnlightmentCenter extends Robot {
                     int horizSum = map.yLineRight + map.yLineLeft;
                     Direction horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
                     int horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
-
                     int vertAbsSum = Math.abs(map.xLineAbove) + Math.abs(map.xLineBelow);
                     int vertSum = map.xLineAbove + map.xLineBelow;
                     Direction vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
-                    int vertFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
+                    int vertFurthestWall = Math.max(map.xLineAbove, Math.abs(map.xLineBelow));
 
                     int[] dArr = new int[]{0, 0};
                     int threshold = vertFurthestWall / (vertFurthestWall + horizFurthestWall);
@@ -200,8 +199,8 @@ public class EnlightmentCenter extends Robot {
                         dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                     } else {
                         // only rotational symmetry possible
-                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         dArr[0] = dHoriz[0];
                         dArr[1] = dVert[1];
                     }
