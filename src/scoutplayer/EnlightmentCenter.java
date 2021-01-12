@@ -28,15 +28,11 @@ public class EnlightmentCenter extends Robot {
     int[] allyECIDs;
     MapLocation[] allyECLocs; // absolute locations
 
-    int numVerifiedAllyECs;
-    int[] verifiedAllyECIDs;
-    MapLocation[] verifiedAllyECLocs;
+    //int[] verifiedAllyECIDs;
+    //MapLocation[] verifiedAllyECLocs;
 
     // Environment and enemy
-    int numFoundEnemyECs;
     Set<MapLocation> enemyECLocs;
-
-    int numFoundNeutralECs;
     Set<MapLocation> neutralECLocs;
 
     // Flags to initialize whenever a unit is spawned, and then set
@@ -75,9 +71,9 @@ public class EnlightmentCenter extends Robot {
         numAllyECs = 0;
         allyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
         allyECLocs = new MapLocation[5];
-        numVerifiedAllyECs = 0;
-        verifiedAllyECIDs = new int[]{0, 0};
-        verifiedAllyECLocs = new MapLocation[2];
+        //numVerifiedAllyECs = 0;
+        //verifiedAllyECIDs = new int[]{0, 0};
+        //verifiedAllyECLocs = new MapLocation[2];
         foundAllyECLocations = new HashSet<Integer>();
         searchBounds = new int[]{10000, 11072, 12584, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
@@ -86,9 +82,7 @@ public class EnlightmentCenter extends Robot {
         firstRoundIDsToConsider = new ArrayList<Integer>();
 
         // Initialize environment and enemy tracking variables
-        numFoundEnemyECs = 0;
         enemyECLocs = new HashSet<MapLocation>();
-        numFoundNeutralECs = 0;
         neutralECLocs = new HashSet<MapLocation>();
 
         latestSpawnRound = -1;
@@ -122,12 +116,17 @@ public class EnlightmentCenter extends Robot {
         }
         if (turnCount >= searchBounds.length) {
             readAllyECUpdates(); // read EC updates before building units/prod logic.
+            System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
+            setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
             // spawnOrUpdateScout();
         }
-
-        setSpawnOrDirectionFlag(); // this needs to be run before spawning any units
+        // Be careful about bytecode usage on rounds < searchBounds.length
+        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
         updateUnitTrackers();
+        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
         buildUnit();
+        System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
+
 
         if (currentRound >= searchBounds.length && !flagSetThisRound) {
             setFlag(0);
@@ -152,76 +151,21 @@ public class EnlightmentCenter extends Robot {
         else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                // Determine destination by taking closest enemyECLoc or random exploration
-                // destination if no ECs are found.
-                MapLocation enemyLocation = null;
-                int enemyLocationDistance = 999999999;
-                if (enemyECLocs.size() > 0) {
-                    for (MapLocation enemyECLoc : enemyECLocs) {
-                        int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                        if (enemyECLocDestination < enemyLocationDistance) {
-                            enemyLocation = enemyECLoc;
-                            enemyLocationDistance = enemyECLocDestination;
-                        }
-                    }
-                } else if (neutralECLocs.size() > 0) {
-                    for (MapLocation neutralECLoc : neutralECLocs) {
-                        int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
-                        if (neutralECLocDestination < enemyLocationDistance) {
-                            enemyLocation = neutralECLoc;
-                            enemyLocationDistance = neutralECLocDestination;
-                        }
-                    }
-                } else {
-                    // TODO: Come up with better exploration heuristic. Use map bounds we calculate
-                    // in scouting to better guess locations.
-                    int horizAbsSum = Math.abs(map.yLineRight) + Math.abs(map.yLineLeft);
-                    int horizSum = map.yLineRight + map.yLineLeft;
-                    Direction horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
-                    int horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
-                    int vertAbsSum = Math.abs(map.xLineAbove) + Math.abs(map.xLineBelow);
-                    int vertSum = map.xLineAbove + map.xLineBelow;
-                    Direction vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
-                    int vertFurthestWall = Math.max(map.xLineAbove, Math.abs(map.xLineBelow));
-
-                    int[] dArr = new int[]{0, 0};
-                    int threshold = vertFurthestWall / (vertFurthestWall + horizFurthestWall);
-                    if (symmetries[0] == true && symmetries[1] == true) {
-                        double rand = Math.random();
-                        if (rand < threshold) {
-                            dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                        } else {
-                            dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                        }
-                    } else if (symmetries[0] == true) {
-                        dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                    } else if (symmetries[1] == true) {
-                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                    } else {
-                        // only rotational symmetry possible
-                        int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                        dArr[0] = dHoriz[0];
-                        dArr[1] = dVert[1];
-                    }
-                    //int signx = Math.random() < .5 ? -1 : 1;
-                    //int signy = Math.random() < .5 ? -1 : 1;
-                    //int dx = (int)(Math.random()*20 + 20) * signx;
-                    //int dy = (int)(Math.random()*20 + 20) * signy;
-                    enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-                }
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation shiftedLocation = myLocation.add(optimalDir).add(optimalDir).add(optimalDir);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
                     numSlanderers++;
                 } else if (numPoliticians * 3 > numMuckrakers) {
+                    MapLocation enemyLocation = optimalDestination(false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
                     if (rc.getInfluence() > 1000) {
+                        MapLocation enemyLocation = optimalDestination(true, false);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0);
                     } else {
+                        MapLocation enemyLocation = optimalDestination(true, false);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
                     }
                     numPoliticians++;
@@ -252,6 +196,7 @@ public class EnlightmentCenter extends Robot {
                         break;
                     case Flag.SPAWN_UNIT_SCHEMA:
                         // Track new unit our ally EC produced.
+                        // TODO: Perhaps also keep a tally of number of units per unit type.
                         SpawnUnitFlag suf = new SpawnUnitFlag(flagInt);
                         RobotType spawnType = suf.readUnitType();
                         int spawnID = suf.readID();
@@ -385,13 +330,13 @@ public class EnlightmentCenter extends Robot {
             if (flagSetThisRound) { // TODO: delete, for debugging
                 System.out.println("MAJOR ERROR: Trying to send multiple flags in one round!");
             }
-            System.out.println("Setting SpawnUnitFlag: " + latestSpawnFlag.flag);
+            //System.out.println("Setting SpawnUnitFlag: " + latestSpawnFlag.flag);
             setFlag(latestSpawnFlag.flag);
         } else if (latestSpawnRound > 0 && currentRound == latestSpawnRound + 2) {
             if (flagSetThisRound) { // TODO: delete, for debugging
                 System.out.println("MAJOR ERROR: Trying to send multiple flags in one round!");
             }
-            System.out.println("Setting SpawnDestinationFlag: " + latestSpawnDestinationFlag.flag);
+            //System.out.println("Setting SpawnDestinationFlag: " + latestSpawnDestinationFlag.flag);
             setFlag(latestSpawnDestinationFlag.flag);
         }
     }
@@ -459,61 +404,163 @@ public class EnlightmentCenter extends Robot {
         return true;
     }
 
-    int[] optimalHorizontalDestination(int horizAbsSum, int horizSum, Direction horizFurthestDirection, int horizFurthestWall) {
-        int dx = 0;
-        int dy = 0;
-        if (Math.abs(horizSum) >= 32) {
-            if (horizFurthestDirection == Direction.WEST) {
-                dx = -horizFurthestWall;
-                dy = (int)(Math.random()*3);    // add small x-randomness
-            } else {
-                dx = horizFurthestWall;
-                dy = (int)(Math.random()*3);    // add small x-randomness
+    /**
+     * Determines destination to send robots. First choice is closest enemyECLoc.
+     * If includeNeutral is false, then it does not consider neutralECLocs as potential destinations.
+     * If we don't know about any ECs, goes to fallback:
+     *      If randomFallback == False, sets destination based on symmetries ruled out and weighted by current info on map.
+     *      If randomFallback == True, sets destination randomly.
+     */
+    MapLocation optimalDestination(boolean includeNeutral, boolean randomFallback) {
+        if (rc.getRoundNum() < searchBounds.length) {
+            int[] dArr = randomDestination();
+            return myLocation.translate(dArr[0], dArr[1]);
+        }
+        MapLocation enemyLocation = null;
+        int enemyLocationDistance = 999999999;
+        if (enemyECLocs.size() > 0) {
+            for (MapLocation enemyECLoc : enemyECLocs) {
+                int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                if (enemyECLocDestination < enemyLocationDistance) {
+                    enemyLocation = enemyECLoc;
+                    enemyLocationDistance = enemyECLocDestination;
+                }
+            }
+        } else if (includeNeutral && neutralECLocs.size() > 0) {
+            for (MapLocation neutralECLoc : neutralECLocs) {
+                int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                if (neutralECLocDestination < enemyLocationDistance) {
+                    enemyLocation = neutralECLoc;
+                    enemyLocationDistance = neutralECLocDestination;
+                }
             }
         } else {
+            // FALLBACK: We don't know about any ECs.
+            // TODO: Ensure this exploration heuristic produces good results.
+            int[] dArr = new int[]{0, 0};
+            if (!randomFallback) {
+                // Use relativeMap's information on how far away opposite walls are to values for map size.
+                int horizAbsSum = Math.abs(map.yLineRight) + Math.abs(map.yLineLeft);
+                int horizSum = map.yLineRight + map.yLineLeft;
+                Direction horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
+                int horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
+                int vertAbsSum = Math.abs(map.xLineAbove) + Math.abs(map.xLineBelow);
+                int vertSum = map.xLineAbove + map.xLineBelow;
+                Direction vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
+                int vertFurthestWall = Math.max(map.xLineAbove, Math.abs(map.xLineBelow));
+
+                double threshold = horizFurthestWall / (vertFurthestWall + horizFurthestWall);
+                if (symmetries[0] == true && symmetries[1] == true) {
+                    System.out.println("WEIRD. Both horizontal and vertical symmetry.");
+                    double rand = Math.random();
+                    if (rand < threshold) {
+                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                    } else {
+                        dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                    }
+                } else if (symmetries[0] == true) {
+                    System.out.println("Horizontal Symmetry.");
+                    dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                } else if (symmetries[1] == true) {
+                    System.out.println("Vertical Symmetry.");
+                    dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                } else {
+                    // only rotational symmetry possible
+                    System.out.println("Only rotational symmetry.");
+                    int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                    int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                    dArr[0] = dHoriz[0];
+                    dArr[1] = dVert[1];
+                }
+            } else {
+                dArr = randomDestination();
+            }
+            enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+        }
+        return enemyLocation;
+    }
+
+    /**
+     * Helper function for optimalDestination().
+     * Returns random destination.
+     */
+    int[] randomDestination() {
+        int signx = Math.random() < .5 ? -1 : 1;
+        int signy = Math.random() < .5 ? -1 : 1;
+        int dx = (int)(Math.random()*20 + 20) * signx;
+        int dy = (int)(Math.random()*20 + 20) * signy;
+        return new int[]{dx, dy};
+    }
+
+    /**
+     * Helper function for optimalDestination() to calculate the optimal horizontal destination.
+     * Send units right or left?
+     * Determines EAST or WEST based on how far we know the east and west walls are (via map).
+     * If we think more of the map is on the east, we will send more units eastward.
+     */
+    int[] optimalHorizontalDestination(int horizAbsSum, int horizSum, Direction horizFurthestDirection, int horizFurthestWall) {
+        int dx = 0;
+        int dy = (int)(Math.random()*3);    // add small y-randomness
+        // If one side clearly larger than the other, send all units in that direction.
+        if (Math.abs(horizSum) >= 32) {
+            if (horizFurthestDirection == Direction.EAST) {
+                // optimal direction east
+                dx = horizFurthestWall;
+            } else {
+                // optimal direction west
+                dx = -horizFurthestWall;
+            }
+        } else {
+            // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
             if (k < map.yLineRight/horizAbsSum) {
-                // generate east
+                // optimal direction east
                 dx = map.yLineRight;
-                dy = (int)(Math.random()*3);    // add small x-randomness
             } else {
-                // generate west
+                // optimal direction west
                 dx = map.yLineLeft;
-                dy = (int)(Math.random()*3);    // add small x-randomness
             }
         }
         return new int[]{dx, dy};
     }
 
+    /**
+     * Helper function for optimalDestination() to calculate the optimal horizontal destination.
+     * Send units up or down?
+     * Determines NORTH or SOUTH based on how far we know the north and south walls are (via map).
+     * If we think more of the map is north of us, we will send more units northbound.
+     */
     int[] optimalVerticalDestination(int vertAbsSum, int vertSum, Direction vertFurthestDirection, int vertFurthestWall) {
-        int dx = 0;
+        int dx = (int)(Math.random()*3);    // add small x-randomness
         int dy = 0;
+        // If one side clearly larger than the other, send all units in that direction.
         if (Math.abs(vertSum) >= 32) {
             if (vertFurthestDirection == Direction.NORTH) {
                 dy = -vertFurthestWall;
-                dx = (int)(Math.random()*3);    // add small x-randomness
             } else {
                 dy = vertFurthestWall;
-                dx = (int)(Math.random()*3);    // add small x-randomness
             }
         } else {
+            // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
             if (k < map.xLineAbove/vertAbsSum) {
                 // generate north
                 dy = map.xLineAbove;
-                dx = (int)(Math.random()*3);    // add small x-randomness
             } else {
                 // generate south
                 dy = map.xLineBelow;
-                dx = (int)(Math.random()*3);    // add small x-randomness
             }
         }
         return new int[]{dx, dy};
     }
 
+    /**
+     * Record passability and wall information of locations in vision radius
+     * Placed in map. Called once, on round 4, just after ending initial bytecode-intensive EC-EC comms.
+     */
     void putVisionTilesOnTheMap() throws GameActionException {
         for (int[] tile : SENSE_SPIRAL_ORDER) {
-            MapLocation newML = new MapLocation(myLocation.x + tile[0], myLocation.y + tile[1]);
+            MapLocation newML = myLocation.translate(tile[0], tile[1]);
             if (rc.onTheMap(newML)) {
                 double pa = rc.sensePassability(newML);
                 map.set(tile[0], tile[1], pa);
@@ -522,9 +569,10 @@ public class EnlightmentCenter extends Robot {
             }
         }
     }
+
     /**
-     * Begin by comparing ally EC locations to rule out symmetry.
-     * Call at the end of initialFlagsAndAllies.
+     * Compare ally EC locations to rule out symmetry.
+     * Call just after after putVisionTilesOnTheMap().
      */
     void updateSymmetryFromAllies() {
         boolean canEliminateHorizontal = true;
@@ -555,7 +603,7 @@ public class EnlightmentCenter extends Robot {
      * Ends on round 3. You can reduce the number of bytecodes
      * used per round (but extend the number of rounds) by modifying the searchBounds array
      * and making the differences in numbers smaller. Please ensure this function finishes
-     * before or on to round 3, or else, you should change STOP_SENDING_LOCATION_ROUND.
+     * before or on to round 3, or else, ensure nothing breaks when you change when this ends (nothing should).
      */
     void initialFlagsAndAllies() throws GameActionException {
         // Set flag on first turn
@@ -595,7 +643,7 @@ public class EnlightmentCenter extends Robot {
             System.out.println("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             // We partially unroll this loop to optimize bytecode. Without unrolling, we get 14.1
             // bytecode per iteration, and with unrolling it's 12.2. This lets us do scanning in 3 turns.
-            for (int i=startPoint; i<endPoint; i+=16) {
+            for (int i=startPoint; i<endPoint; i+=32) {
                 if (rc.canGetFlag(i)) {
                     int j=i;
                     if (myID == j) { continue; }
@@ -609,7 +657,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -630,7 +678,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -651,7 +699,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -672,7 +720,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -693,7 +741,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -714,7 +762,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -735,7 +783,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -756,7 +804,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -777,7 +825,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -798,7 +846,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -819,7 +867,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -840,7 +888,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -861,7 +909,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -882,7 +930,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -903,7 +951,7 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
@@ -924,7 +972,343 @@ public class EnlightmentCenter extends Robot {
                         map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
-                        System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+16)) {
+                    int j = i+16;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+17)) {
+                    int j = i+17;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+18)) {
+                    int j = i+18;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+19)) {
+                    int j = i+19;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+20)) {
+                    int j = i+20;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+21)) {
+                    int j = i+21;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+22)) {
+                    int j = i+22;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+23)) {
+                    int j = i+23;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+24)) {
+                    int j = i+24;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+25)) {
+                    int j = i+25;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+26)) {
+                    int j = i+26;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+27)) {
+                    int j = i+27;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+28)) {
+                    int j = i+28;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+29)) {
+                    int j = i+29;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+30)) {
+                    int j = i+30;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
+                        System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    } else if (currentRound == 1) {
+                        // First turn, not guaranteed that ally flags are set to be secret code yet.
+                        // Add to list to revisit in round 2.
+                        firstRoundIDsToConsider.add(j);
+                    }
+                }
+                if (rc.canGetFlag(i+31)) {
+                    int j = i+31;
+                    if (myID == j) { continue; }
+                    FindAllyFlag newFaf = new FindAllyFlag(rc.getFlag(j));
+                    // Check to see if code matches. If so, the Robot with ID i is a potential ally.
+                    if (generateSecretCode(j) == newFaf.readCode())  {
+                        // add RobotID to potentialAlly list and decoded location to map.
+                        allyECIDs[numAllyECs] = j;
+                        int[] moduloLocs = newFaf.readLocation();
+                        int[] relLocs = getRelativeLocFromModuloLoc(moduloLocs[0], moduloLocs[1], myLocation);
+                        map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
+                        allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
+                        numAllyECs += 1;
+                        //System.out.println("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
                         System.out.println("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
