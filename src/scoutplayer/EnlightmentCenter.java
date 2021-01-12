@@ -212,7 +212,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
-                    MapLocation shiftedLocation = myLocation.add(optimalDir).add(optimalDir).add(optimalDir);
+                    MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
                     numSlanderers++;
                 } else if (numPoliticians > numMuckrakers * 2) {
