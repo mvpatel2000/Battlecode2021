@@ -107,7 +107,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 150) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -215,7 +215,7 @@ public class EnlightmentCenter extends Robot {
                     MapLocation shiftedLocation = myLocation.add(optimalDir).add(optimalDir).add(optimalDir);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
                     numSlanderers++;
-                } else if (numPoliticians * 3 > numMuckrakers) {
+                } else if (numPoliticians > numMuckrakers * 2) {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
