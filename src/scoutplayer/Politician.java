@@ -25,7 +25,7 @@ public class Politician extends Unit {
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
         mtq = new MapTerrainQueue(RobotType.POLITICIAN);
-        onlyECHunter = rc.getInfluence() > 999;
+        onlyECHunter = rc.getInfluence() > 499;
     }
 
     @Override
@@ -94,6 +94,13 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
+        int totalAllyInfluence = 0;
+        for (RobotInfo robot : nearbyAllies) {
+            if (robot.type == RobotType.POLITICIAN) {
+                totalAllyInfluence = robot.influence;
+            }
+        }
+        totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo
@@ -130,6 +137,11 @@ public class Politician extends Unit {
                     } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         numEnemiesKilled += 10;
                     }
+                } 
+                // If strong nearby politicians, weaken EC so allies can capture.
+                else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER 
+                    && totalAllyInfluence > robot.conviction * 2) {
+                    numEnemiesKilled += 10;
                 }
             }
             if (numEnemiesKilled > optimalNumEnemiesKilled) {
