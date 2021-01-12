@@ -61,14 +61,6 @@ public abstract class Unit extends Robot {
             }
         }
 
-        // TODO: Delete! Hard default destination. We should instead give a default destination
-        // in silentSpawning and discuss what this actually looks like.
-        if (allyTeam == Team.A) {
-            destination = baseLocation.translate(60, 60);
-        } else {
-            destination = baseLocation.translate(-60, -60);
-        }
-
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
