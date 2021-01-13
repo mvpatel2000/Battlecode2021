@@ -146,7 +146,7 @@ public class EnlightmentCenter extends Robot {
         else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                if (rc.getInfluence() > 145 && (numSlanderers - 3) * 2 < numMuckrakers + numPoliticians) {
+                if (rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
