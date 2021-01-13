@@ -32,11 +32,13 @@ public class Muckraker extends Unit {
                 if (nearestSlandererDistSquared < rc.getType().actionRadiusSquared) {
                     rc.expose(nearestSlanderer.location);
                 } else {
-                    weightedFuzzyMove(nearestSlanderer.location);
+                    // Consider using weightedFuzzyMove
+                    fuzzyMove(nearestSlanderer.location);
                 }
             } else {
                 // Continue towards destination
-                weightedFuzzyMove(destination);
+                // Consider using weightedFuzzyMove
+                fuzzyMove(destination);
             }
         }
         if (!flagSetThisRound) {

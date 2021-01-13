@@ -89,7 +89,8 @@ public class Politician extends Unit {
         }
         // If no nearby Muckrakers, continue weighted movement.
         if (nearestMuckraker == null) {
-            weightedFuzzyMove(destination);
+            // Consider using weightedFuzzyMove
+            fuzzyMove(destination);
             return;
         }
         int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
@@ -97,7 +98,8 @@ public class Politician extends Unit {
             // If there's a closer politician, don't worry about covering this muckraker.
             boolean closerPolitician = myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location);
             if (closerPolitician) {
-                weightedFuzzyMove(destination);
+                // Consider using weightedFuzzyMove
+                fuzzyMove(destination);
             }
         }
         fuzzyMove(nearestMuckraker.location);
