@@ -41,20 +41,30 @@ public class Slanderer extends Unit {
         // Run away from nearest Muckraker.
         if (rc.isReady()) {
             RobotInfo nearestMuckraker = null;
-            int nearestMuckrakerDistSquared = 100;
+            int nearestMuckrakerDistSquared = 1000;
+            RobotInfo nearestEnemy = null;
+            int nearestEnemyDistSquared = 1000;
             for (RobotInfo robot : nearbyEnemies) {
                 int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
                 if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
                     nearestMuckraker = robot;
                     nearestMuckrakerDistSquared = robotDistSquared;
                 }
+                if (robotDistSquared < nearestEnemyDistSquared) {
+                    nearestEnemy = robot;
+                    nearestEnemyDistSquared = robotDistSquared;
+                }
             }
             if (nearestMuckraker != null) {
                 // Flee from nearest Muckraker.
                 int diffX = myLocation.x - nearestMuckraker.location.x;
                 int diffY = myLocation.y - nearestMuckraker.location.y;
-                destination = destination.translate(diffX, diffY);
-            } 
+                destination = myLocation.translate(diffX, diffY);
+            } else if (nearestEnemy != null) {
+                int diffX = myLocation.x - nearestEnemy.location.x;
+                int diffY = myLocation.y - nearestEnemy.location.y;
+                destination = myLocation.translate(diffX, diffY);
+            }
             wideFuzzyMove(destination);
         }
 

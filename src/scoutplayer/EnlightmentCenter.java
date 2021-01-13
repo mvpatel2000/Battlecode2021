@@ -48,7 +48,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
-    final int MAX_UNITS_TRACKED = 500;
+    final int MAX_UNITS_TRACKED = 50;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,

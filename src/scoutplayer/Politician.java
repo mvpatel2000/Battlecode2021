@@ -149,7 +149,8 @@ public class Politician extends Unit {
             if (robot.type == RobotType.POLITICIAN) {
                 totalAllyInfluence = robot.influence;
             }
-            nearbySlanderer |= robot.type == RobotType.SLANDERER;
+            // TODO: cannot tell apart slanderers and politicians, use flag
+            nearbySlanderer = nearbySlanderer || robot.type == RobotType.SLANDERER;
         }
         totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
