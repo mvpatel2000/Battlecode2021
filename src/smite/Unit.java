@@ -19,6 +19,7 @@ public abstract class Unit extends Robot {
     Direction moveThisTurn;
     Direction moveLastTurn;
     MapLocation destination;
+    int instruction;
     boolean spawnedSilently;
 
     // variables to keep track of EC sightings
@@ -62,7 +63,7 @@ public abstract class Unit extends Robot {
         }
 
         // Set destination as baseLocation until it's set by EC message
-        destination = baseLocation.add(Direction.NORTH).add(Direction.NORTH);
+        destination = baseLocation;
 
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
@@ -79,6 +80,7 @@ public abstract class Unit extends Robot {
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
+        //System.out.println\("Destination: " + destination);
     }
 
     /**
@@ -111,6 +113,7 @@ public abstract class Unit extends Robot {
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
+            instruction = sdf.readInstruction();
             //System.out.println\("I have my destination: " + destination.toString());
             return true;
         }
@@ -189,6 +192,10 @@ public abstract class Unit extends Robot {
         for (Direction dir : dirs) {
             if (rc.canMove(dir)) {
                 double newCost = rc.sensePassability(myLocation.add(dir));
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
                 if (newCost > cost) {
                     cost = newCost;
                     optimalDir = dir;
@@ -220,6 +227,64 @@ public abstract class Unit extends Robot {
             Direction dir = dirs[i];
             if (rc.canMove(dir)) {
                 double newCost = rc.sensePassability(myLocation.add(dir));
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
+                if (newCost > cost) {
+                    cost = newCost;
+                    optimalDir = dir;
+                }
+            }
+        }
+        if (optimalDir != null) {
+            move(optimalDir);
+        }
+    }
+
+    /**
+     * Moves towards destination, prefering high passability terrain. Repels from nearby units of
+     * the same type to avoid clustering after initial few turns.
+     */
+    void weightedFuzzyMove(MapLocation destination) throws GameActionException {
+        MapLocation myLocation = rc.getLocation();
+        Direction toDest = myLocation.directionTo(destination);
+        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(), 
+            toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
+        double[] costs = new double[8];
+        // Ignore repel factor in beginning and when close to target
+        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
+        for (int i = 0; i < dirs.length; i++) {
+            MapLocation newLocation = myLocation.add(dirs[i]);
+            // Movement invalid, set higher cost than starting value
+            if (!rc.onTheMap(newLocation)) {
+                costs[i] = -999999;
+                continue;
+            }
+            double cost = (rc.sensePassability(newLocation) - 1) * 60;
+            // Preference tier for moving towards target
+            if (i >= 3) {
+                cost -= 60;
+            }
+            if (shouldRepel) {
+                for (RobotInfo robot : nearbyAllies) {
+                    if (robot.type == rc.getType()) {
+                        cost -= 40 - newLocation.distanceSquaredTo(robot.location);
+                    }
+                }
+            }
+            costs[i] = cost;
+        }
+        double cost = -99999;
+        Direction optimalDir = null;
+        for (int i = 0; i < dirs.length; i++) {
+            Direction dir = dirs[i];
+            if (rc.canMove(dir)) {
+                double newCost = costs[i];
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
                 if (newCost > cost) {
                     cost = newCost;
                     optimalDir = dir;

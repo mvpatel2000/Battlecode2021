@@ -1,8 +1,31 @@
 package smite;
 
+/**
+ * Bytecode-efficient linked list.
+ * 
+ * Proper usage:
+ * 
+ * List<T> L = new List<T>();
+ * L.add(val);
+ * L.add(val2);
+ * ...
+ * 
+ * L.resetIter();
+ * while (L.currNotNull()) {
+ *     val = L.curr();
+ *     if (decideToRemoveVal) {
+ *         L.popStep();
+ *     } else {
+ *         L.step();
+ *     }
+ * }
+ */
+
+// TODO: is there any more room for bytecode optimization?
+
 public class List<T> {
 
-    class ListNode {
+    public class ListNode {
 
         T val;
         ListNode next;
@@ -14,31 +37,57 @@ public class List<T> {
     }
 
     int length;
-    ListNode first;
+    ListNode root;
     ListNode curr;
+    ListNode prev;
 
     public List() {
         length = 0;
-        first = null;
+        root = new ListNode(null, null);
         curr = null;
+        prev = root;
     }
 
     public void add(T val) {
-        ListNode second = first;
-        first = new ListNode(val, second);
+        root.next = new ListNode(val, root.next);
     }
     
-    public T next() {
-        ListNode toReturn = curr;
-        curr = curr.next;
-        return toReturn.val;
-    }
-    
-    public void resetIter() {
-        curr = first;
+    public T curr() {
+        return curr.val;
     }
 
-    public boolean hasNext() {
+    /**
+     * Return the current value and step forward.
+     */
+    public T step() {
+        prev = curr;
+        curr = curr.next;
+        return prev.val;
+    }
+
+    /**
+     * Pop the current value and step forward.
+     */
+    public T popStep() {
+        T valToReturn = curr.val;
+        prev.next = curr.next;
+        curr = curr.next;
+        return valToReturn;
+    }
+
+    /**
+     * Reset list iteration vars to start. Run before
+     * iterating through the loop.
+     */
+    public void resetIter() {
+        prev = root;
+        curr = root.next;
+    }
+
+    /**
+     * Returns true if the current ListNode exists.
+     */
+    public boolean currNotNull() {
         return curr != null;
     }
 }

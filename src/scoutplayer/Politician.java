@@ -42,13 +42,11 @@ public class Politician extends Unit {
             }
         }
 
-        // TODO: follow nearest muckraker if ur nearest slanderer
-
-        if (considerAttack(onlyECHunter)) {
-            System.out.println("Attacking!");
-        } 
-        // else if (mtq.hasRoom()) { // move if queue isn't full
+        considerAttack(onlyECHunter);
         movePolitician();
+
+
+        // else if (mtq.hasRoom()) { // move if queue isn't full
         // } else if (!mtq.hasRoom()) {
         //     // System.out.println("MapTerrainQueue full; not moving this round.");
         // }
@@ -64,7 +62,7 @@ public class Politician extends Unit {
         // setFlag(mtf.getFlag());
 
         if (!flagSetThisRound) {
-            setFlag((new UnitFlag(moveThisTurn)).flag);
+            setFlag((new UnitFlag(moveThisTurn, false)).flag);
         }
     }
 
@@ -150,7 +148,10 @@ public class Politician extends Unit {
                 totalAllyInfluence = robot.influence;
             }
             // TODO: cannot tell apart slanderers and politicians, use flag
-            nearbySlanderer = nearbySlanderer || robot.type == RobotType.SLANDERER;
+            if (rc.canGetFlag(robot.ID)) {
+                UnitFlag uf = new UnitFlag(rc.getFlag(robot.ID));
+                nearbySlanderer |= uf.readIsSlanderer();
+            }
         }
         totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
@@ -201,7 +202,7 @@ public class Politician extends Unit {
                 optimalDist = distanceSquareds[i-1];
             }
         }
-        if (rc.canEmpower(optimalDist) && (optimalNumEnemiesKilled > 1 || nearbySlanderer)) {
+        if (rc.canEmpower(optimalDist) && (optimalNumEnemiesKilled > 1 || nearbySlanderer && optimalNumEnemiesKilled > 0)) {
             rc.empower(optimalDist);
         }
         return false;

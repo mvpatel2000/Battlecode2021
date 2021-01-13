@@ -20,11 +20,11 @@ public class Politician extends Unit {
 
     boolean onlyECHunter;
 
-    MapTerrainQueue mtq;
+    // MapTerrainQueue mtq;
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        mtq = new MapTerrainQueue(RobotType.POLITICIAN);
+        // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         onlyECHunter = rc.getInfluence() > 499;
     }
 
@@ -42,27 +42,68 @@ public class Politician extends Unit {
             }
         }
 
+        // TODO: follow nearest muckraker if ur nearest slanderer
+
         if (considerAttack(onlyECHunter)) {
             //System.out.println\("Attacking!");
-        } else if (mtq.hasRoom()) { // move if queue isn't full
-            wideFuzzyMove(destination);
-        } else if (!mtq.hasRoom()) {
-            // //System.out.println\("MapTerrainQueue full; not moving this round.");
-        }
-        mtq.step(rc, moveThisTurn, rc.getLocation());
-        MapTerrainFlag mtf = new MapTerrainFlag();
-        mtf.writeLastMove(moveThisTurn);
-        for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
-            if (mtq.isEmpty()) break;
-            MapTerrain terrain = mtq.pop();
-            mtf.writePassability(terrain.pa);
-            // //System.out.println\("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
-        }
-        setFlag(mtf.getFlag());
+        } 
+        // else if (mtq.hasRoom()) { // move if queue isn't full
+        movePolitician();
+        // } else if (!mtq.hasRoom()) {
+        //     // //System.out.println\("MapTerrainQueue full; not moving this round.");
+        // }
+        // mtq.step(rc, moveThisTurn, rc.getLocation());
+        // MapTerrainFlag mtf = new MapTerrainFlag();
+        // mtf.writeLastMove(moveThisTurn);
+        // for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
+        //     if (mtq.isEmpty()) break;
+        //     MapTerrain terrain = mtq.pop();
+        //     mtf.writePassability(terrain.pa);
+        //     // //System.out.println\("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
+        // }
+        // setFlag(mtf.getFlag());
 
         if (!flagSetThisRound) {
             setFlag((new UnitFlag(moveThisTurn)).flag);
         }
+    }
+
+    /**
+     * ECHunters bee-line towards enemy ECs. Normal politicians weighted move and seek out nearby
+     * muckrakers if they're uncovered.
+     * @throws GameActionException
+     */
+    void movePolitician() throws GameActionException {
+        // ECHunters ignore other units
+        if (onlyECHunter) {
+            fuzzyMove(destination);
+            return;
+        }
+        RobotInfo nearestMuckraker = null;
+        int nearestMuckrakerDistSquared = 100;
+        for (RobotInfo robot : nearbyEnemies) {
+            int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+                nearestMuckraker = robot;
+                nearestMuckrakerDistSquared = robotDistSquared;
+            }
+        }
+        // If no nearby Muckrakers, continue weighted movement.
+        if (nearestMuckraker == null) {
+            // Consider using weightedFuzzyMove
+            fuzzyMove(destination);
+            return;
+        }
+        int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
+        for (RobotInfo robot : nearbyAllies) {
+            // If there's a closer politician, don't worry about covering this muckraker.
+            boolean closerPolitician = myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location);
+            if (closerPolitician) {
+                // Consider using weightedFuzzyMove
+                fuzzyMove(destination);
+            }
+        }
+        fuzzyMove(nearestMuckraker.location);
     }
 
     /**
@@ -102,11 +143,14 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
+        boolean nearbySlanderer = false;
         int totalAllyInfluence = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
                 totalAllyInfluence = robot.influence;
             }
+            // TODO: cannot tell apart slanderers and politicians, use flag
+            nearbySlanderer = nearbySlanderer || robot.type == RobotType.SLANDERER;
         }
         totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
@@ -157,7 +201,7 @@ public class Politician extends Unit {
                 optimalDist = distanceSquareds[i-1];
             }
         }
-        if (optimalNumEnemiesKilled > 0 && rc.canEmpower(optimalDist)) {
+        if (rc.canEmpower(optimalDist) && (optimalNumEnemiesKilled > 1 || nearbySlanderer)) {
             rc.empower(optimalDist);
         }
         return false;
