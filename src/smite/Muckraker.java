@@ -42,7 +42,7 @@ public class Muckraker extends Unit {
             }
         }
         if (!flagSetThisRound) {
-            setFlag((new UnitFlag(moveThisTurn)).flag);
+            setFlag((new UnitFlag(moveThisTurn, false)).flag);
         }
     }
 }

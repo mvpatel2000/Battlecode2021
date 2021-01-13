@@ -69,7 +69,7 @@ public class Slanderer extends Unit {
         }
 
         if (!flagSetThisRound) {
-            setFlag((new UnitFlag(moveThisTurn)).flag);
+            setFlag((new UnitFlag(moveThisTurn, true)).flag);
         }
     }
 
