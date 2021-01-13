@@ -42,17 +42,12 @@ public class Politician extends Unit {
             }
         }
 
-        // TODO: Only attack if u can kill > 1 or if theres a slanderer in vision
         // TODO: follow nearest muckraker if ur nearest slanderer
 
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
         } else if (mtq.hasRoom()) { // move if queue isn't full
-            if (onlyECHunter) {
-                fuzzyMove(destination);
-            } else {
-                weightedFuzzyMove(destination);
-            }
+            movePolitician();
         } else if (!mtq.hasRoom()) {
             // System.out.println("MapTerrainQueue full; not moving this round.");
         }
@@ -70,6 +65,42 @@ public class Politician extends Unit {
         if (!flagSetThisRound) {
             setFlag((new UnitFlag(moveThisTurn)).flag);
         }
+    }
+
+    /**
+     * ECHunters bee-line towards enemy ECs. Normal politicians weighted move and seek out nearby
+     * muckrakers if they're uncovered.
+     * @throws GameActionException
+     */
+    void movePolitician() throws GameActionException {
+        // ECHunters ignore other units
+        if (onlyECHunter) {
+            fuzzyMove(destination);
+            return;
+        }
+        RobotInfo nearestMuckraker = null;
+        int nearestMuckrakerDistSquared = 100;
+        for (RobotInfo robot : nearbyEnemies) {
+            int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+                nearestMuckraker = robot;
+                nearestMuckrakerDistSquared = robotDistSquared;
+            }
+        }
+        // If no nearby Muckrakers, continue weighted movement.
+        if (nearestMuckraker == null) {
+            weightedFuzzyMove(destination);
+            return;
+        }
+        int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
+        for (RobotInfo robot : nearbyAllies) {
+            // If there's a closer politician, don't worry about covering this muckraker.
+            boolean closerPolitician = myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location);
+            if (closerPolitician) {
+                weightedFuzzyMove(destination);
+            }
+        }
+        fuzzyMove(nearestMuckraker.location);
     }
 
     /**
@@ -109,11 +140,13 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
+        boolean nearbySlanderer = false;
         int totalAllyInfluence = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
                 totalAllyInfluence = robot.influence;
             }
+            nearbySlanderer |= robot.type == RobotType.SLANDERER;
         }
         totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
@@ -164,7 +197,7 @@ public class Politician extends Unit {
                 optimalDist = distanceSquareds[i-1];
             }
         }
-        if (optimalNumEnemiesKilled > 0 && rc.canEmpower(optimalDist)) {
+        if (rc.canEmpower(optimalDist) && (optimalNumEnemiesKilled > 1 || nearbySlanderer)) {
             rc.empower(optimalDist);
         }
         return false;
