@@ -33,6 +33,14 @@ public class Politician extends Unit {
         super.run();
 
         updateDestinationForExploration();
+        if (onlyECHunter) {
+            for (RobotInfo robot : nearbyRobots) {
+                if (robot.type == RobotType.ENLIGHTENMENT_CENTER && robot.team != allyTeam) {
+                    destination = robot.location;
+                    break;
+                }
+            }
+        }
 
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
