@@ -6,41 +6,62 @@ public class RelativeMap {
 
     double[][] map;
     public static final int ALLY_EC = -1;
+    public static final int NEUTRAL_EC = -2;
+    public static final int ENEMY_EC = -3;
     // Vars used to determine map boundaries
-    public int xLineAbove; // between 1 and 64
-    public int xLineBelow; // between -64 and -1
-    public int yLineRight; // between 1 and 64
-    public int yLineLeft; // between -64 and -1
+    public int xLineAboveUpper; // between 1 and 64
+    public int xLineAboveLower; // between 1 and 64
+    public int xLineBelowLower; // between -64 and -1
+    public int xLineBelowUpper; // between -64 and -1
+    public int yLineAboveUpper; // between 1 and 64
+    public int yLineAboveLower; // between 1 and 64
+    public int yLineBelowLower; // between -64 and -1
+    public int yLineBelowUpper; // between -64 and -1
     MapLocation myLocation;
 
     public RelativeMap(MapLocation myLocation) {
         map = new double[64][64];
-        xLineAbove = 64;
-        xLineBelow = -64;
-        yLineRight = 64;
-        yLineLeft = -64;
+        xLineAboveUpper = 64;
+        xLineAboveLower = 1;
+        xLineBelowLower = -64;
+        xLineBelowUpper = -1;
+        yLineAboveUpper = 64;
+        yLineAboveLower = 1;
+        yLineBelowLower = -64;
+        yLineBelowUpper = -1;
         this.myLocation = myLocation;
     }
 
     /**
      * xRel and yRel should be between -63 and 63 when pa > 0.
      * In particular, the vector [xRel, yRel] from myLocation
-     * should lie fully within the map.
+     * should lie fully within the map. Guaranteed to update
+     * map boundaries correctly if impassable tiles are set
+     * AFTER passable tiles that are just inside the boundary,
+     * e.g. with an iteration through SENSE_SPIRAL_LOCS.
      */
     public void set(int xRel, int yRel, double pa) {
         if (pa == 0) {
             // impassable tile spotted; update edges of map
-            if (xRel > 0 && xRel < xLineAbove) xLineAbove = xRel;
-            if (xRel < 0 && xRel > xLineBelow) xLineBelow = xRel;
-            if (yRel > 0 && yRel < yLineRight) yLineRight = yRel;
-            if (yRel < 0 && yRel > yLineLeft) yLineLeft = yRel;
+            // if x > 0 and x < current upper bound of upper line and
+            // y coordinate is within known-on-the-map range, then we
+            // know that the reason this point is off the map is that
+            // this point's x coordinate is too large.
+            if (xRel > 0 && xRel < xLineAboveUpper && yRel > yLineBelowUpper && yRel < yLineAboveLower) xLineAboveUpper = xRel;
+            if (xRel < 0 && xRel > xLineBelowLower && yRel > yLineBelowUpper && yRel < yLineAboveLower) xLineBelowLower = xRel;
+            if (yRel > 0 && yRel < yLineAboveUpper && xRel > xLineBelowUpper && xRel < xLineAboveLower) yLineAboveUpper = yRel;
+            if (yRel < 0 && yRel > yLineBelowLower && xRel > xLineBelowUpper && xRel < xLineAboveLower) yLineBelowLower = yRel;
         }
         else {
             // update bounds on boundaries where applicable
-            if (xRel < 0 && xRel + 64 < xLineAbove) xLineAbove = xRel + 64;
-            if (xRel > 0 && xRel - 64 > xLineBelow) xLineBelow = xRel - 64;
-            if (yRel < 0 && yRel + 64 < yLineRight) yLineRight = yRel + 64;
-            if (yRel > 0 && yRel - 64 > yLineLeft) yLineLeft = yRel - 64;
+            if (xRel < 0 && xRel + 64 < xLineAboveUpper) xLineAboveUpper = xRel + 64;
+            if (xRel < 0 && xRel <= xLineBelowUpper) xLineBelowUpper = xRel - 1;
+            if (xRel > 0 && xRel - 64 > xLineBelowLower) xLineBelowLower = xRel - 64;
+            if (xRel > 0 && xRel >= xLineAboveLower) xLineAboveLower = xRel + 1;
+            if (yRel < 0 && yRel + 64 < yLineAboveUpper) yLineAboveUpper = yRel + 64;
+            if (yRel < 0 && yRel <= yLineBelowUpper) yLineBelowUpper = xRel - 1;
+            if (yRel > 0 && yRel - 64 > yLineBelowLower) yLineBelowLower = yRel - 64;
+            if (yRel > 0 && yRel >= yLineAboveLower) yLineAboveLower = yRel + 1;
             map[xRel & 63][yRel & 63] = pa;
         }
     }
@@ -88,8 +109,8 @@ public class RelativeMap {
     public MapLocation getAbsoluteLocation(int xRel, int yRel) {
         int x = myLocation.x + xRel;
         int y = myLocation.y + yRel;
-        if (xRel > xLineAbove) x -= 65;
-        if (yRel > yLineRight) y -= 65;
+        if (xRel > xLineAboveUpper) x -= 65;
+        if (yRel > yLineAboveUpper) y -= 65;
         return new MapLocation(x, y);
     }
 }

@@ -99,7 +99,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 10) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -109,7 +109,7 @@ public class EnlightmentCenter extends Robot {
             initialFlagsAndAllies();
         }
         if (turnCount == searchBounds.length) {
-            putVisionTilesOnTheMap();
+            putVisionTilesOnMap();
             updateSymmetryFromAllies();
         }
         if (turnCount >= searchBounds.length) {
@@ -436,14 +436,14 @@ public class EnlightmentCenter extends Robot {
             int[] dArr = new int[]{0, 0};
             if (!randomFallback) {
                 // Use relativeMap's information on how far away opposite walls are to values for map size.
-                int horizAbsSum = Math.abs(map.yLineRight) + Math.abs(map.yLineLeft);
-                int horizSum = map.yLineRight + map.yLineLeft;
-                Direction horizFurthestDirection = map.yLineRight > Math.abs(map.yLineLeft) ? Direction.EAST : Direction.WEST;
-                int horizFurthestWall = Math.max(map.yLineRight, Math.abs(map.yLineLeft));
-                int vertAbsSum = Math.abs(map.xLineAbove) + Math.abs(map.xLineBelow);
-                int vertSum = map.xLineAbove + map.xLineBelow;
-                Direction vertFurthestDirection = map.xLineAbove > Math.abs(map.xLineBelow) ? Direction.NORTH : Direction.SOUTH;
-                int vertFurthestWall = Math.max(map.xLineAbove, Math.abs(map.xLineBelow));
+                int horizAbsSum = Math.abs(map.yLineAboveUpper) + Math.abs(map.yLineBelowLower);
+                int horizSum = map.yLineAboveUpper + map.yLineBelowLower;
+                Direction horizFurthestDirection = map.yLineAboveUpper > Math.abs(map.yLineBelowLower) ? Direction.EAST : Direction.WEST;
+                int horizFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
+                int vertAbsSum = Math.abs(map.xLineAboveUpper) + Math.abs(map.xLineBelowLower);
+                int vertSum = map.xLineAboveUpper + map.xLineBelowLower;
+                Direction vertFurthestDirection = map.xLineAboveUpper > Math.abs(map.xLineBelowLower) ? Direction.NORTH : Direction.SOUTH;
+                int vertFurthestWall = Math.max(map.xLineAboveUpper, Math.abs(map.xLineBelowLower));
 
                 double threshold = horizFurthestWall / (vertFurthestWall + horizFurthestWall);
                 if (symmetries[0] == true && symmetries[1] == true) {
@@ -509,12 +509,12 @@ public class EnlightmentCenter extends Robot {
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.yLineRight/horizAbsSum) {
+            if (k < map.yLineAboveUpper/horizAbsSum) {
                 // optimal direction east
-                dx = map.yLineRight;
+                dx = map.yLineAboveUpper;
             } else {
                 // optimal direction west
-                dx = map.yLineLeft;
+                dx = map.yLineBelowLower;
             }
         }
         return new int[]{dx, dy};
@@ -539,12 +539,12 @@ public class EnlightmentCenter extends Robot {
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.xLineAbove/vertAbsSum) {
+            if (k < map.xLineAboveUpper/vertAbsSum) {
                 // generate north
-                dy = map.xLineAbove;
+                dy = map.xLineAboveUpper;
             } else {
                 // generate south
-                dy = map.xLineBelow;
+                dy = map.xLineBelowLower;
             }
         }
         return new int[]{dx, dy};
@@ -554,12 +554,14 @@ public class EnlightmentCenter extends Robot {
      * Record passability and wall information of locations in vision radius
      * Placed in map. Called once, on round 4, just after ending initial bytecode-intensive EC-EC comms.
      */
-    void putVisionTilesOnTheMap() throws GameActionException {
+    void putVisionTilesOnMap() throws GameActionException {
         for (int[] tile : SENSE_SPIRAL_ORDER) {
             MapLocation newML = myLocation.translate(tile[0], tile[1]);
             if (rc.onTheMap(newML)) {
                 double pa = rc.sensePassability(newML);
+                System.out.println("Setting {" + tile[0] + ", " + tile[1] + "} to " + pa);
                 map.set(tile[0], tile[1], pa);
+                // TODO: @Nikhil what if newML contains an EC?
             } else {
                 map.set(tile[0], tile[1], 0);
             }
