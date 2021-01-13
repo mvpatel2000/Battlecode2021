@@ -47,7 +47,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
-    final int MAX_UNITS_TRACKED = 50;
+    final int MAX_UNITS_TRACKED = 80;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -97,7 +97,16 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        // if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
+        // if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
+
+        int currentInfluence = rc.getInfluence();
+        if (currentInfluence > 10000 && rc.canBid(1000)) {
+            rc.bid(1000);
+        } else if (currentInfluence > 5000 && rc.canBid(250)) {
+            rc.bid(250);
+        } else if (currentInfluence > 10 && currentRound > 50 && rc.canBid(1)) {
+            rc.bid(1);
+        }
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -118,7 +127,10 @@ public class EnlightmentCenter extends Robot {
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
+        //System.out.println\("I am tracking " + unitTrackerList.length + " units");
+        //System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
+        //System.out.println\("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
         buildUnit();
 
 
@@ -199,7 +211,9 @@ public class EnlightmentCenter extends Robot {
                         RobotType spawnType = suf.readUnitType();
                         int spawnID = suf.readID();
                         Direction spawnDir = suf.readSpawnDir();
-                        unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
+                        if (unitTrackerList.length < MAX_UNITS_TRACKED) {
+                            unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
+                        }
                         //System.out.println\("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
                         break;
                     case Flag.SPAWN_DESTINATION_SCHEMA:

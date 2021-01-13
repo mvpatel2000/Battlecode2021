@@ -21,7 +21,7 @@ package smite;
  * }
  */
 
-// TODO: is there any more room for bytecode optimization?
+// TODO: @Mihir is there any more room for bytecode optimization?
 
 public class List<T> {
 
@@ -50,6 +50,7 @@ public class List<T> {
 
     public void add(T val) {
         root.next = new ListNode(val, root.next);
+        length++;
     }
     
     public T curr() {
@@ -72,6 +73,7 @@ public class List<T> {
         T valToReturn = curr.val;
         prev.next = curr.next;
         curr = curr.next;
+        length--;
         return valToReturn;
     }
 
