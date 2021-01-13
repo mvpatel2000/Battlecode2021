@@ -166,7 +166,7 @@ public class EnlightmentCenter extends Robot {
                         //System.out.println\("Spawning killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0);
                     } else {
-                        MapLocation enemyLocation = optimalDestination(true, false);
+                        MapLocation enemyLocation = optimalDestination(false, false);
                         //System.out.println\("Spawning killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
                     }

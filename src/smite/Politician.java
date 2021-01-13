@@ -184,7 +184,8 @@ public class Politician extends Unit {
             int numEnemiesKilled = 0;
             for (int j = 0; j < i; j++) {
                 RobotInfo robot = nearbyRobots[j];
-                if (robot.team == enemyTeam && perUnitDamage > robot.conviction) {
+                // Consider enemy and neutral units
+                if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
                     if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
                         numEnemiesKilled++;
                     } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
