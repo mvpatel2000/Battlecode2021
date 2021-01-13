@@ -192,6 +192,10 @@ public abstract class Unit extends Robot {
         for (Direction dir : dirs) {
             if (rc.canMove(dir)) {
                 double newCost = rc.sensePassability(myLocation.add(dir));
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
                 if (newCost > cost) {
                     cost = newCost;
                     optimalDir = dir;
@@ -223,6 +227,10 @@ public abstract class Unit extends Robot {
             Direction dir = dirs[i];
             if (rc.canMove(dir)) {
                 double newCost = rc.sensePassability(myLocation.add(dir));
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
                 if (newCost > cost) {
                     cost = newCost;
                     optimalDir = dir;
@@ -273,6 +281,10 @@ public abstract class Unit extends Robot {
             Direction dir = dirs[i];
             if (rc.canMove(dir)) {
                 double newCost = costs[i];
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
                 if (newCost > cost) {
                     cost = newCost;
                     optimalDir = dir;
