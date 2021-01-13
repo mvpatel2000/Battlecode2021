@@ -26,7 +26,7 @@ public class EnlightmentCenter extends Robot {
     int numAllyECs;
     int[] allyECIDs;
     MapLocation[] allyECLocs; // absolute locations
-
+    int[] allyDistances;
     //int[] verifiedAllyECIDs;
     //MapLocation[] verifiedAllyECLocs;
 
@@ -56,7 +56,7 @@ public class EnlightmentCenter extends Robot {
     };
 
     RelativeMap map;
-    ScoutTracker st; // TODO: array of ScoutTrackers
+    //ScoutTracker st; // TODO: array of ScoutTrackers
 
     public EnlightmentCenter(RobotController rc) throws GameActionException {
         super(rc);
@@ -70,10 +70,11 @@ public class EnlightmentCenter extends Robot {
         numAllyECs = 0;
         allyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
         allyECLocs = new MapLocation[5];
+        allyDistances = new int[]{0, 0};
         //numVerifiedAllyECs = 0;
         //verifiedAllyECIDs = new int[]{0, 0};
         //verifiedAllyECLocs = new MapLocation[2];
-        searchBounds = new int[]{10000, 11072, 12584, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
+        searchBounds = new int[]{10000, 10960, 12528, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
@@ -115,6 +116,7 @@ public class EnlightmentCenter extends Robot {
         if (turnCount >= searchBounds.length) {
             readAllyECUpdates(); // read EC updates before building units/prod logic.
             setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
+            allyDistances = furthestAllyDistances();
             // spawnOrUpdateScout();
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
@@ -446,14 +448,33 @@ public class EnlightmentCenter extends Robot {
                 Direction vertFurthestDirection = map.yLineAboveUpper > Math.abs(map.yLineBelowLower) ? Direction.NORTH : Direction.SOUTH;
                 int vertFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
 
-                double threshold = horizFurthestWall / (vertFurthestWall + horizFurthestWall);
+                double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
                 if (symmetries[0] == true && symmetries[1] == true) {
-                    System.out.println("Both horizontal and vertical symmetry.");
-                    double rand = Math.random();
-                    if (rand < threshold) {
-                        dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                    System.out.println("Unknown symmetry. Horizontal and vertical both potential.");
+                    if (numAllyECs != 0) {
+                        // Send perpendicular to longest line between Allies.
+                        int sendX = allyDistances[1];
+                        int sendY = allyDistances[0];
+                        int maxDelta = Math.max(sendX, sendY);
+                        int stop = 1;
+                        for (int i=1; i<10; i++) {
+                            stop=i;
+                            if (maxDelta >= 32) {
+                                break;
+                            }
+                        }
+                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
+                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
                     } else {
-                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
+                        int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                        double rand = Math.random();
+                        if (rand < threshold) {
+                            dArr = dVert;
+                        } else {
+                            dArr = dHoriz;
+                        }
                     }
                 } else if (symmetries[0] == true) {
                     System.out.println("Horizontal Symmetry."); // send units vertically
@@ -464,10 +485,31 @@ public class EnlightmentCenter extends Robot {
                 } else {
                     // only rotational symmetry possible
                     System.out.println("Only rotational symmetry.");
-                    int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                    int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                    dArr[0] = dHoriz[0];
-                    dArr[1] = dVert[1];
+                    System.out.println("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
+                    if (numAllyECs != 0) {
+                        // Send perpendicular to longest line between Allies.
+                        int sendX = allyDistances[1];
+                        int sendY = allyDistances[0];
+                        int maxDelta = Math.max(sendX, sendY);
+                        int stop = 1;
+                        for (int i=1; i<10; i++) {
+                            stop=i;
+                            if (maxDelta >= 32) {
+                                break;
+                            }
+                        }
+                        System.out.println("Sending: X: " + stop*sendX + " Y:" + stop*sendY);
+                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
+                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
+                        enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+                        System.out.println("Sending to enemyLoc: " + enemyLocation);
+                    } else {
+                        // Send at 45 degree angle cross-map
+                        int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
+                        int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                        dArr[0] = dHoriz[0];
+                        dArr[1] = dVert[1];
+                    }
                 }
             } else {
                 dArr = randomDestination();
@@ -560,13 +602,31 @@ public class EnlightmentCenter extends Robot {
             MapLocation newML = myLocation.translate(tile[0], tile[1]);
             if (rc.onTheMap(newML)) {
                 double pa = rc.sensePassability(newML);
-                System.out.println("Setting {" + tile[0] + ", " + tile[1] + "} to " + pa);
+                //System.out.println("Setting {" + tile[0] + ", " + tile[1] + "} to " + pa);
                 map.set(tile[0], tile[1], pa);
                 // TODO: @Nikhil what if newML contains an EC?
             } else {
                 map.set(tile[0], tile[1], 0);
             }
         }
+    }
+
+    /**
+     * Return furthest [xDelta, yDelta] between two ally ECs.
+     * Called once on round 4 after initial allies have been established.
+     * Used for optimalDestination() as input to a heuristic.
+     */
+    int[] furthestAllyDistances() {
+        if(numAllyECs == 0) {
+            return new int[]{0, 0};
+        } else if (numAllyECs == 1) {
+            return new int[]{Math.abs(myLocation.x - allyECLocs[0].x), Math.abs(myLocation.y - allyECLocs[0].y)};
+        } else if (numAllyECs == 2) {
+            int maxX = Math.max(Math.abs(myLocation.x - allyECLocs[0].x), Math.max(Math.abs(myLocation.x - allyECLocs[1].x), Math.abs(allyECLocs[1].x - allyECLocs[0].x)));
+            int maxY = Math.max(Math.abs(myLocation.y - allyECLocs[0].y), Math.max(Math.abs(myLocation.y - allyECLocs[1].y), Math.abs(allyECLocs[1].y - allyECLocs[0].y)));
+            return new int[]{maxX, maxY};
+        }
+        return new int[]{0, 0};
     }
 
     /**
@@ -592,6 +652,7 @@ public class EnlightmentCenter extends Robot {
                 break;
             }
         }
+
         symmetries[0] = !canEliminateHorizontal;
         symmetries[1] = !canEliminateVertical;
     }
