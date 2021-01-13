@@ -99,7 +99,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 10) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -436,30 +436,31 @@ public class EnlightmentCenter extends Robot {
             int[] dArr = new int[]{0, 0};
             if (!randomFallback) {
                 // Use relativeMap's information on how far away opposite walls are to values for map size.
-                int horizAbsSum = Math.abs(map.yLineAboveUpper) + Math.abs(map.yLineBelowLower);
-                int horizSum = map.yLineAboveUpper + map.yLineBelowLower;
-                Direction horizFurthestDirection = map.yLineAboveUpper > Math.abs(map.yLineBelowLower) ? Direction.EAST : Direction.WEST;
-                int horizFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
-                int vertAbsSum = Math.abs(map.xLineAboveUpper) + Math.abs(map.xLineBelowLower);
-                int vertSum = map.xLineAboveUpper + map.xLineBelowLower;
-                Direction vertFurthestDirection = map.xLineAboveUpper > Math.abs(map.xLineBelowLower) ? Direction.NORTH : Direction.SOUTH;
-                int vertFurthestWall = Math.max(map.xLineAboveUpper, Math.abs(map.xLineBelowLower));
+                int horizAbsSum = Math.abs(map.xLineAboveUpper) + Math.abs(map.xLineBelowLower);
+                int horizSum = map.xLineAboveUpper + map.xLineBelowLower;
+                Direction horizFurthestDirection = map.xLineAboveUpper > Math.abs(map.xLineBelowLower) ? Direction.EAST : Direction.WEST;
+                int horizFurthestWall = Math.max(map.xLineAboveUpper, Math.abs(map.xLineBelowLower));
+
+                int vertAbsSum = Math.abs(map.yLineAboveUpper) + Math.abs(map.yLineBelowLower);
+                int vertSum = map.yLineAboveUpper + map.yLineBelowLower;
+                Direction vertFurthestDirection = map.yLineAboveUpper > Math.abs(map.yLineBelowLower) ? Direction.NORTH : Direction.SOUTH;
+                int vertFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
 
                 double threshold = horizFurthestWall / (vertFurthestWall + horizFurthestWall);
                 if (symmetries[0] == true && symmetries[1] == true) {
-                    System.out.println("WEIRD. Both horizontal and vertical symmetry.");
+                    System.out.println("Both horizontal and vertical symmetry.");
                     double rand = Math.random();
                     if (rand < threshold) {
-                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                    } else {
                         dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                    } else {
+                        dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                     }
                 } else if (symmetries[0] == true) {
-                    System.out.println("Horizontal Symmetry.");
-                    dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
-                } else if (symmetries[1] == true) {
-                    System.out.println("Vertical Symmetry.");
+                    System.out.println("Horizontal Symmetry."); // send units vertically
                     dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                } else if (symmetries[1] == true) {
+                    System.out.println("Vertical Symmetry.");   // send units horizontally
+                    dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                 } else {
                     // only rotational symmetry possible
                     System.out.println("Only rotational symmetry.");
@@ -509,12 +510,12 @@ public class EnlightmentCenter extends Robot {
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.yLineAboveUpper/horizAbsSum) {
+            if (k < map.xLineAboveUpper/horizAbsSum) {
                 // optimal direction east
-                dx = map.yLineAboveUpper;
+                dx = map.xLineAboveUpper;
             } else {
                 // optimal direction west
-                dx = map.yLineBelowLower;
+                dx = map.xLineBelowLower;
             }
         }
         return new int[]{dx, dy};
@@ -532,19 +533,19 @@ public class EnlightmentCenter extends Robot {
         // If one side clearly larger than the other, send all units in that direction.
         if (Math.abs(vertSum) >= 32) {
             if (vertFurthestDirection == Direction.NORTH) {
-                dy = -vertFurthestWall;
-            } else {
                 dy = vertFurthestWall;
+            } else {
+                dy = -vertFurthestWall;
             }
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.xLineAboveUpper/vertAbsSum) {
+            if (k < map.yLineAboveUpper/vertAbsSum) {
                 // generate north
-                dy = map.xLineAboveUpper;
+                dy = map.yLineAboveUpper;
             } else {
                 // generate south
-                dy = map.xLineBelowLower;
+                dy = map.yLineBelowLower;
             }
         }
         return new int[]{dx, dy};
@@ -573,6 +574,9 @@ public class EnlightmentCenter extends Robot {
      * Call just after after putVisionTilesOnTheMap().
      */
     void updateSymmetryFromAllies() {
+        if (numAllyECs == 0) {
+            return;
+        }
         boolean canEliminateHorizontal = true;
         boolean canEliminateVertical = true;
         for (int i=0; i<numAllyECs; i++) {
