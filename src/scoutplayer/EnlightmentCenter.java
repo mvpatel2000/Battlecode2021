@@ -48,6 +48,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
+    final int MAX_UNITS_TRACKED = 500;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -221,17 +222,17 @@ public class EnlightmentCenter extends Robot {
      * Reads flags from all tracked units (not ally ECs).
      * Handles logic: Given a flag from a unit we're tracking,
      * what does this EC do?
-     * TODO: @Vinjai: Handle the other cases. For example, MapTerrainFlag.
      */
     void updateUnitTrackers() throws GameActionException {
         unitTrackerList.resetIter();
-        while(unitTrackerList.hasNext()) {
-            UnitTracker ut = unitTrackerList.next();
+        while(unitTrackerList.currNotNull()) {
+            UnitTracker ut = unitTrackerList.curr();
             int unitUpdate = ut.update();
+            if (unitUpdate == -1) {
+                unitTrackerList.popStep();
+                continue;
+            }
             switch(unitUpdate) {
-                case -1:
-                    // TODO: Remove unit from list and decrement necessary vars.
-                    break;
                 case Flag.NO_SCHEMA:
                     break;
                 case Flag.EC_SIGHTING_SCHEMA:
@@ -258,12 +259,14 @@ public class EnlightmentCenter extends Robot {
                 case Flag.LOCATION_SCHEMA:
                     break;
                 case Flag.SPAWN_UNIT_SCHEMA:
+                    // handled in readAllyECUpdates()
                     break;
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
                     break;
             }
+            unitTrackerList.step();
         }
     }
 
@@ -277,7 +280,9 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotSilentlyWithTracker(RobotType type, Direction direction, int influence) throws GameActionException {
         if (spawnRobotSilently(type, direction, influence)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
+                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            }
             return true;
         }
         return false;
@@ -296,7 +301,9 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
         if (spawnRobot(type, direction, influence, destination, instruction)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
+                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
+            }
             return true;
         }
         return false;

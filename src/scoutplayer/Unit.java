@@ -19,6 +19,7 @@ public abstract class Unit extends Robot {
     Direction moveThisTurn;
     Direction moveLastTurn;
     MapLocation destination;
+    int instruction;
     boolean spawnedSilently;
 
     // variables to keep track of EC sightings
@@ -112,6 +113,7 @@ public abstract class Unit extends Robot {
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
+            instruction = sdf.readInstruction();
             System.out.println("I have my destination: " + destination.toString());
             return true;
         }

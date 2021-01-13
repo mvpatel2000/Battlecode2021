@@ -20,11 +20,11 @@ public class Politician extends Unit {
 
     boolean onlyECHunter;
 
-    MapTerrainQueue mtq;
+    // MapTerrainQueue mtq;
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        mtq = new MapTerrainQueue(RobotType.POLITICIAN);
+        // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         onlyECHunter = rc.getInfluence() > 499;
     }
 
@@ -46,21 +46,22 @@ public class Politician extends Unit {
 
         if (considerAttack(onlyECHunter)) {
             System.out.println("Attacking!");
-        } else if (mtq.hasRoom()) { // move if queue isn't full
-            movePolitician();
-        } else if (!mtq.hasRoom()) {
-            // System.out.println("MapTerrainQueue full; not moving this round.");
-        }
-        mtq.step(rc, moveThisTurn, rc.getLocation());
-        MapTerrainFlag mtf = new MapTerrainFlag();
-        mtf.writeLastMove(moveThisTurn);
-        for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
-            if (mtq.isEmpty()) break;
-            MapTerrain terrain = mtq.pop();
-            mtf.writePassability(terrain.pa);
-            // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
-        }
-        setFlag(mtf.getFlag());
+        } 
+        // else if (mtq.hasRoom()) { // move if queue isn't full
+        movePolitician();
+        // } else if (!mtq.hasRoom()) {
+        //     // System.out.println("MapTerrainQueue full; not moving this round.");
+        // }
+        // mtq.step(rc, moveThisTurn, rc.getLocation());
+        // MapTerrainFlag mtf = new MapTerrainFlag();
+        // mtf.writeLastMove(moveThisTurn);
+        // for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
+        //     if (mtq.isEmpty()) break;
+        //     MapTerrain terrain = mtq.pop();
+        //     mtf.writePassability(terrain.pa);
+        //     // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
+        // }
+        // setFlag(mtf.getFlag());
 
         if (!flagSetThisRound) {
             setFlag((new UnitFlag(moveThisTurn)).flag);
