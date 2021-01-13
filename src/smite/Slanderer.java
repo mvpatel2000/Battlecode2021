@@ -1,4 +1,4 @@
-package scoutplayer;
+package smite;
 
 import battlecode.common.*;
 
@@ -21,23 +21,13 @@ public class Slanderer extends Unit {
         super(rc);
         // if no destination was provided from parent EC, set one:
         if (spawnedSilently) {
-            Direction away = myLocation.directionTo(baseLocation).opposite();
-            destination = myLocation.add(away).add(away).add(away);
+            destination = myLocation.add(myLocation.directionTo(baseLocation).opposite());
         }
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
-
-        // If you turn into politician, suicide for now
-        // TODO: Listen to spawn messages from EC to learn new dest
-        if (rc.getType() == RobotType.POLITICIAN) {
-            if (rc.canEmpower(1)) {
-                rc.empower(1);
-            }
-        }
-
         // Run away from nearest Muckraker.
         if (rc.isReady()) {
             RobotInfo nearestMuckraker = null;
@@ -55,7 +45,7 @@ public class Slanderer extends Unit {
                 int diffY = myLocation.y - nearestMuckraker.location.y;
                 destination = destination.translate(diffX, diffY);
             } 
-            wideFuzzyMove(destination);
+            fuzzyMove(destination);
         }
 
         if (!flagSetThisRound) {
