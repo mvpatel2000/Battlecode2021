@@ -97,7 +97,16 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
+
+        int currentInfluence = rc.getInfluence();
+        if (currentInfluence > 10000 && rc.canBid(1000)) {
+            rc.bid(1000);
+        } else if (currentInfluence > 5000 && rc.canBid(250)) {
+            rc.bid(250);
+        } else if (currentInfluence > 10 && currentRound > 50 && rc.canBid(1)) {
+            rc.bid(1);
+        }
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
