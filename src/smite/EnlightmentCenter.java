@@ -49,6 +49,9 @@ public class EnlightmentCenter extends Robot {
     List<UnitTracker> unitTrackerList;
     final int MAX_UNITS_TRACKED = 80;
 
+    // Bidding information
+    int previousInfluence = 0;
+
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
         RobotType.SLANDERER,
@@ -91,6 +94,8 @@ public class EnlightmentCenter extends Robot {
 
         // List of all unit trackers
         unitTrackerList = new List<UnitTracker>();
+
+        previousInfluence = 0;
     }
 
     @Override
@@ -99,14 +104,7 @@ public class EnlightmentCenter extends Robot {
 
         // if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
 
-        int currentInfluence = rc.getInfluence();
-        if (currentInfluence > 10000 && rc.canBid(1000)) {
-            rc.bid(1000);
-        } else if (currentInfluence > 5000 && rc.canBid(250)) {
-            rc.bid(250);
-        } else if (currentInfluence > 10 && currentRound > 50 && rc.canBid(1)) {
-            rc.bid(1);
-        }
+        considerBid();
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -137,6 +135,48 @@ public class EnlightmentCenter extends Robot {
         if (currentRound >= searchBounds.length && !flagSetThisRound) {
             setFlag(0);
         }
+    }
+
+    /**
+     * Bid for votes. Stop bidding after getting 751, always vote 1, otherwise vote % of income
+     * scaling as game progresses.
+     * @throws GameActionException
+     */
+    void considerBid() throws GameActionException {
+        int currentVotes = rc.getTeamVotes();
+        // We have more than half the votes, stop bidding
+        if (currentVotes > 750) {
+            return;
+        }
+        int currentInfluence = rc.getInfluence();
+        int dInf = currentInfluence - previousInfluence;
+        // Bid 1 for first 350 turns
+        if (currentRound <= 350) {
+            if (currentInfluence > 10 && rc.canBid(1)) {
+                rc.bid(1);
+            }
+        } 
+        // Bid 1/8th income for first 550 turns
+        else if (currentRound <= 550) {
+            int dInfOverEight = (int)(dInf / 8);
+            if (currentInfluence > dInfOverEight && rc.canBid(dInfOverEight)) {
+                rc.bid(dInfOverEight);
+            }
+        }
+        // Bid scaling from 1/8 income at turn 550 to 2 * income at turn 1500
+        else if (currentRound < 1499) {
+            double step = (currentRound - 550) / 1500;
+            double proportion = 1/8 + step * 15/8;
+            int bidAmount = (int)(proportion * dInf);
+            if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
+                rc.bid(bidAmount);
+            }
+        } else {
+            if (rc.canBid(currentInfluence)) {
+                rc.bid(currentInfluence);
+            }
+        }
+        previousInfluence = currentInfluence;
     }
 
     /**

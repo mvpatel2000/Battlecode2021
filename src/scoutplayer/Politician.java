@@ -33,6 +33,8 @@ public class Politician extends Unit {
         super.run();
 
         updateDestinationForExploration();
+        updateDestinationForECHunting();
+
         if (onlyECHunter) {
             for (RobotInfo robot : nearbyRobots) {
                 if (robot.type == RobotType.ENLIGHTENMENT_CENTER && robot.team != allyTeam) {
@@ -63,6 +65,20 @@ public class Politician extends Unit {
 
         if (!flagSetThisRound) {
             setFlag((new UnitFlag(moveThisTurn, false)).flag);
+        }
+    }
+
+    /**
+     * Redirect politicians to nearby EC if they can kill it.
+     * @throws GameActionException
+     */
+    void updateDestinationForECHunting() throws GameActionException {
+        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
+        for (RobotInfo robot : nearbyRobots) {
+            if (robot.type == RobotType.ENLIGHTENMENT_CENTER && robot.team != allyTeam && robot.conviction <= totalDamage) {
+                destination = robot.location;
+                return;
+            }
         }
     }
 
