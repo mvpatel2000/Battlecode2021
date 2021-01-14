@@ -27,6 +27,7 @@ public abstract class Unit extends Robot {
     // But we may want to use the IDs later, in which case we will need maps.
     Map<MapLocation, Integer> enemyECLocsToIDs;
     Map<MapLocation, Integer> neutralECLocsToIDs;
+    Map<MapLocation, Integer> capturedAllyECLocsToIDs;
 
     ArrayList<MapLocation> priorDestinations;
 
@@ -68,7 +69,7 @@ public abstract class Unit extends Robot {
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
-
+        capturedAllyECLocsToIDs = new HashMap<>();
         priorDestinations = new ArrayList<MapLocation>();
     }
 
@@ -88,7 +89,12 @@ public abstract class Unit extends Robot {
      * If I see an EC that I am not already aware of, send a flag
      */
     public void setECSightingFlag(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
-        int ecType = (t == enemyTeam) ? ECSightingFlag.ENEMY_EC : ECSightingFlag.NEUTRAL_EC;
+        int ecType = ECSightingFlag.ENEMY_EC;
+        if (t == allyTeam) {
+            ecType = ECSightingFlag.ALLY_EC;
+        } else if (t == neutralTeam) {
+            ecType = ECSightingFlag.NEUTRAL_EC;
+        }
         ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
         setFlag(ecsf.flag);
         System.out.println("Sending EC Sighting at " + ecLoc);
@@ -133,6 +139,10 @@ public abstract class Unit extends Robot {
                     if (neutralECLocsToIDs.containsKey(ri.location)) {
                         neutralECLocsToIDs.remove(ri.location);
                     }
+                    // If EC used to be captured ally, remove it from captured allies map
+                    if (capturedAllyECLocsToIDs.containsKey(ri.location)) {
+                        capturedAllyECLocsToIDs.remove(ri.location);
+                    }
                     setECSightingFlag(ri.location, enemyTeam, moveLastTurn);
                     // we may not want to return in the future when there is more computation to be done.
                     // than just setting a flag.
@@ -145,6 +155,21 @@ public abstract class Unit extends Robot {
                 if (!neutralECLocsToIDs.containsKey(ri.location)) {
                     neutralECLocsToIDs.put(ri.location, ri.ID);
                     setECSightingFlag(ri.location, neutralTeam, moveLastTurn);
+                    return;
+                }
+            }
+        }
+        for (RobotInfo ri : nearbyAllies) {
+            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                if (neutralECLocsToIDs.containsKey(ri.location)) {
+                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
+                    neutralECLocsToIDs.remove(ri.location);
+                    setECSightingFlag(ri.location, allyTeam, moveLastTurn);
+                    return;
+                } else if (enemyECLocsToIDs.containsKey(ri.location)) {
+                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
+                    enemyECLocsToIDs.remove(ri.location);
+                    setECSightingFlag(ri.location, allyTeam, moveLastTurn);
                     return;
                 }
             }
@@ -249,7 +274,7 @@ public abstract class Unit extends Robot {
     void weightedFuzzyMove(MapLocation destination) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         Direction toDest = myLocation.directionTo(destination);
-        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(), 
+        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
             toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
         double[] costs = new double[8];
         // Ignore repel factor in beginning and when close to target

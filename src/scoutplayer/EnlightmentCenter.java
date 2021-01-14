@@ -27,12 +27,11 @@ public class EnlightmentCenter extends Robot {
     int[] allyECIDs;
     MapLocation[] allyECLocs; // absolute locations
     int[] allyDistances;
-    //int[] verifiedAllyECIDs;
-    //MapLocation[] verifiedAllyECLocs;
 
     // Environment and enemy
     Set<MapLocation> enemyECLocs;
     Set<MapLocation> neutralECLocs;
+    Set<MapLocation> capturedAllyECLocs;
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -69,12 +68,9 @@ public class EnlightmentCenter extends Robot {
         scannedAllIDs = false;
         searchRound = 0;
         numAllyECs = 0;
-        allyECIDs = new int[]{0, 0, 0, 0, 0};  // technically, there could be more than 5 secret code matches, but this chance is astronomical.
-        allyECLocs = new MapLocation[5];
+        allyECIDs = new int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        allyECLocs = new MapLocation[11];
         allyDistances = new int[]{0, 0};
-        //numVerifiedAllyECs = 0;
-        //verifiedAllyECIDs = new int[]{0, 0};
-        //verifiedAllyECLocs = new MapLocation[2];
         searchBounds = new int[]{10000, 10960, 12528, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
@@ -84,7 +80,7 @@ public class EnlightmentCenter extends Robot {
         // Initialize environment and enemy tracking variables
         enemyECLocs = new HashSet<MapLocation>();
         neutralECLocs = new HashSet<MapLocation>();
-
+        capturedAllyECLocs = new HashSet<MapLocation>();
         latestSpawnRound = -1;
 
         // Troop counts
@@ -182,7 +178,7 @@ public class EnlightmentCenter extends Robot {
      */
     void readAllyECUpdates() throws GameActionException {
         for (int i=0; i<numAllyECs; i++) {
-            if(rc.canGetFlag(allyECIDs[i])) { // should always be true
+            if(rc.canGetFlag(allyECIDs[i])) {
                 int flagInt = rc.getFlag(allyECIDs[i]);
                 int flagSchema = Flag.getSchema(flagInt);
                 switch (flagSchema) {
@@ -214,6 +210,15 @@ public class EnlightmentCenter extends Robot {
                         // Not relevant, ECs do not send such flags to ECs.
                         break;
                 }
+            } else {
+                // Oh no! ally has been captured
+                // Delete from list by replacing elem i with last elem of List
+                // and decrementing list length.
+                allyECIDs[i] = allyECIDs[numAllyECs-1];
+                allyECLocs[i] = allyECLocs[numAllyECs-1];
+                numAllyECs -= 1;
+                i -= 1;
+                System.out.println("Ally Lost! I now have " + numAllyECs + " allies.");
             }
         }
     }
@@ -241,17 +246,32 @@ public class EnlightmentCenter extends Robot {
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
                         if (!neutralECLocs.contains(ecLoc)) {
                             neutralECLocs.add(ecLoc);
+                            System.out.println("Informed about NEUTRAL EC at " + ecLoc);
                         }
-                        System.out.println("Informed about NEUTRAL EC at " + ecLoc);
-                    } else {
+                    } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC){
                         if (!enemyECLocs.contains(ecLoc)) {
                             enemyECLocs.add(ecLoc);
                             // This EC has been converted from neutral to enemy since we last saw it.
                             if(neutralECLocs.contains(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
+                            // This EC has been converted from a captured ally to an enemy since we last saw it.
+                            if(capturedAllyECLocs.contains(ecLoc)) {
+                                capturedAllyECLocs.remove(ecLoc);
+                            }
+                            System.out.println("Informed about ENEMY EC at " + ecLoc);
                         }
-                        System.out.println("Informed about ENEMY EC at " + ecLoc);
+                    } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC) {
+                        if (!capturedAllyECLocs.contains(ecLoc)) {
+                            capturedAllyECLocs.add(ecLoc);
+                            if (enemyECLocs.contains(ecLoc)) {
+                                enemyECLocs.remove(ecLoc);
+                            }
+                            if(neutralECLocs.contains(ecLoc)) {
+                                neutralECLocs.remove(ecLoc);
+                            }
+                            System.out.println("Informed about new ALLY EC at " + ecLoc);
+                        }
                     }
                     break;
                 case Flag.MAP_TERRAIN_SCHEMA:
