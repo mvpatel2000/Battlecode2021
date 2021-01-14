@@ -82,22 +82,98 @@ public abstract class Unit extends Robot {
         parseVision();
         readECInstructions();
         System.out.println("Destination: " + destination);
+
+        // Call unit-specific run method
+        runUnit();
+
+        // Common wrap-up methods
+        parseVision();
+        setECSightingFlag();
+        setUnitUpdateFlag();
     }
 
     /**
-     * TODO: @Nikhil
-     * If I see an EC that I am not already aware of, send a flag
+     * Function to be overridden by the unit classes. This is where
+     * all unit-specific run stuff happens.
      */
-    public void setECSightingFlag(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
-        int ecType = ECSightingFlag.ENEMY_EC;
-        if (t == allyTeam) {
-            ecType = ECSightingFlag.ALLY_EC;
-        } else if (t == neutralTeam) {
-            ecType = ECSightingFlag.NEUTRAL_EC;
+    public void runUnit() throws GameActionException {
+    }
+
+    /**
+     * If flag has not been set this turn, set a unit update flag by
+     * looking around for the nearest enemy. If none is found, look
+     * for nearby allies who might inform me about the nearest enemy.
+     * 
+     * WARNING: Make sure parseVision() is called after the most recent
+     * move before you call this function!
+     */
+    public void setUnitUpdateFlag() throws GameActionException {
+        if (flagSetThisRound) return;
+        int minDist = 10000;
+        MapLocation enemyLoc = null;
+        RobotType enemyType = null;
+        for (RobotInfo r : nearbyEnemies) {
+            int dist = myLocation.distanceSquaredTo(r.location);
+            if (dist < minDist) {
+                minDist = dist;
+                enemyLoc = r.location;
+                enemyType = r.type;
+            }
         }
-        ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
-        setFlag(ecsf.flag);
-        System.out.println("Sending EC Sighting at " + ecLoc);
+        if (nearbyEnemies.length == 0) {
+            RobotInfo r = getNearestEnemyFromAllies();
+            if (r == null) { // default behavior if no enemy is found is to send my info
+                enemyLoc = myLocation;
+                enemyType = rc.getType();
+                System.out.println("No nearest enemy known.");
+            }
+            else {
+                enemyLoc = r.location;
+                enemyType = r.type;
+            }
+        } else { // TODO: remove else, for debugging
+            rc.setIndicatorLine(myLocation, enemyLoc, 30, 255, 40);
+        }
+        System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
+        rc.setIndicatorDot(enemyLoc, 30, 255, 40);
+        UnitUpdateFlag uuf = new UnitUpdateFlag(moveThisTurn, rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
+        setFlag(uuf.flag);
+    }
+
+    /**
+     * Get the nearest enemy to me by listening to the allies around me.
+     * Returns a RobotInfo with known information about the enemy and 0
+     * as its ID. Returns null if no nearby enemy is known.
+     * 
+     * WARNING: Make sure parseVision() is called after the most recent
+     * move before you call this function!
+     */
+    public RobotInfo getNearestEnemyFromAllies() throws GameActionException {
+        int minDist = 10000;
+        MapLocation enemyLoc = null;
+        MapLocation allyLoc = null; // TODO: remove, for debugging purposes
+        RobotType enemyType = null;
+        for (RobotInfo r : nearbyAllies) {
+            int flag = rc.getFlag(r.ID);
+            if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
+                UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
+                MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
+                if (loc != null) {
+                    int dist = myLocation.distanceSquaredTo(loc);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        enemyLoc = loc;
+                        enemyType = uuf.readEnemyType();
+                        allyLoc = r.location;
+                    }
+                }
+            }
+        }
+        if (enemyLoc != null) {
+            rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
+            return new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
+        }
+        return null;
     }
 
     /**
@@ -126,11 +202,21 @@ public abstract class Unit extends Robot {
         return false;
     }
 
+    /**
+     * Update the visible bots around me. Costs 400 bytecode.
+     */
     public void parseVision() throws GameActionException {
         nearbyRobots = rc.senseNearbyRobots();
         nearbyEnemies = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, enemyTeam);
         nearbyAllies = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, allyTeam);
         nearbyNeutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, neutralTeam);
+    }
+
+    /**
+     * Set an ECSightingFlag if I see an EC I'm not already aware of.
+     * This is important, so it overwrites an existing flag if there is one.
+     */
+    public void setECSightingFlag() throws GameActionException {
         for (RobotInfo ri : nearbyEnemies) {
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (!enemyECLocsToIDs.containsKey(ri.location)) {
@@ -143,7 +229,7 @@ public abstract class Unit extends Robot {
                     if (capturedAllyECLocsToIDs.containsKey(ri.location)) {
                         capturedAllyECLocsToIDs.remove(ri.location);
                     }
-                    setECSightingFlag(ri.location, enemyTeam, moveLastTurn);
+                    setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn);
                     // we may not want to return in the future when there is more computation to be done.
                     // than just setting a flag.
                     return;
@@ -154,7 +240,7 @@ public abstract class Unit extends Robot {
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (!neutralECLocsToIDs.containsKey(ri.location)) {
                     neutralECLocsToIDs.put(ri.location, ri.ID);
-                    setECSightingFlag(ri.location, neutralTeam, moveLastTurn);
+                    setECSightingFlagHelper(ri.location, neutralTeam, moveThisTurn);
                     return;
                 }
             }
@@ -164,16 +250,31 @@ public abstract class Unit extends Robot {
                 if (neutralECLocsToIDs.containsKey(ri.location)) {
                     capturedAllyECLocsToIDs.put(ri.location, ri.ID);
                     neutralECLocsToIDs.remove(ri.location);
-                    setECSightingFlag(ri.location, allyTeam, moveLastTurn);
+                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
                     return;
                 } else if (enemyECLocsToIDs.containsKey(ri.location)) {
                     capturedAllyECLocsToIDs.put(ri.location, ri.ID);
                     enemyECLocsToIDs.remove(ri.location);
-                    setECSightingFlag(ri.location, allyTeam, moveLastTurn);
+                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
                     return;
                 }
             }
         }
+    }
+
+    /**
+     * Helper function to actually set an ECSightingFlag.
+     */
+    public void setECSightingFlagHelper(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
+        int ecType = ECSightingFlag.ENEMY_EC;
+        if (t == allyTeam) {
+            ecType = ECSightingFlag.ALLY_EC;
+        } else if (t == neutralTeam) {
+            ecType = ECSightingFlag.NEUTRAL_EC;
+        }
+        ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
+        setFlag(ecsf.flag);
+        System.out.println("Sending EC Sighting at " + ecLoc);
     }
 
     /**

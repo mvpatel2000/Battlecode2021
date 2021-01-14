@@ -97,7 +97,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 500) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 200) rc.resign(); // TODO: remove; just for debugging
 
         int currentInfluence = rc.getInfluence();
         if (currentInfluence > 10000 && rc.canBid(1000)) {
