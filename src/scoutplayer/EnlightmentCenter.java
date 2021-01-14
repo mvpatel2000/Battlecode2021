@@ -47,7 +47,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
-    final int MAX_UNITS_TRACKED = 50;
+    final int MAX_UNITS_TRACKED = 80;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -118,7 +118,10 @@ public class EnlightmentCenter extends Robot {
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
+        System.out.println("I am tracking " + unitTrackerList.length + " units");
+        System.out.println("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
+        System.out.println("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
         buildUnit();
 
 
@@ -199,7 +202,9 @@ public class EnlightmentCenter extends Robot {
                         RobotType spawnType = suf.readUnitType();
                         int spawnID = suf.readID();
                         Direction spawnDir = suf.readSpawnDir();
-                        unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
+                        if (unitTrackerList.length < MAX_UNITS_TRACKED) {
+                            unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
+                        }
                         System.out.println("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
                         break;
                     case Flag.SPAWN_DESTINATION_SCHEMA:
