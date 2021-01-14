@@ -14,14 +14,15 @@ public class ECSightingFlag extends LocationFlag {
      * - type of EC that was sighted (EC_TYPE_BITS)
      * - the scouting unit's last move (LAST_MOVE_BITS)
      *
-     * Total bits used: 3 + 7 + 7 + 1 + 4 = 22.
+     * Total bits used: 3 + 7 + 7 + 2 + 4 = 22.
      */
 
-    final int EC_TYPE_BITS = 1;
+    final int EC_TYPE_BITS = 2;
     final int LAST_MOVE_BITS = 4;
 
     public static final int NEUTRAL_EC = 0;
     public static final int ENEMY_EC = 1;
+    public static final int ALLY_EC = 2;
 
     public ECSightingFlag() {
         super(true); // call the LocationFlag constructor that doesn't set the schema
