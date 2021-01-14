@@ -214,6 +214,9 @@ public class EnlightmentCenter extends Robot {
                 // Oh no! ally has been captured
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
+                if (!enemyECLocs.contains(allyECLocs[i])) {
+                    enemyECLocs.add(allyECLocs[i]);
+                }
                 allyECIDs[i] = allyECIDs[numAllyECs-1];
                 allyECLocs[i] = allyECLocs[numAllyECs-1];
                 numAllyECs -= 1;
