@@ -171,9 +171,6 @@ public class Politician extends Unit {
                 if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
                     nearbySlanderer |= uf.readIsSlanderer();
-                    if (uf.readIsSlanderer()) {
-                        // System.out.println("Slanderer: " + robot.location);
-                    }
                 }
             }
         }
