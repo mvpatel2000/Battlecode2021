@@ -14,6 +14,7 @@ public abstract class Robot {
     MapLocation startLocation;
     MapLocation myLocation;
     boolean flagSetThisRound;
+    public boolean isSlandererConvertedToPolitician;
 
     static final Direction[] directions = {
         Direction.NORTH,
@@ -49,6 +50,7 @@ public abstract class Robot {
         startLocation = rc.getLocation();
         myLocation = startLocation;
         flagSetThisRound = false;
+        isSlandererConvertedToPolitician = false;
     }
 
     public void run() throws GameActionException {

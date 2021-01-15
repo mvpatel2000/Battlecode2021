@@ -32,8 +32,34 @@ public class Politician extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
+        // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
-            considerAttack(false, true);
+            baseLocation = myLocation;
+            parseVision();
+            // If enemies nearby, take nearest as destination
+            if (nearbyEnemies.length > 0) {
+                RobotInfo nearestRobot = null;
+                int nearestRobotDistSquared = 1000;
+                for (RobotInfo robot : nearbyEnemies) {
+                    int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+                    if (robotDistSquared < nearestRobotDistSquared) {
+                        nearestRobot = robot;
+                        nearestRobotDistSquared = robotDistSquared;
+                    }
+                }
+                destination = nearestRobot.location;
+            } 
+            else {
+                RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+                // Take nearest smoke signal robot as destination
+                if (nearestSignalRobot != null) {
+                    destination = nearestSignalRobot.location;
+                }
+                // Pick random destination
+                else {
+                    destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+                }
+            }
         }
 
         updateDestinationForExploration();

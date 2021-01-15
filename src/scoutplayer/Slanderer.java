@@ -17,6 +17,7 @@ public class Slanderer extends Unit {
 
     public final static int INITIAL_COOLDOWN = 0;
 
+
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
         // if no destination was provided from parent EC, set one:
@@ -30,12 +31,10 @@ public class Slanderer extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
-        // If you turn into politician, suicide for now
-        // TODO: Listen to spawn messages from EC to learn new dest
+        // If you turn into politician, convert into politician.
         if (rc.getType() == RobotType.POLITICIAN) {
-            if (rc.canEmpower(1)) {
-                rc.empower(1);
-            }
+            isSlandererConvertedToPolitician = true;
+            return;
         }
 
         // Run away from nearest Muckraker.

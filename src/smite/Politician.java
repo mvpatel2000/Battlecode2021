@@ -32,6 +32,36 @@ public class Politician extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
+        // Converted politician or slanderer turned politician. Set baseLocation and destination.
+        if (baseLocation == null) {
+            baseLocation = myLocation;
+            parseVision();
+            // If enemies nearby, take nearest as destination
+            if (nearbyEnemies.length > 0) {
+                RobotInfo nearestRobot = null;
+                int nearestRobotDistSquared = 1000;
+                for (RobotInfo robot : nearbyEnemies) {
+                    int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+                    if (robotDistSquared < nearestRobotDistSquared) {
+                        nearestRobot = robot;
+                        nearestRobotDistSquared = robotDistSquared;
+                    }
+                }
+                destination = nearestRobot.location;
+            } 
+            else {
+                RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+                // Take nearest smoke signal robot as destination
+                if (nearestSignalRobot != null) {
+                    destination = nearestSignalRobot.location;
+                }
+                // Pick random destination
+                else {
+                    destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+                }
+            }
+        }
+
         updateDestinationForExploration();
         updateDestinationForECHunting();
 
@@ -44,7 +74,7 @@ public class Politician extends Unit {
             }
         }
 
-        considerAttack(onlyECHunter);
+        considerAttack(onlyECHunter, false);
         movePolitician();
 
 
@@ -148,7 +178,7 @@ public class Politician extends Unit {
      * considers various ranges of empowerment to optimize kills. Only kills ECs if parameter
      * passed in.
      */
-    public boolean considerAttack(boolean onlyECs) throws GameActionException {
+    public boolean considerAttack(boolean onlyECs, boolean alwaysAttack) throws GameActionException {
         double multiplier = rc.getEmpowerFactor(allyTeam, 0);
         double totalDamage = rc.getConviction() * multiplier - 10;
         if (!rc.isReady() || totalDamage <= 0) {
@@ -160,7 +190,8 @@ public class Politician extends Unit {
             if (robot.type == RobotType.POLITICIAN) {
                 totalAllyConviction = robot.conviction * multiplier - 10;
             }
-            // TODO: cannot tell apart slanderers and politicians, use flag
+            // //System.out.println\("Robot: " + robot.location);
+            // Cannot tell apart slanderers and politicians, use flag
             if (rc.canGetFlag(robot.ID) ) {
                 int flagInt = rc.getFlag(robot.ID);
                 if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
@@ -219,7 +250,9 @@ public class Politician extends Unit {
                 optimalDist = distanceSquareds[i-1];
             }
         }
-        if (rc.canEmpower(optimalDist) && (optimalNumEnemiesKilled > 1 || nearbySlanderer && optimalNumEnemiesKilled > 0)) {
+        // //System.out.println\("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
+        if (rc.canEmpower(optimalDist) &&
+            (alwaysAttack || optimalNumEnemiesKilled > 1 || (nearbySlanderer && optimalNumEnemiesKilled > 0))) {
             rc.empower(optimalDist);
         }
         return false;
