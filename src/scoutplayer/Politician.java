@@ -119,11 +119,14 @@ public class Politician extends Unit {
             fuzzyMove(destination);
             return;
         }
+        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         RobotInfo nearestMuckraker = null;
         int nearestMuckrakerDistSquared = 100;
         for (RobotInfo robot : nearbyEnemies) {
             int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+            // Chase the nearest muckraker that you can kill
+            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared 
+                && totalDamage > robot.conviction) {
                 nearestMuckraker = robot;
                 nearestMuckrakerDistSquared = robotDistSquared;
             }
@@ -241,7 +244,7 @@ public class Politician extends Unit {
                 } 
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER 
-                    && totalAllyConviction > robot.conviction * 2) {
+                    && totalAllyConviction > robot.conviction + 5) {
                     numEnemiesKilled += 10;
                 }
             }
