@@ -29,8 +29,8 @@ public class Politician extends Unit {
     }
 
     @Override
-    public void run() throws GameActionException {
-        super.run();
+    public void runUnit() throws GameActionException {
+        super.runUnit();
 
         updateDestinationForExploration();
         updateDestinationForECHunting();
@@ -62,10 +62,6 @@ public class Politician extends Unit {
         //     // //System.out.println\("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
         // }
         // setFlag(mtf.getFlag());
-
-        if (!flagSetThisRound) {
-            setFlag((new UnitFlag(moveThisTurn, false)).flag);
-        }
     }
 
     /**
@@ -165,7 +161,7 @@ public class Politician extends Unit {
             }
             // TODO: cannot tell apart slanderers and politicians, use flag
             if (rc.canGetFlag(robot.ID)) {
-                UnitFlag uf = new UnitFlag(rc.getFlag(robot.ID));
+                UnitUpdateFlag uf = new UnitUpdateFlag(rc.getFlag(robot.ID));
                 nearbySlanderer |= uf.readIsSlanderer();
             }
         }
@@ -201,7 +197,7 @@ public class Politician extends Unit {
             for (int j = 0; j < i; j++) {
                 RobotInfo robot = nearbyRobots[j];
                 // Consider enemy and neutral units
-                if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
+                if (robot.team != allyTeam && perUnitDamage >= robot.conviction) {
                     if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
                         numEnemiesKilled++;
                     } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {

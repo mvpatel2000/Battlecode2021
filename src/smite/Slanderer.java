@@ -27,8 +27,8 @@ public class Slanderer extends Unit {
     }
 
     @Override
-    public void run() throws GameActionException {
-        super.run();
+    public void runUnit() throws GameActionException {
+        super.runUnit();
 
         // If you turn into politician, suicide for now
         // TODO: Listen to spawn messages from EC to learn new dest
@@ -64,12 +64,15 @@ public class Slanderer extends Unit {
                 int diffX = myLocation.x - nearestEnemy.location.x;
                 int diffY = myLocation.y - nearestEnemy.location.y;
                 destination = myLocation.translate(diffX, diffY);
+            } else {
+                RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+                if (nearestSignalRobot != null) {
+                    int diffX = myLocation.x - nearestSignalRobot.location.x;
+                    int diffY = myLocation.y - nearestSignalRobot.location.y;
+                    destination = myLocation.translate(diffX, diffY);
+                }
             }
             wideFuzzyMove(destination);
-        }
-
-        if (!flagSetThisRound) {
-            setFlag((new UnitFlag(moveThisTurn, true)).flag);
         }
     }
 

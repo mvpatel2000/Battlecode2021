@@ -60,7 +60,7 @@ public class UnitTracker {
                 ECSightingFlag ecsf = new ECSightingFlag(flag);
                 return ecsf.readLastMove();
             case Flag.UNIT_UPDATE_SCHEMA:
-                UnitFlag uf = new UnitFlag(flag);
+                UnitUpdateFlag uf = new UnitUpdateFlag(flag);
                 return uf.readLastMove();
             default:
                 return Direction.CENTER;
