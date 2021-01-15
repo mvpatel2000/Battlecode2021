@@ -154,21 +154,23 @@ public abstract class Unit extends Robot {
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
         RobotType enemyType = null;
         for (RobotInfo r : nearbyAllies) {
-            int flag = rc.getFlag(r.ID);
-            if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
-                UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
-                MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
-                if (loc != null) {
-                    int dist = myLocation.distanceSquaredTo(loc);
-                    enemyType = uuf.readEnemyType();
-                    // Penalize non-muckrakers
-                    if (enemyType != RobotType.MUCKRAKER) {
-                        dist += 100;
-                    }
-                    if (dist < minDist) {
-                        minDist = dist;
-                        enemyLoc = loc;
-                        allyLoc = r.location;
+            if (rc.canGetFlag(r.ID)) {
+                int flag = rc.getFlag(r.ID);
+                if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
+                    UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
+                    MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
+                    if (loc != null) {
+                        int dist = myLocation.distanceSquaredTo(loc);
+                        enemyType = uuf.readEnemyType();
+                        // Penalize non-muckrakers
+                        if (enemyType != RobotType.MUCKRAKER) {
+                            dist += 100;
+                        }
+                        if (dist < minDist) {
+                            minDist = dist;
+                            enemyLoc = loc;
+                            allyLoc = r.location;
+                        }
                     }
                 }
             }
