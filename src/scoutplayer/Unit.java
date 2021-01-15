@@ -160,10 +160,14 @@ public abstract class Unit extends Robot {
                 MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
                 if (loc != null) {
                     int dist = myLocation.distanceSquaredTo(loc);
+                    enemyType = uuf.readEnemyType();
+                    // Penalize non-muckrakers
+                    if (enemyType != RobotType.MUCKRAKER) {
+                        dist += 100;
+                    }
                     if (dist < minDist) {
                         minDist = dist;
                         enemyLoc = loc;
-                        enemyType = uuf.readEnemyType();
                         allyLoc = r.location;
                     }
                 }

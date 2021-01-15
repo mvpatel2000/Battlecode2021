@@ -64,6 +64,13 @@ public class Slanderer extends Unit {
                 int diffX = myLocation.x - nearestEnemy.location.x;
                 int diffY = myLocation.y - nearestEnemy.location.y;
                 destination = myLocation.translate(diffX, diffY);
+            } else {
+                RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+                if (nearestSignalRobot != null) {
+                    int diffX = myLocation.x - nearestSignalRobot.location.x;
+                    int diffY = myLocation.y - nearestSignalRobot.location.y;
+                    destination = myLocation.translate(diffX, diffY);
+                }
             }
             wideFuzzyMove(destination);
         }
