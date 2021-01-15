@@ -149,23 +149,27 @@ public class Politician extends Unit {
      * passed in.
      */
     public boolean considerAttack(boolean onlyECs) throws GameActionException {
-        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
+        double multiplier = rc.getEmpowerFactor(allyTeam, 0);
+        double totalDamage = rc.getConviction() * multiplier - 10;
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
         boolean nearbySlanderer = false;
-        int totalAllyInfluence = 0;
+        double totalAllyConviction = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
-                totalAllyInfluence = robot.influence;
+                totalAllyConviction = robot.conviction * multiplier - 10;
             }
             // TODO: cannot tell apart slanderers and politicians, use flag
-            if (rc.canGetFlag(robot.ID)) {
-                UnitUpdateFlag uf = new UnitUpdateFlag(rc.getFlag(robot.ID));
-                nearbySlanderer |= uf.readIsSlanderer();
+            if (rc.canGetFlag(robot.ID) ) {
+                int flagInt = rc.getFlag(robot.ID);
+                if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
+                    UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
+                    nearbySlanderer |= uf.readIsSlanderer();
+                }
             }
         }
-        totalAllyInfluence *= rc.getEmpowerFactor(allyTeam, 0);
+        totalAllyConviction *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo
@@ -206,7 +210,7 @@ public class Politician extends Unit {
                 } 
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER 
-                    && totalAllyInfluence > robot.conviction * 2) {
+                    && totalAllyConviction > robot.conviction * 2) {
                     numEnemiesKilled += 10;
                 }
             }
