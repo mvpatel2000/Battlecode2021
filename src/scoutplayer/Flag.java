@@ -24,6 +24,7 @@ public class Flag {
     public static final int SPAWN_UNIT_SCHEMA = 4;
 	public static final int SPAWN_DESTINATION_SCHEMA = 5;
 	public static final int UNIT_UPDATE_SCHEMA = 6;
+    public static final int MIDGAME_ALLY_SCHEMA = 7;
 
     public Flag() {
         flag = 0;
