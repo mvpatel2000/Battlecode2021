@@ -236,6 +236,10 @@ public class EnlightmentCenter extends Robot {
      * @throws GameActionException
      */
     void buildUnit() throws GameActionException {
+        // Not ready to build anything
+        if (!rc.isReady()) {
+            return;
+        }
         // Turn 1 spawn silent slanderer
         if (turnCount == 1) {
             Direction optimalDir = findOptimalSpawnDir();
@@ -247,7 +251,18 @@ public class EnlightmentCenter extends Robot {
         else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                if (rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
+                // Check for nearby enemy muckraker
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
+                boolean nearbyMuckraker = false;
+                for (RobotInfo robot : nearbyEnemies) {
+                    if (robot.type == RobotType.MUCKRAKER) {
+                        nearbyMuckraker = true;
+                        break;
+                    }
+                }
+
+                // Consider various unit builds
+                if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
