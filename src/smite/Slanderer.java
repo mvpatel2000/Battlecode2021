@@ -58,18 +58,18 @@ public class Slanderer extends Unit {
                 // Flee from nearest Muckraker.
                 int diffX = myLocation.x - nearestMuckraker.location.x;
                 int diffY = myLocation.y - nearestMuckraker.location.y;
-                destination = myLocation.translate(diffX, diffY);
+                destination = myLocation.translate(diffX*2, diffY*2);
             } else if (nearestEnemy != null) {
                 int diffX = myLocation.x - nearestEnemy.location.x;
                 int diffY = myLocation.y - nearestEnemy.location.y;
-                destination = myLocation.translate(diffX, diffY);
+                destination = myLocation.translate(diffX*2, diffY*2);
             } else {
                 parseVision();
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 if (nearestSignalRobot != null) {
                     int diffX = myLocation.x - nearestSignalRobot.location.x;
                     int diffY = myLocation.y - nearestSignalRobot.location.y;
-                    destination = myLocation.translate(diffX, diffY);
+                    destination = myLocation.translate(diffX*2, diffY*2);
                 }
             }
             fuzzyMove(destination);
