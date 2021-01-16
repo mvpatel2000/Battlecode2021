@@ -19,6 +19,7 @@ if __name__ == '__main__':
         with open(f, 'r') as file:
             content = file.read()
         out_content = content
+        out_content = re.sub('rc.resign\(', '//rc.resign\(', out_content)
         out_content = re.sub('System.out.println\(', '//System.out.println\(', out_content)
         out_content = re.sub('System.out.print\(', '//System.out.print\(', out_content)
         out_content = re.sub('ec.rc.setIndicator', '//ec.rc.setIndicator', out_content)
