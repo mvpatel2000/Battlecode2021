@@ -4,6 +4,8 @@ import battlecode.common.*;
 import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
 
 public class EnlightmentCenter extends Robot {
     final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{2,5},{5,2},{5,-2},{2,-5},{-2,-5},{-5,-2},{-5,2},{-2,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{1,6},{6,1},{6,-1},{1,-6},{-1,-6},{-6,-1},{-6,1},{-1,6},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6}};
@@ -20,7 +22,7 @@ public class EnlightmentCenter extends Robot {
     final int CRYPTO_KEY = 92747502; // A random large number
     final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
 
-    // Ally ECs: Unverified and verified.
+    // Ally ECs
     // We are treating unverified allies as ground truth for now.
     // For better security, eventually implement and use the verified variables
     int numAllyECs;
@@ -31,7 +33,9 @@ public class EnlightmentCenter extends Robot {
     // Environment and enemy
     Set<MapLocation> enemyECLocs;
     Set<MapLocation> neutralECLocs;
-    Set<MapLocation> capturedAllyECLocs;
+    Set<MapLocation> capturedAllyECLocs;    // for an ally captured after us, our robots only communicate
+                                            // the new ally's location, not the ID. So, we cannot add that ally
+                                            // to the allyECID/location arrays above, we must maintain this separate set.
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -44,6 +48,13 @@ public class EnlightmentCenter extends Robot {
     int numMuckrakers;
     int numPoliticians;
     int numScouts; // scouts don't count in troop counts
+
+    // Mid-game EC variables.
+    boolean isMidGame;
+    Map<Integer, MapLocation> basesToDestinations;  // <BaseID, DestinationForRobots>
+    Map<Integer, Integer> pendingBaseLocations;  // <RobotID, BaseID>
+    Set<Integer> trackedRobots;
+    Set<Integer> trackedBases;
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
@@ -92,6 +103,18 @@ public class EnlightmentCenter extends Robot {
         numPoliticians = 0;
         numScouts = 0;
 
+        // Everyone spawned after round 1 is a mid-game EC.
+        if (currentRound > 1) {
+            isMidGame = true;
+            //System.out.println\("I am a mid-game EC!");
+            basesToDestinations = new HashMap<Integer, MapLocation>();
+            pendingBaseLocations = new HashMap<Integer, Integer>();
+            trackedRobots = new HashSet<Integer>(); // set for quick access to see if a robot is already in our UnitTracker.
+            trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
+        } else {
+            //System.out.println\("I am an initial EC.");
+        }
+
         // List of all unit trackers
         unitTrackerList = new List<UnitTracker>();
 
@@ -102,33 +125,46 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        // if (currentRound == 400) rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 400) rc.resign(); // TODO: remove; just for debugging
 
         considerBid();
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
         // This function will return with ~2700 bytecode left for rounds 1 - 3.
-        // TODO: Come up with initialization scheme for neutral ECs we take over.
-        if (currentRound < searchBounds.length) {
-            initialFlagsAndAllies();
+        // TODO: Potentially improve initialization scheme for neutral ECs we take over.
+        if (!isMidGame) {
+            if (currentRound < searchBounds.length) {
+                initialFlagsAndAllies();
+            }
+            if (turnCount == searchBounds.length) {
+                putVisionTilesOnMap();
+                updateSymmetryFromAllies();
+                allyDistances = furthestAllyDistances(); // only calculate this once after initial allies set.
+            }
+            if (turnCount >= searchBounds.length) {
+                readAllyECUpdates(); // read EC updates before building units/prod logic.
+                setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
+                // spawnOrUpdateScout();
+            }
         }
-        if (turnCount == searchBounds.length) {
-            putVisionTilesOnMap();
-            updateSymmetryFromAllies();
-        }
-        if (turnCount >= searchBounds.length) {
+        if (isMidGame) {
+            // We do not send out initial flags or use allies to calculate symmetry for mid-game ECs.
+            // Instead, we add new nearby robots to our UnitTracker every round and listen to them
+            // for special flags.
+            if (turnCount == 1) {
+                putVisionTilesOnMap();
+            }
+            trackNewNearbyRobots();
             readAllyECUpdates(); // read EC updates before building units/prod logic.
             setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
-            allyDistances = furthestAllyDistances();
-            // spawnOrUpdateScout();
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
-        //System.out.println\("I am tracking " + unitTrackerList.length + " units");
-        //System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
+        ////System.out.println\("I am tracking " + unitTrackerList.length + " units");
+        ////System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
-        //System.out.println\("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
+        ////System.out.println\("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
         buildUnit();
 
 
@@ -149,29 +185,39 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
+        int influenceMultiplier = 1;
+        if (currentInfluence > 1000000000) {
+            influenceMultiplier = 10000;
+        } else if (currentInfluence > 100000) {
+            influenceMultiplier = 30;
+        } else if (currentInfluence > 50000) {
+            influenceMultiplier = 10;
+        } else if (currentInfluence > 10000) {
+            influenceMultiplier = 2;
+        }
         int dInf = currentInfluence - previousInfluence;
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
-            //System.out.println\("Bidding 1!");
+            ////System.out.println\("Bidding 1!");
             if (currentInfluence > 10 && rc.canBid(1)) {
                 rc.bid(1);
             }
-        } 
+        }
         // Bid 1/8th income for first 550 turns
         else if (currentRound <= 550) {
-            int dInfOverEight = (int)(dInf / 8);
-            //System.out.println\("Bidding: " + dInfOverEight + " / " + currentInfluence);
+            int dInfOverEight = (int)(dInf / 8) * influenceMultiplier;
+            ////System.out.println\("Bidding: " + dInfOverEight + " / " + currentInfluence);
             if (currentInfluence > dInfOverEight && rc.canBid(dInfOverEight)) {
                 rc.bid(dInfOverEight);
             }
         }
-        // Bid scaling from 1/8 income at turn 550 to 2 * income at turn 1500
+        // Bid scaling from 1/8 income at turn 550 to 3 * income at turn 1500
         else if (currentRound < 1499) {
             double step = (currentRound - 550.0) / 1500.0;
-            double proportion = 1.0/8.0 + step * 15.0/8.0;
-            int bidAmount = (int)(proportion * dInf);
-            //System.out.println\("prop: " + proportion + " dInf: " + dInf);
-            //System.out.println\("Bidding: " + bidAmount + " / " + currentInfluence);
+            double proportion = 1.0/8.0 + step * 23.0/8.0;
+            int bidAmount = (int)(proportion * dInf) * influenceMultiplier;
+            ////System.out.println\("prop: " + proportion + " dInf: " + dInf);
+            ////System.out.println\("Bidding: " + bidAmount + " / " + currentInfluence);
             if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
                 rc.bid(bidAmount);
             }
@@ -190,6 +236,10 @@ public class EnlightmentCenter extends Robot {
      * @throws GameActionException
      */
     void buildUnit() throws GameActionException {
+        // Not ready to build anything
+        if (!rc.isReady()) {
+            return;
+        }
         // Turn 1 spawn silent slanderer
         if (turnCount == 1) {
             Direction optimalDir = findOptimalSpawnDir();
@@ -201,24 +251,35 @@ public class EnlightmentCenter extends Robot {
         else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                if (rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
+                // Check for nearby enemy muckraker
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
+                boolean nearbyMuckraker = false;
+                for (RobotInfo robot : nearbyEnemies) {
+                    if (robot.type == RobotType.MUCKRAKER) {
+                        nearbyMuckraker = true;
+                        break;
+                    }
+                }
+
+                // Consider various unit builds
+                if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
-                    MapLocation enemyLocation = optimalDestination(true, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
                     //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
-                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, 0);
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER);
                     numSlanderers++;
                 } else if (numPoliticians > numMuckrakers * 2) {
-                    MapLocation enemyLocation = optimalDestination(false, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
                     numMuckrakers++;
                 } else {
                     if (rc.getInfluence() > 1000) {
-                        MapLocation enemyLocation = optimalDestination(true, false);
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                         //System.out.println\("Spawning killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0);
                     } else {
-                        MapLocation enemyLocation = optimalDestination(false, false);
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                         //System.out.println\("Spawning killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
                     }
@@ -263,8 +324,23 @@ public class EnlightmentCenter extends Robot {
                     case Flag.SPAWN_DESTINATION_SCHEMA:
                         // TODO: @Vinjai: handle the case where scouts are spawned
                         // and we want to set up a ScoutTracker instead of UnitTracker.
+                        if (isMidGame) {
+                            SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
+                            if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
+                                // the robot spawned is going to an enemy, we want to record destination
+                                // so we can use it as a destination for our own robots.
+                                MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
+                                if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
+                                    basesToDestinations.put(allyECIDs[i], potentialEnemy);
+                                    //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                }
+                            }
+                        }
                         break;
                     case Flag.UNIT_UPDATE_SCHEMA:
+                        // Not relevant, ECs do not send such flags to ECs.
+                        break;
+                    case Flag.MIDGAME_ALLY_SCHEMA:
                         // Not relevant, ECs do not send such flags to ECs.
                         break;
                 }
@@ -273,13 +349,20 @@ public class EnlightmentCenter extends Robot {
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
                 if (!enemyECLocs.contains(allyECLocs[i])) {
+                    // Add to list on enemies.
                     enemyECLocs.add(allyECLocs[i]);
+                    map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
+                // For mid-game ECs. Update another list to remove this EC.
+                if (basesToDestinations.containsKey(allyECIDs[i])) {
+                    basesToDestinations.remove(allyECIDs[i]);
+                }
+                // Remove EC from list.
                 allyECIDs[i] = allyECIDs[numAllyECs-1];
                 allyECLocs[i] = allyECLocs[numAllyECs-1];
                 numAllyECs -= 1;
                 i -= 1;
-                //System.out.println\("Ally Lost! I now have " + numAllyECs + " allies.");
+                //System.out.println\("Ally Lost! I now have " + numAllyECs + " original allies.");
             }
         }
     }
@@ -304,14 +387,17 @@ public class EnlightmentCenter extends Robot {
                 case Flag.EC_SIGHTING_SCHEMA:
                     ECSightingFlag ecsf = new ECSightingFlag(ut.flagInt);
                     MapLocation ecLoc = ecsf.readAbsoluteLocation(myLocation);
+                    int[] relECLoc = ecsf.readRelativeLocationFrom(myLocation);
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
-                        if (!neutralECLocs.contains(ecLoc)) {
+                        if (!neutralECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
+                            map.set(relECLoc, RelativeMap.NEUTRAL_EC);
                             neutralECLocs.add(ecLoc);
                             //System.out.println\("Informed about NEUTRAL EC at " + ecLoc);
                         }
                     } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC){
-                        if (!enemyECLocs.contains(ecLoc)) {
+                        if (!enemyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
                             enemyECLocs.add(ecLoc);
+                            map.set(relECLoc, RelativeMap.ENEMY_EC);
                             // This EC has been converted from neutral to enemy since we last saw it.
                             if(neutralECLocs.contains(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
@@ -320,11 +406,15 @@ public class EnlightmentCenter extends Robot {
                             if(capturedAllyECLocs.contains(ecLoc)) {
                                 capturedAllyECLocs.remove(ecLoc);
                             }
+                            // It is also possible for one of our original allies to be converted into an enemy.
+                            // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
+                            // are looking for its flag in readAllyECUpdates() and cannot read it.
                             //System.out.println\("Informed about ENEMY EC at " + ecLoc);
                         }
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC) {
-                        if (!capturedAllyECLocs.contains(ecLoc)) {
+                        if (!capturedAllyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
                             capturedAllyECLocs.add(ecLoc);
+                            map.set(relECLoc, RelativeMap.ALLY_EC);
                             if (enemyECLocs.contains(ecLoc)) {
                                 enemyECLocs.remove(ecLoc);
                             }
@@ -345,6 +435,39 @@ public class EnlightmentCenter extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
+                    break;
+                case Flag.MIDGAME_ALLY_SCHEMA:
+                    // Relevant for unit --> mid-game ECs.
+                    // Units communicate to mid-game ECs their base ID and location.
+                    // Here, we process those flags.
+                    if (isMidGame) {
+                        MidGameAllyFlag maf = new MidGameAllyFlag(ut.flagInt);
+                        if (maf.readType() == MidGameAllyFlag.ID_MAF) {
+                            int newBaseID = maf.readID();
+                            if (!trackedBases.contains(newBaseID)) {
+                                pendingBaseLocations.put(ut.robotID, newBaseID);
+                            }
+                        } else {
+                            // Must be LOCATION_MAF
+                            if(pendingBaseLocations.containsKey(ut.robotID)) {
+                                // Ensure base is not already tracked and added to list of allies.
+                                int newBaseID = pendingBaseLocations.get(ut.robotID);
+                                if (!trackedBases.contains(newBaseID)) {
+                                    MapLocation baseLoc = maf.readAbsoluteLocation(myLocation);
+                                    int[] relLoc = maf.readRelativeLocationFrom(myLocation);
+                                    map.set(relLoc, RelativeMap.ALLY_EC);
+                                    allyECIDs[numAllyECs] = newBaseID;
+                                    allyECLocs[numAllyECs] = baseLoc;
+                                    numAllyECs += 1;
+                                    //System.out.println\("A robot has just informed me of its BASE at " + baseLoc);
+                                    trackedBases.add(newBaseID);
+                                } else {
+                                    // We're already aware of this robot's base, no need to keep in set.
+                                    pendingBaseLocations.remove(ut.robotID);
+                                }
+                            }
+                        }
+                    }
                     break;
             }
             unitTrackerList.step();
@@ -501,7 +624,7 @@ public class EnlightmentCenter extends Robot {
      *      If randomFallback == True, sets destination randomly.
      */
     MapLocation optimalDestination(boolean includeNeutral, boolean randomFallback) {
-        if (rc.getRoundNum() < searchBounds.length) {
+        if (currentRound < searchBounds.length) {
             int[] dArr = randomDestination();
             return myLocation.translate(dArr[0], dArr[1]);
         }
@@ -1488,6 +1611,89 @@ public class EnlightmentCenter extends Robot {
     int generateSecretCode(int robotID) {
         return (Math.abs(CRYPTO_KEY*robotID + getTeamNum(allyTeam))) % MODULUS;
     }
+
+    /**
+     * MID-GAME ALLIES ONLY.
+     * Add ally robots around you to your unitTracker if you aren't currently tracking them.
+     * Called once per round for mid-game ECs.
+     */
+    void trackNewNearbyRobots() {
+        RobotInfo[] nearbyAllies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, allyTeam);
+        for (RobotInfo ri : nearbyAllies) {
+            if (ri.ID == myID) {
+                continue;
+            }
+            if (trackedRobots.contains(ri.ID)) {
+                continue;
+            }
+            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                // an ally EC happens to be within vision radius.
+                boolean alreadySeen = false;
+                for (int i=0; i<numAllyECs; i++) {
+                    if (allyECIDs[i] == ri.ID) {
+                        alreadySeen = true;
+                        break;
+                    }
+                }
+                if (!alreadySeen) {
+                    allyECIDs[numAllyECs] = ri.ID;
+                    allyECLocs[numAllyECs] = ri.location;
+                    map.set(ri.location.x - myLocation.x, ri.location.y - myLocation.y, RelativeMap.ALLY_EC);
+                    numAllyECs += 1;
+                }
+                trackedRobots.add(ri.ID);   // technically, this is not a tracked robot, but that's okay, because this list is just something we check against when we see a new robot and we do not want to spend the bytecode every time to check over the ally EC list.
+                continue;
+            } else {
+                // We aren't currently tracking this robot, add it to unitTracker.
+                unitTrackerList.add(new UnitTracker(this, ri.type, ri.ID, ri.location));
+                trackedRobots.add(ri.ID);
+            }
+        }
+    }
+
+    /**
+     * MID-GAME ALLIES ONLY.
+     * Similar to optimalDestination(), except used for mid-game ECs only. Our potential destinations
+     * includes a list of recent destinations our original allies sent robots too.
+     */
+    MapLocation optimalDestinationMidGame(boolean includeNeutral, boolean randomFallback) {
+        MapLocation enemyLocation = null;
+        int enemyLocationDistance = 999999999;
+        if (enemyECLocs.size() > 0) {
+            for (MapLocation enemyECLoc : enemyECLocs) {
+                int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                if (enemyECLocDestination < enemyLocationDistance) {
+                    enemyLocation = enemyECLoc;
+                    enemyLocationDistance = enemyECLocDestination;
+                }
+            }
+        } else if (basesToDestinations.size() > 0) {
+            for (Integer key: basesToDestinations.keySet()) {
+                MapLocation destLocation = basesToDestinations.get(key);
+                int destDistance = myLocation.distanceSquaredTo(destLocation);
+                if (destDistance < enemyLocationDistance) {
+                    enemyLocation = destLocation;
+                    enemyLocationDistance = destDistance;
+                }
+            }
+        } else if (includeNeutral && neutralECLocs.size() > 0) {
+            for (MapLocation neutralECLoc : neutralECLocs) {
+                int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                if (neutralECLocDestination < enemyLocationDistance) {
+                    enemyLocation = neutralECLoc;
+                    enemyLocationDistance = neutralECLocDestination;
+                }
+            }
+        } else {
+            // FALLBACK: We don't know about any ECs.
+            // Note: Heuristic from optimalDestination() only applies to initial ECs, not mid-game ECs.
+            int[] dArr = randomDestination();
+            enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+        }
+        return enemyLocation;
+    }
+
+
     /**
      * Returns a random spawnable RobotType
      *

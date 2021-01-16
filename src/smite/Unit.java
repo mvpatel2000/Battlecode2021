@@ -4,6 +4,8 @@ import battlecode.common.*;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
 import java.lang.Integer;
 
 public abstract class Unit extends Robot {
@@ -17,24 +19,26 @@ public abstract class Unit extends Robot {
     RobotInfo[] nearbyNeutral;
     RobotInfo[] nearbyRobots;
     Direction moveThisTurn;
-    Direction moveLastTurn;
     MapLocation destination;
+    MapLocation latestBaseDestination;
+
     int instruction;
     boolean spawnedSilently;
-
     // variables to keep track of EC sightings
     // May only need sets instead of maps.
     // But we may want to use the IDs later, in which case we will need maps.
+    int sawNewAllyLastTurn;
+    MapLocation newAllyLocation;
     Map<MapLocation, Integer> enemyECLocsToIDs;
     Map<MapLocation, Integer> neutralECLocsToIDs;
     Map<MapLocation, Integer> capturedAllyECLocsToIDs;
+    Set<Integer> seenAllyECs;  // IDs for every ally EC we have seen before.
 
     ArrayList<MapLocation> priorDestinations;
 
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
-        moveLastTurn = Direction.CENTER;
         // Add base information. If no base is found, baseID will be 0.
         // If spawned silently, then baseLocation will be any base that
         // is adjacent to the unit when it spawns, and is not necessarily
@@ -62,25 +66,28 @@ public abstract class Unit extends Robot {
                 baseID = robot.ID;
             }
         }
-
+        sawNewAllyLastTurn = 0;
+        newAllyLocation = null;
         // Set destination as baseLocation until it's set by EC message
         destination = baseLocation;
-
+        latestBaseDestination = destination;
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
         capturedAllyECLocsToIDs = new HashMap<>();
+        seenAllyECs = new HashSet<>();
+        seenAllyECs.add(baseID);
         priorDestinations = new ArrayList<MapLocation>();
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
-        moveLastTurn = moveThisTurn;
         moveThisTurn = Direction.CENTER;
         myLocation = rc.getLocation();
         parseVision();
         readECInstructions();
+        switchToLatestBaseDestination();
         //System.out.println\("Destination: " + destination);
 
         // Call unit-specific run method
@@ -88,7 +95,17 @@ public abstract class Unit extends Robot {
 
         // Common wrap-up methods
         parseVision();
-        setECSightingFlag();
+
+        if(sawNewAllyLastTurn == 1) {
+            setMidGameAllyIDFlag();
+            sawNewAllyLastTurn = 2;
+        } else if (sawNewAllyLastTurn == 2) {
+            setMidGameAllyLocFlag();
+            sawNewAllyLastTurn = 0;
+        } else {
+            setECSightingFlag();
+        }
+
         setUnitUpdateFlag();
     }
 
@@ -103,7 +120,7 @@ public abstract class Unit extends Robot {
      * If flag has not been set this turn, set a unit update flag by
      * looking around for the nearest enemy. If none is found, look
      * for nearby allies who might inform me about the nearest enemy.
-     * 
+     *
      * WARNING: Make sure parseVision() is called after the most recent
      * move before you call this function!
      */
@@ -144,7 +161,7 @@ public abstract class Unit extends Robot {
      * Get the nearest enemy to me by listening to the allies around me.
      * Returns a RobotInfo with known information about the enemy and 0
      * as its ID. Returns null if no nearby enemy is known.
-     * 
+     *
      * WARNING: Make sure parseVision() is called after the most recent
      * move before you call this function!
      */
@@ -256,13 +273,21 @@ public abstract class Unit extends Robot {
                 if (neutralECLocsToIDs.containsKey(ri.location)) {
                     capturedAllyECLocsToIDs.put(ri.location, ri.ID);
                     neutralECLocsToIDs.remove(ri.location);
+                    sawNewAllyLastTurn = 1;
+                    seenAllyECs.add(ri.ID);
                     setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
                     return;
                 } else if (enemyECLocsToIDs.containsKey(ri.location)) {
                     capturedAllyECLocsToIDs.put(ri.location, ri.ID);
                     enemyECLocsToIDs.remove(ri.location);
+                    sawNewAllyLastTurn = 1;
+                    seenAllyECs.add(ri.ID);
                     setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
                     return;
+                } else if (!seenAllyECs.contains(ri.ID)) {
+                    seenAllyECs.add(ri.ID);
+                    setMidGameAllyIDFlag();
+                    sawNewAllyLastTurn = 2;
                 }
             }
         }
@@ -282,6 +307,34 @@ public abstract class Unit extends Robot {
         setFlag(ecsf.flag);
         //System.out.println\("Sending EC Sighting at " + ecLoc);
     }
+
+    /**
+     * Tell new ally ECs your base ID. This occurs when you encounter any ally EC
+     * at all for the first time, except for your base. If you encounter an ally EC
+     * that we captured, you first communicate that you found a captured ally to everyone,
+     * and then you send this message the next round (hence the var sawNewAllyLastTurn).
+     * Why is this necessary? We want mid-game ECs to know the original bases, so they
+     * can read that base's messages.
+     */
+    public void setMidGameAllyIDFlag() throws GameActionException {
+        MidGameAllyFlag naf = new MidGameAllyFlag();
+        naf.writeType(MidGameAllyFlag.ID_MAF);
+        naf.writeID(baseID);
+        setFlag(naf.flag);
+        //System.out.println\("Telling ally EC about my base: " + baseID);
+    }
+
+    /**
+     * Tell new ally ECs your base location. This occurs the round after
+     * setMidGameAllyIDFlag.
+     */
+     public void setMidGameAllyLocFlag() throws GameActionException {
+         MidGameAllyFlag naf = new MidGameAllyFlag();
+         naf.writeType(MidGameAllyFlag.LOCATION_MAF);
+         naf.writeLocation(baseLocation);
+         setFlag(naf.flag);
+         //System.out.println\("Telling ally EC about my base loc: " + baseLocation);
+     }
 
     /**
      * Attempts to move in a given direction.
@@ -312,39 +365,9 @@ public abstract class Unit extends Robot {
     /**
      * Moves towards destination, in the optimal direction or diagonal offsets based on which is
      * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
-     * unnecessary computation.
-     */
-    void fuzzyMove(MapLocation destination) throws GameActionException {
-        // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
-        MapLocation myLocation = rc.getLocation();
-        Direction toDest = myLocation.directionTo(destination);
-        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight()};
-        double cost = -1;
-        Direction optimalDir = null;
-        for (Direction dir : dirs) {
-            if (rc.canMove(dir)) {
-                double newCost = rc.sensePassability(myLocation.add(dir));
-                // add epsilon boost to forward direction
-                if (dir == toDest) {
-                    newCost += 0.001;
-                }
-                if (newCost > cost) {
-                    cost = newCost;
-                    optimalDir = dir;
-                }
-            }
-        }
-        if (optimalDir != null) {
-            move(optimalDir);
-        }
-    }
-
-    /**
-     * Moves towards destination, in the optimal direction or diagonal offsets based on which is
-     * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
      * unnecessary computation. Allows orthogonal moves to unlodge.
      */
-    void wideFuzzyMove(MapLocation destination) throws GameActionException {
+    void fuzzyMove(MapLocation destination) throws GameActionException {
         // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
         MapLocation myLocation = rc.getLocation();
         Direction toDest = myLocation.directionTo(destination);
@@ -429,9 +452,71 @@ public abstract class Unit extends Robot {
     }
 
     /**
+     * Update destination for non-slanderers.
+     * Returns a boolean indicating whether we switched or not.
+     */
+    boolean switchToLatestBaseDestination() throws GameActionException {
+        if (rc.getType() == RobotType.SLANDERER) {
+            return false;
+        }
+        if (turnCount <= 3) {
+            return false;
+        }
+        MapLocation potentialDest = null;
+        if (rc.canGetFlag(baseID)) {
+            int flagInt = rc.getFlag(baseID);
+            int flagSchema = Flag.getSchema(flagInt);
+            switch (flagSchema) {
+                case Flag.NO_SCHEMA:
+                    break;
+                case Flag.EC_SIGHTING_SCHEMA:
+                    // Not relevant, ECs do not send such flags to robots.
+                    break;
+                case Flag.MAP_TERRAIN_SCHEMA:
+                    // Not relevant, ECs do not send such flags to robots.
+                    break;
+                case Flag.LOCATION_SCHEMA:
+                    break;
+                case Flag.SPAWN_UNIT_SCHEMA:
+                    // Not relevant, handled elsewhere.
+                case Flag.SPAWN_DESTINATION_SCHEMA:
+                    // Use this to figure out where our base is sending currently produced unit
+                    SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
+                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
+                        // the robot spawned is going to an enemy, we may want to go here.
+                        potentialDest = sdf.readAbsoluteLocation(myLocation);
+                    }
+                    break;
+                case Flag.UNIT_UPDATE_SCHEMA:
+                    // Not relevant, ECs do not send such flags to ECs.
+                    break;
+                case Flag.MIDGAME_ALLY_SCHEMA:
+                    // Not relevant, ECs do not send such flags to ECs.
+                    break;
+            }
+        }
+        if (potentialDest != null) {
+            if (!potentialDest.equals(destination)) {
+                if (rc.canSenseLocation(destination)) {
+                    RobotInfo ri = rc.senseRobotAtLocation(destination);
+                    if (ri != null) {
+                        if(ri.team == allyTeam && ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                            destination = potentialDest;
+                            //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    /**
      * Update destination to encourage exploration if destination is off map or destination is not
      * an enemy target. Uses rejection sampling to avoid destinations near already explored areas.
-     * @throws GameActionException
+     * @throws GameActionException.
+     * TODO: Make this smarter for non-slanderers. Listen to your base and, if possible,
+     * go where your base is telling newly spawned units of your type to go.
      */
     void updateDestinationForExploration() throws GameActionException {
         MapLocation nearDestination = myLocation;
