@@ -74,6 +74,7 @@ public class Politician extends Unit {
             }
         }
 
+        considerBoostEC();
         considerAttack(onlyECHunter, false);
         movePolitician();
 
@@ -173,6 +174,32 @@ public class Politician extends Unit {
                 return NEW_SENSED_LOCS_NORTHWEST;
             default:
                 return NEW_SENSED_LOCS_CENTER;
+        }
+    }
+
+    /**
+     * Explode if boost for EC is high.
+     * @return
+     * @throws GameActionException
+     */
+    public void considerBoostEC() throws GameActionException {
+        int distToBase = myLocation.distanceSquaredTo(baseLocation);
+        // Be close to base
+        if (distToBase <= 2) {
+            double multiplier = rc.getEmpowerFactor(allyTeam, 0);
+            // Have non-trivial boost
+            if (multiplier > 2) {
+                int numInRangeUnits = 0;
+                for (RobotInfo robot : nearbyRobots) {
+                    if (myLocation.distanceSquaredTo(robot.location) <= distToBase) {
+                        numInRangeUnits++;
+                    }
+                }
+                // Boost is sizable even after dispersion
+                if (multiplier > numInRangeUnits && rc.canEmpower(distToBase)) {
+                    rc.empower(distToBase);
+                }
+            }
         }
     }
 
