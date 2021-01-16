@@ -72,7 +72,7 @@ public class Slanderer extends Unit {
                     destination = myLocation.translate(diffX, diffY);
                 }
             }
-            wideFuzzyMove(destination);
+            fuzzyMove(destination);
         }
     }
 
