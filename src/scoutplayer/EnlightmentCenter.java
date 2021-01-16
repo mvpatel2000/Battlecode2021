@@ -185,6 +185,16 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
+        int influenceMultiplier = 1;
+        if (currentInfluence > 1000000000) {
+            influenceMultiplier = 10000;
+        } else if (currentInfluence > 100000) {
+            influenceMultiplier = 30;
+        } else if (currentInfluence > 50000) {
+            influenceMultiplier = 10;
+        } else if (currentInfluence > 10000) {
+            influenceMultiplier = 2;
+        }
         int dInf = currentInfluence - previousInfluence;
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
@@ -195,17 +205,17 @@ public class EnlightmentCenter extends Robot {
         }
         // Bid 1/8th income for first 550 turns
         else if (currentRound <= 550) {
-            int dInfOverEight = (int)(dInf / 8);
+            int dInfOverEight = (int)(dInf / 8) * currentInfluence;
             //System.out.println("Bidding: " + dInfOverEight + " / " + currentInfluence);
             if (currentInfluence > dInfOverEight && rc.canBid(dInfOverEight)) {
                 rc.bid(dInfOverEight);
             }
         }
-        // Bid scaling from 1/8 income at turn 550 to 2 * income at turn 1500
+        // Bid scaling from 1/8 income at turn 550 to 3 * income at turn 1500
         else if (currentRound < 1499) {
             double step = (currentRound - 550.0) / 1500.0;
-            double proportion = 1.0/8.0 + step * 15.0/8.0;
-            int bidAmount = (int)(proportion * dInf);
+            double proportion = 1.0/8.0 + step * 23.0/8.0;
+            int bidAmount = (int)(proportion * dInf) * currentInfluence;
             //System.out.println("prop: " + proportion + " dInf: " + dInf);
             //System.out.println("Bidding: " + bidAmount + " / " + currentInfluence);
             if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
