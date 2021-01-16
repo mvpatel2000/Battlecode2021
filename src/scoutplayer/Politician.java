@@ -74,6 +74,7 @@ public class Politician extends Unit {
             }
         }
 
+        considerBoostEC();
         considerAttack(onlyECHunter, false);
         movePolitician();
 
@@ -119,11 +120,14 @@ public class Politician extends Unit {
             fuzzyMove(destination);
             return;
         }
+        double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         RobotInfo nearestMuckraker = null;
         int nearestMuckrakerDistSquared = 100;
         for (RobotInfo robot : nearbyEnemies) {
             int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+            // Chase the nearest muckraker that you can kill
+            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared 
+                && totalDamage > robot.conviction) {
                 nearestMuckraker = robot;
                 nearestMuckrakerDistSquared = robotDistSquared;
             }
@@ -170,6 +174,32 @@ public class Politician extends Unit {
                 return NEW_SENSED_LOCS_NORTHWEST;
             default:
                 return NEW_SENSED_LOCS_CENTER;
+        }
+    }
+
+    /**
+     * Explode if boost for EC is high.
+     * @return
+     * @throws GameActionException
+     */
+    public void considerBoostEC() throws GameActionException {
+        int distToBase = myLocation.distanceSquaredTo(baseLocation);
+        // Be close to base
+        if (distToBase <= 2) {
+            double multiplier = rc.getEmpowerFactor(allyTeam, 0);
+            // Have non-trivial boost
+            if (multiplier > 2) {
+                int numInRangeUnits = 0;
+                for (RobotInfo robot : nearbyRobots) {
+                    if (myLocation.distanceSquaredTo(robot.location) <= distToBase) {
+                        numInRangeUnits++;
+                    }
+                }
+                // Boost is sizable even after dispersion
+                if (multiplier > numInRangeUnits && rc.canEmpower(distToBase)) {
+                    rc.empower(distToBase);
+                }
+            }
         }
     }
 
@@ -241,7 +271,7 @@ public class Politician extends Unit {
                 } 
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER 
-                    && totalAllyConviction > robot.conviction * 2) {
+                    && totalAllyConviction > robot.conviction + 5) {
                     numEnemiesKilled += 10;
                 }
             }
