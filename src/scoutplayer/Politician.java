@@ -217,7 +217,7 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
-        boolean nearbySlanderer = false;
+        boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10;
         double totalAllyConviction = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
@@ -229,7 +229,7 @@ public class Politician extends Unit {
                 int flagInt = rc.getFlag(robot.ID);
                 if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
-                    nearbySlanderer |= uf.readIsSlanderer();
+                    nearbySlandererOrNearBase |= uf.readIsSlanderer();
                 }
             }
         }
@@ -284,9 +284,9 @@ public class Politician extends Unit {
                 optimalDist = distanceSquareds[i-1];
             }
         }
-        // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
+        // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlandererOrNearBase);
         if (rc.canEmpower(optimalDist) &&
-            (alwaysAttack || optimalNumEnemiesKilled > 1 || (nearbySlanderer && optimalNumEnemiesKilled > 0))) {
+            (alwaysAttack || optimalNumEnemiesKilled > 1 || (nearbySlandererOrNearBase && optimalNumEnemiesKilled > 0))) {
             rc.empower(optimalDist);
         }
         return false;
