@@ -29,10 +29,16 @@ public class SpecificFlagTests {
     }
 
     @Test
+<<<<<<< HEAD
     public void testSpawnDestinationFlag() {
         SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT);
+=======
+    public void testNewSpawnDestinationFlag() {
+        SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT, true);
+>>>>>>> 34db3fdd9613f32b3320b6124cd062d6bd3dc35a
         assertEquals(Flag.SPAWN_DESTINATION_SCHEMA, sdf.getSchema());
         assertEquals(SpawnDestinationFlag.INSTR_SCOUT, sdf.readInstruction());
+		assertEquals(true, sdf.readGuess());
     }
 
     @Test

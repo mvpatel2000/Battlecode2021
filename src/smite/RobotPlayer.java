@@ -10,6 +10,7 @@ public strictfp class RobotPlayer {
     @SuppressWarnings("unused")
     public static void run(RobotController rc) throws GameActionException {
         Robot robot;
+        Robot robotConverted = null;
 
         // Get Robot Type
         switch(rc.getType()) {
@@ -33,7 +34,14 @@ public strictfp class RobotPlayer {
         // Loop and call robot.run() each time
         while (true) {
             try {
-                robot.run();
+                if (robot.isSlandererConvertedToPolitician == false) {
+                    robot.run();
+                } else if (robotConverted != null) {
+                    robotConverted.run();
+                } else {
+                    robotConverted = new Politician(rc);
+                    robotConverted.run();
+                }
                 Clock.yield();
             } catch (Exception e) {
                 //System.out.println\(rc.getType() + " Exception");
