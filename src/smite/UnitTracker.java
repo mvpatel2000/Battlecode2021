@@ -62,6 +62,9 @@ public class UnitTracker {
             case Flag.UNIT_UPDATE_SCHEMA:
                 UnitUpdateFlag uf = new UnitUpdateFlag(flag);
                 return uf.readLastMove();
+            case Flag.MIDGAME_ALLY_SCHEMA:
+                MidGameAllyFlag maf = new MidGameAllyFlag(flag);
+                return maf.readLastMove();
             default:
                 return Direction.CENTER;
         }

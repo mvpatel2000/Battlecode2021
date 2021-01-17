@@ -42,6 +42,7 @@ public class EnlightmentCenter extends Robot {
     SpawnUnitFlag latestSpawnFlag;
     LocationFlag latestSpawnDestinationFlag;
     int latestSpawnRound;
+    boolean spawnDestIsGuess;   // whether the destination we send units to is a guess (true) or exact (false)
 
     // Troop Counts
     int numSlanderers;
@@ -96,7 +97,7 @@ public class EnlightmentCenter extends Robot {
         neutralECLocs = new HashSet<MapLocation>();
         capturedAllyECLocs = new HashSet<MapLocation>();
         latestSpawnRound = -1;
-
+        spawnDestIsGuess = true;
         // Troop counts
         numSlanderers = 0;
         numMuckrakers = 0;
@@ -111,8 +112,6 @@ public class EnlightmentCenter extends Robot {
             pendingBaseLocations = new HashMap<Integer, Integer>();
             trackedRobots = new HashSet<Integer>(); // set for quick access to see if a robot is already in our UnitTracker.
             trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
-        } else {
-            //System.out.println\("I am an initial EC.");
         }
 
         // List of all unit trackers
@@ -128,6 +127,8 @@ public class EnlightmentCenter extends Robot {
         if (currentRound == 400) {
             //rc.resign\(); // TODO: remove; just for debugging
         }
+
+        spawnDestIsGuess = true;
 
         considerBid();
 
@@ -269,21 +270,21 @@ public class EnlightmentCenter extends Robot {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
                     //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
-                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER);
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                     numSlanderers++;
                 } else if (numPoliticians > numMuckrakers * 2) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
                 } else {
                     if (rc.getInfluence() > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                         //System.out.println\("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                         //System.out.println\("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
                     }
                     numPoliticians++;
                 }
@@ -504,8 +505,8 @@ public class EnlightmentCenter extends Robot {
      * of available instructions is in SpawnDestinationFlag.
      * @return Whether the robot was successfully spawned.
      */
-    boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
-        if (spawnRobot(type, direction, influence, destination, instruction)) {
+    boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean isGuess) throws GameActionException {
+        if (spawnRobot(type, direction, influence, destination, instruction, isGuess)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
             if (unitTrackerList.length < MAX_UNITS_TRACKED) {
                 unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
@@ -563,7 +564,7 @@ public class EnlightmentCenter extends Robot {
      */
     boolean spawnScout() throws GameActionException {
         if (numScouts < 1) { // no scout has been spawned yet
-            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT)) { // attempt to spawn scout
+            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT, true)) { // attempt to spawn scout
                 unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
                 numScouts++;
                 return true;
@@ -604,17 +605,18 @@ public class EnlightmentCenter extends Robot {
      * @return Whether the robot was successfully spawned.
      * @throws GameActionException
      */
-    boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction) throws GameActionException {
+    boolean spawnRobot(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean isGuess) throws GameActionException {
         if (!rc.canBuildRobot(type, direction, influence)) {
             return false;
         }
         rc.buildRobot(type, direction, influence);
         MapLocation spawnLoc = myLocation.add(direction);
-        //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination);
+        if (isGuess) { //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode."); }
+        if (!isGuess) { //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode."); }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
         latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
-        latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction);
+        latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction, isGuess);
         return true;
     }
 
@@ -638,6 +640,7 @@ public class EnlightmentCenter extends Robot {
                 if (enemyECLocDestination < enemyLocationDistance) {
                     enemyLocation = enemyECLoc;
                     enemyLocationDistance = enemyECLocDestination;
+                    spawnDestIsGuess = false;
                 }
             }
         } else if (includeNeutral && neutralECLocs.size() > 0) {
@@ -646,6 +649,7 @@ public class EnlightmentCenter extends Robot {
                 if (neutralECLocDestination < enemyLocationDistance) {
                     enemyLocation = neutralECLoc;
                     enemyLocationDistance = neutralECLocDestination;
+                    spawnDestIsGuess = false;
                 }
             }
         } else {
@@ -731,6 +735,7 @@ public class EnlightmentCenter extends Robot {
                 dArr = randomDestination();
             }
             enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+            spawnDestIsGuess = true;
         }
         return enemyLocation;
     }
@@ -1667,6 +1672,7 @@ public class EnlightmentCenter extends Robot {
                 if (enemyECLocDestination < enemyLocationDistance) {
                     enemyLocation = enemyECLoc;
                     enemyLocationDistance = enemyECLocDestination;
+                    spawnDestIsGuess = false;
                 }
             }
         } else if (basesToDestinations.size() > 0) {
@@ -1676,6 +1682,7 @@ public class EnlightmentCenter extends Robot {
                 if (destDistance < enemyLocationDistance) {
                     enemyLocation = destLocation;
                     enemyLocationDistance = destDistance;
+                    spawnDestIsGuess = false;
                 }
             }
         } else if (includeNeutral && neutralECLocs.size() > 0) {
@@ -1684,6 +1691,7 @@ public class EnlightmentCenter extends Robot {
                 if (neutralECLocDestination < enemyLocationDistance) {
                     enemyLocation = neutralECLoc;
                     enemyLocationDistance = neutralECLocDestination;
+                    spawnDestIsGuess = false;
                 }
             }
         } else {
@@ -1691,6 +1699,7 @@ public class EnlightmentCenter extends Robot {
             // Note: Heuristic from optimalDestination() only applies to initial ECs, not mid-game ECs.
             int[] dArr = randomDestination();
             enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+            spawnDestIsGuess = false;
         }
         return enemyLocation;
     }

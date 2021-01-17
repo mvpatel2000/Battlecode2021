@@ -12,13 +12,15 @@ public class MidGameAllyFlag extends LocationFlag {
     /**
      * Flag breakdown:
      * - schema (3 bits)
-     * - type (1 bit)
+     * - the scouting unit's last move (LAST_MOVE_BITS = 4 bits)
+     * - type (TYPE_BITS = 3 bits)
      * - baseID (16 bits) if type = 0 OR baseLocation (14 bits) if type = 1
-     * Total bits used: 3 + 1 + 16 = 20 OR 3 + 1 + 14 = 18.
+     * Total bits used: 3 + 4 + 1 + 16 = 24 OR 3 + 4 + 1 + 14 = 22.
      */
 
     final int ID_BITS = 16;
     final int TYPE_BITS = 1;
+    final int LAST_MOVE_BITS = 4;
     // Types of MAFs.
     public static final int ID_MAF = 0;
     public static final int LOCATION_MAF = 1;
@@ -31,10 +33,18 @@ public class MidGameAllyFlag extends LocationFlag {
     }
 
     /* Call this when you know the int you just received
-     * represents a FindAllyFlag.
+     * represents a MidGameAllyFlag.
      */
     public MidGameAllyFlag(int received) {
         super(received);
+    }
+
+    public boolean writeLastMove(int lm) {
+        return writeToFlag(lm, LAST_MOVE_BITS);
+    }
+
+    public boolean writeLastMove(Direction lm) {
+        return writeLastMove(Robot.directionToInt(lm));
     }
 
     public boolean writeType(int type) {
@@ -47,13 +57,18 @@ public class MidGameAllyFlag extends LocationFlag {
 
     // Use the writeLocation method in the superclass.
 
+    // ***********************************************************
     // Read methods
+    public Direction readLastMove() {
+        return Robot.allDirections[readFromFlag(SCHEMA_BITS, LAST_MOVE_BITS)];
+    }
+
     public int readType() {
-        return readFromFlag(SCHEMA_BITS, TYPE_BITS);
+        return readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS, TYPE_BITS);
     }
 
     public int readID() {
-        return MIN_ROBOT_ID + readFromFlag(SCHEMA_BITS + TYPE_BITS, ID_BITS);
+        return MIN_ROBOT_ID + readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + TYPE_BITS, ID_BITS);
     }
 
     /**
@@ -61,7 +76,7 @@ public class MidGameAllyFlag extends LocationFlag {
      * [location.x % 128, location.y % 128]
      */
     public int[] readLocation() {
-        return new int[]{ readFromFlag(SCHEMA_BITS + TYPE_BITS, COORD_BITS), readFromFlag(SCHEMA_BITS + TYPE_BITS + COORD_BITS, COORD_BITS) };
+        return new int[]{ readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + TYPE_BITS, COORD_BITS), readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + TYPE_BITS + COORD_BITS, COORD_BITS) };
     }
 
     /**
@@ -73,13 +88,13 @@ public class MidGameAllyFlag extends LocationFlag {
      */
     public int[] readRelativeLocationFrom(MapLocation myLoc) {
         // extract relative x and y s.t. both lie within the map
-        int xRel = readFromFlag(SCHEMA_BITS + TYPE_BITS, COORD_BITS) - (myLoc.x & 127);
+        int xRel = readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + TYPE_BITS, COORD_BITS) - (myLoc.x & 127);
         if (xRel > 64) {
             xRel -= 128;
         } else if (xRel < -64) {
             xRel += 128;
         }
-        int yRel = readFromFlag(SCHEMA_BITS + TYPE_BITS + COORD_BITS, COORD_BITS) - (myLoc.y & 127);
+        int yRel = readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + TYPE_BITS + COORD_BITS, COORD_BITS) - (myLoc.y & 127);
         if (yRel > 64) {
             yRel -= 128;
         } else if (yRel < -64) {
