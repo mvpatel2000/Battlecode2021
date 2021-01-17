@@ -611,8 +611,12 @@ public class EnlightmentCenter extends Robot {
         }
         rc.buildRobot(type, direction, influence);
         MapLocation spawnLoc = myLocation.add(direction);
-        if (isGuess) { System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode."); }
-        if (!isGuess) { System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode."); }
+        if (isGuess) { 
+            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode."); 
+        }
+        if (!isGuess) { 
+            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode."); 
+        }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
         latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
