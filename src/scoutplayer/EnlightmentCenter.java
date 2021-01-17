@@ -124,7 +124,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
+        if (currentRound == 200) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
