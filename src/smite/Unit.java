@@ -184,7 +184,7 @@ public abstract class Unit extends Robot {
                         enemyType = uuf.readEnemyType();
                         // Penalize non-muckrakers
                         if (enemyType != RobotType.MUCKRAKER) {
-                            dist += 100;
+                            dist += 10000;
                         }
                         if (dist < minDist) {
                             minDist = dist;

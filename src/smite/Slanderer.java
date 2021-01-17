@@ -66,7 +66,7 @@ public class Slanderer extends Unit {
             } else {
                 parseVision();
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
-                if (nearestSignalRobot != null) {
+                if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER) {
                     int diffX = myLocation.x - nearestSignalRobot.location.x;
                     int diffY = myLocation.y - nearestSignalRobot.location.y;
                     destination = myLocation.translate(diffX*2, diffY*2);
