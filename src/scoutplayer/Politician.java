@@ -77,6 +77,7 @@ public class Politician extends Unit {
 
         considerBoostEC();
         considerAttack(onlyECHunter, false);
+
         movePolitician();
 
 

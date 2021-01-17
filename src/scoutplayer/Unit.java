@@ -109,6 +109,7 @@ public abstract class Unit extends Robot {
         }
 
         setUnitUpdateFlag();
+
     }
 
     /**
@@ -371,39 +372,9 @@ public abstract class Unit extends Robot {
     /**
      * Moves towards destination, in the optimal direction or diagonal offsets based on which is
      * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
-     * unnecessary computation.
-     */
-    void fuzzyMove(MapLocation destination) throws GameActionException {
-        // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
-        MapLocation myLocation = rc.getLocation();
-        Direction toDest = myLocation.directionTo(destination);
-        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight()};
-        double cost = -1;
-        Direction optimalDir = null;
-        for (Direction dir : dirs) {
-            if (rc.canMove(dir)) {
-                double newCost = rc.sensePassability(myLocation.add(dir));
-                // add epsilon boost to forward direction
-                if (dir == toDest) {
-                    newCost += 0.001;
-                }
-                if (newCost > cost) {
-                    cost = newCost;
-                    optimalDir = dir;
-                }
-            }
-        }
-        if (optimalDir != null) {
-            move(optimalDir);
-        }
-    }
-
-    /**
-     * Moves towards destination, in the optimal direction or diagonal offsets based on which is
-     * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
      * unnecessary computation. Allows orthogonal moves to unlodge.
      */
-    void wideFuzzyMove(MapLocation destination) throws GameActionException {
+    void fuzzyMove(MapLocation destination) throws GameActionException {
         // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
         MapLocation myLocation = rc.getLocation();
         Direction toDest = myLocation.directionTo(destination);
@@ -540,13 +511,13 @@ public abstract class Unit extends Robot {
         }
 
 
+        if (potentialDest == null) {
+            System.out.println("Did not switch, base not giving destinations.");
+            return false;
+        }
 
         if (baseGivingExplore) {
             System.out.println("Did not switch, base giving explore.");
-            return false;
-        }
-        if (potentialDest == null) {
-            System.out.println("Did not switch, base not giving destinations.");
             return false;
         }
         if (potentialDest.equals(destination)) {
@@ -563,7 +534,7 @@ public abstract class Unit extends Robot {
         // If you are in explore mode, and the following conditions hold:
         // 1) If three steps to your destination is off the map
         // 2) or your destination is off the map
-        // 3) or your destination has a robot on it and that robot is not an enemy EC
+        // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
         // then change your destination
         if (exploreMode) {
             MapLocation nearDestination = myLocation;
@@ -578,6 +549,8 @@ public abstract class Unit extends Robot {
                 exploreMode = false;
                 System.out.println("Re-routing to latest base destination!! " + potentialDest);
                 return true;
+            } else {
+                System.out.println("Did not switch for personal location reasons.");
             }
         }
 
@@ -597,6 +570,7 @@ public abstract class Unit extends Robot {
                     }
                 }
             }
+            System.out.println("Did not switch for personal location reasons.");
         }
         return false;
     }

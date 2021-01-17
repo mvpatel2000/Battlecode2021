@@ -123,7 +123,10 @@ public class EnlightmentCenter extends Robot {
     @Override
     public void run() throws GameActionException {
         super.run();
-        if (currentRound == 400) rc.resign(); // TODO: remove; just for debugging
+
+        if (currentRound == 400) {
+            rc.resign(); // TODO: remove; just for debugging
+        }
 
         spawnDestIsGuess = true;
 
@@ -185,6 +188,16 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
+        int influenceMultiplier = 1;
+        if (currentInfluence > 1000000000) {
+            influenceMultiplier = 10000;
+        } else if (currentInfluence > 100000) {
+            influenceMultiplier = 30;
+        } else if (currentInfluence > 50000) {
+            influenceMultiplier = 10;
+        } else if (currentInfluence > 10000) {
+            influenceMultiplier = 2;
+        }
         int dInf = currentInfluence - previousInfluence;
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
@@ -195,17 +208,17 @@ public class EnlightmentCenter extends Robot {
         }
         // Bid 1/8th income for first 550 turns
         else if (currentRound <= 550) {
-            int dInfOverEight = (int)(dInf / 8);
+            int dInfOverEight = (int)(dInf / 8) * influenceMultiplier;
             //System.out.println("Bidding: " + dInfOverEight + " / " + currentInfluence);
             if (currentInfluence > dInfOverEight && rc.canBid(dInfOverEight)) {
                 rc.bid(dInfOverEight);
             }
         }
-        // Bid scaling from 1/8 income at turn 550 to 2 * income at turn 1500
+        // Bid scaling from 1/8 income at turn 550 to 3 * income at turn 1500
         else if (currentRound < 1499) {
             double step = (currentRound - 550.0) / 1500.0;
-            double proportion = 1.0/8.0 + step * 15.0/8.0;
-            int bidAmount = (int)(proportion * dInf);
+            double proportion = 1.0/8.0 + step * 23.0/8.0;
+            int bidAmount = (int)(proportion * dInf) * influenceMultiplier;
             //System.out.println("prop: " + proportion + " dInf: " + dInf);
             //System.out.println("Bidding: " + bidAmount + " / " + currentInfluence);
             if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
@@ -226,6 +239,10 @@ public class EnlightmentCenter extends Robot {
      * @throws GameActionException
      */
     void buildUnit() throws GameActionException {
+        // Not ready to build anything
+        if (!rc.isReady()) {
+            return;
+        }
         // Turn 1 spawn silent slanderer
         if (turnCount == 1) {
             Direction optimalDir = findOptimalSpawnDir();
@@ -237,7 +254,18 @@ public class EnlightmentCenter extends Robot {
         else {
             Direction optimalDir = findOptimalSpawnDir();
             if (optimalDir != null) {
-                if (rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
+                // Check for nearby enemy muckraker
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
+                boolean nearbyMuckraker = false;
+                for (RobotInfo robot : nearbyEnemies) {
+                    if (robot.type == RobotType.MUCKRAKER) {
+                        nearbyMuckraker = true;
+                        break;
+                    }
+                }
+
+                // Consider various unit builds
+                if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
