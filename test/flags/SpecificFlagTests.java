@@ -29,8 +29,9 @@ public class SpecificFlagTests {
 
     @Test
     public void testNewSpawnDestinationFlag() {
-        SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT);
+        SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT, true);
         assertEquals(Flag.SPAWN_DESTINATION_SCHEMA, sdf.getSchema());
         assertEquals(SpawnDestinationFlag.INSTR_SCOUT, sdf.readInstruction());
+		assertEquals(true, sdf.readGuess());
     }
 }

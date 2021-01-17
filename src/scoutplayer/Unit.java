@@ -24,6 +24,7 @@ public abstract class Unit extends Robot {
 
     int instruction;
     boolean spawnedSilently;
+    boolean exploreMode;
     // variables to keep track of EC sightings
     // May only need sets instead of maps.
     // But we may want to use the IDs later, in which case we will need maps.
@@ -45,6 +46,7 @@ public abstract class Unit extends Robot {
         // specifically the one that spawned it.
         baseID = 0;
         spawnedSilently = true;
+        exploreMode = true;
         RobotInfo[] adjacentRobots = rc.senseNearbyRobots(2, allyTeam);
         for (RobotInfo robot : adjacentRobots) {
             if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
@@ -97,10 +99,10 @@ public abstract class Unit extends Robot {
         parseVision();
 
         if(sawNewAllyLastTurn == 1) {
-            setMidGameAllyIDFlag();
+            setMidGameAllyIDFlag(moveThisTurn);
             sawNewAllyLastTurn = 2;
         } else if (sawNewAllyLastTurn == 2) {
-            setMidGameAllyLocFlag();
+            setMidGameAllyLocFlag(moveThisTurn);
             sawNewAllyLastTurn = 0;
         } else {
             setECSightingFlag();
@@ -142,7 +144,7 @@ public abstract class Unit extends Robot {
             if (r == null) { // default behavior if no enemy is found is to send my info
                 enemyLoc = myLocation;
                 enemyType = rc.getType();
-                System.out.println("No nearest enemy known.");
+                //System.out.println("No nearest enemy known.");
             }
             else {
                 enemyLoc = r.location;
@@ -151,7 +153,7 @@ public abstract class Unit extends Robot {
         } else { // TODO: remove else, for debugging
             rc.setIndicatorLine(myLocation, enemyLoc, 30, 255, 40);
         }
-        System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
+        //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         rc.setIndicatorDot(enemyLoc, 30, 255, 40);
         UnitUpdateFlag uuf = new UnitUpdateFlag(moveThisTurn, rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
@@ -219,7 +221,9 @@ public abstract class Unit extends Robot {
             }
             destination = sdf.readAbsoluteLocation(myLocation);
             instruction = sdf.readInstruction();
+            exploreMode = sdf.readGuess();
             System.out.println("I have my destination: " + destination.toString());
+            System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -286,7 +290,7 @@ public abstract class Unit extends Robot {
                     return;
                 } else if (!seenAllyECs.contains(ri.ID)) {
                     seenAllyECs.add(ri.ID);
-                    setMidGameAllyIDFlag();
+                    setMidGameAllyIDFlag(moveThisTurn);
                     sawNewAllyLastTurn = 2;
                 }
             }
@@ -316,11 +320,12 @@ public abstract class Unit extends Robot {
      * Why is this necessary? We want mid-game ECs to know the original bases, so they
      * can read that base's messages.
      */
-    public void setMidGameAllyIDFlag() throws GameActionException {
-        MidGameAllyFlag naf = new MidGameAllyFlag();
-        naf.writeType(MidGameAllyFlag.ID_MAF);
-        naf.writeID(baseID);
-        setFlag(naf.flag);
+    public void setMidGameAllyIDFlag(Direction lastMove) throws GameActionException {
+        MidGameAllyFlag maf = new MidGameAllyFlag();
+        maf.writeLastMove(lastMove);
+        maf.writeType(MidGameAllyFlag.ID_MAF);
+        maf.writeID(baseID);
+        setFlag(maf.flag);
         System.out.println("Telling ally EC about my base: " + baseID);
     }
 
@@ -328,11 +333,12 @@ public abstract class Unit extends Robot {
      * Tell new ally ECs your base location. This occurs the round after
      * setMidGameAllyIDFlag.
      */
-     public void setMidGameAllyLocFlag() throws GameActionException {
-         MidGameAllyFlag naf = new MidGameAllyFlag();
-         naf.writeType(MidGameAllyFlag.LOCATION_MAF);
-         naf.writeLocation(baseLocation);
-         setFlag(naf.flag);
+     public void setMidGameAllyLocFlag(Direction lastMove) throws GameActionException {
+         MidGameAllyFlag maf = new MidGameAllyFlag();
+         maf.writeLastMove(lastMove);
+         maf.writeType(MidGameAllyFlag.LOCATION_MAF);
+         maf.writeLocation(baseLocation);
+         setFlag(maf.flag);
          System.out.println("Telling ally EC about my base loc: " + baseLocation);
      }
 
@@ -483,6 +489,9 @@ public abstract class Unit extends Robot {
 
     /**
      * Update destination for non-slanderers.
+     * We switch to the latest destination our base is sending out for non-slanderer units
+     * if we can see our destination and there is an ally EC on it,
+     * and the base is telling us a different destination.
      * Returns a boolean indicating whether we switched or not.
      */
     boolean switchToLatestBaseDestination() throws GameActionException {
@@ -492,7 +501,9 @@ public abstract class Unit extends Robot {
         if (turnCount <= 3) {
             return false;
         }
+
         MapLocation potentialDest = null;
+        boolean baseGivingExplore = true;
         if (rc.canGetFlag(baseID)) {
             int flagInt = rc.getFlag(baseID);
             int flagSchema = Flag.getSchema(flagInt);
@@ -509,12 +520,14 @@ public abstract class Unit extends Robot {
                     break;
                 case Flag.SPAWN_UNIT_SCHEMA:
                     // Not relevant, handled elsewhere.
+                    break;
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
                     if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
                         // the robot spawned is going to an enemy, we may want to go here.
                         potentialDest = sdf.readAbsoluteLocation(myLocation);
+                        baseGivingExplore = sdf.readGuess();
                     }
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
@@ -525,16 +538,62 @@ public abstract class Unit extends Robot {
                     break;
             }
         }
-        if (potentialDest != null) {
-            if (!potentialDest.equals(destination)) {
-                if (rc.canSenseLocation(destination)) {
-                    RobotInfo ri = rc.senseRobotAtLocation(destination);
-                    if (ri != null) {
-                        if(ri.team == allyTeam && ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                            destination = potentialDest;
-                            System.out.println("Re-routing to latest base destination!! " + potentialDest);
-                            return true;
-                        }
+
+
+
+        if (baseGivingExplore) {
+            System.out.println("Did not switch, base giving explore.");
+            return false;
+        }
+        if (potentialDest == null) {
+            System.out.println("Did not switch, base not giving destinations.");
+            return false;
+        }
+        if (potentialDest.equals(destination)) {
+            System.out.println("Did not switch, base giving same destination.");
+            return false;
+        }
+
+        boolean canSenseDestination = rc.canSenseLocation(destination);
+        RobotInfo destRobot = null;
+        if (canSenseDestination) {
+            destRobot = rc.senseRobotAtLocation(destination);
+        }
+
+        // If you are in explore mode, and the following conditions hold:
+        // 1) If three steps to your destination is off the map
+        // 2) or your destination is off the map
+        // 3) or your destination has a robot on it and that robot is not an enemy EC
+        // then change your destination
+        if (exploreMode) {
+            MapLocation nearDestination = myLocation;
+            for (int i = 0; i < 3; i++) {
+                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            }
+
+            if (!rc.onTheMap(nearDestination) || canSenseDestination &&
+                (!rc.onTheMap(destination) ||
+                (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
+                destination = potentialDest;
+                exploreMode = false;
+                System.out.println("Re-routing to latest base destination!! " + potentialDest);
+                return true;
+            }
+        }
+
+        // If you are NOT in explore mode, and the following conditions hold
+        // 1) If you can sense your destination
+        // 2) AND your destination has an ally EC on it
+        // Then change destinations.
+        // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
+        if (!exploreMode) {
+            if (canSenseDestination) {
+                if (destRobot != null) {
+                    if(destRobot.team == allyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                        destination = potentialDest;
+                        exploreMode = false;
+                        System.out.println("Re-routing to latest base destination!! " + potentialDest);
+                        return true;
                     }
                 }
             }
@@ -559,6 +618,7 @@ public abstract class Unit extends Robot {
             priorDestinations.add(destination);
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            exploreMode = true;
             for (int i = 0; i < priorDestinations.size(); i++) {
                 if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
                     valid = false;
@@ -568,6 +628,7 @@ public abstract class Unit extends Robot {
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+                exploreMode = true;
                 for (int i = 0; i < priorDestinations.size(); i++) {
                     if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
                         valid = false;
