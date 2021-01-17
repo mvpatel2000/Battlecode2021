@@ -188,17 +188,21 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
+        int dInf = currentInfluence - previousInfluence;
         int influenceMultiplier = 1;
         if (currentInfluence > 1000000000) {
-            influenceMultiplier = 10000;
+            influenceMultiplier = 1000;
+            dInf = Math.max(dInf, 10000);
         } else if (currentInfluence > 100000) {
             influenceMultiplier = 30;
+            dInf = Math.max(dInf, 300);
         } else if (currentInfluence > 50000) {
             influenceMultiplier = 10;
+            dInf = Math.max(dInf, 100);
         } else if (currentInfluence > 10000) {
             influenceMultiplier = 2;
+            dInf = Math.max(dInf, 100);
         }
-        int dInf = currentInfluence - previousInfluence;
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
             ////System.out.println\("Bidding 1!");
@@ -214,10 +218,10 @@ public class EnlightmentCenter extends Robot {
                 rc.bid(dInfOverEight);
             }
         }
-        // Bid scaling from 1/8 income at turn 550 to 3 * income at turn 1500
+        // Bid scaling from 1/8 income at turn 550 to 5 * income at turn 1500
         else if (currentRound < 1499) {
             double step = (currentRound - 550.0) / 1500.0;
-            double proportion = 1.0/8.0 + step * 23.0/8.0;
+            double proportion = 1.0/8.0 + step * (5*8.0 - 1.0)/8.0;
             int bidAmount = (int)(proportion * dInf) * influenceMultiplier;
             ////System.out.println\("prop: " + proportion + " dInf: " + dInf);
             ////System.out.println\("Bidding: " + bidAmount + " / " + currentInfluence);
@@ -257,15 +261,28 @@ public class EnlightmentCenter extends Robot {
                 // Check for nearby enemy muckraker
                 RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
                 boolean nearbyMuckraker = false;
+                double enemyMultiplier = rc.getEmpowerFactor(enemyTeam, 0);
+                double remainingHealth = rc.getConviction();
                 for (RobotInfo robot : nearbyEnemies) {
-                    if (robot.type == RobotType.MUCKRAKER) {
-                        nearbyMuckraker = true;
-                        break;
+                    switch (robot.type) {
+                        case MUCKRAKER: {
+                            nearbyMuckraker = true;
+                            break;
+                        }
+                        case POLITICIAN: {
+                            remainingHealth -= robot.conviction * enemyMultiplier - 10;
+                            break;
+                        }
                     }
                 }
-
+                // Contested EC at risk, only build muckrakers to dilute damage
+                if (remainingHealth < 0) {
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
+                    numMuckrakers++;
+                }
                 // Consider various unit builds
-                if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
+                else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
