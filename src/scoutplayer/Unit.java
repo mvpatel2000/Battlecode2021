@@ -141,7 +141,10 @@ public abstract class Unit extends Robot {
             }
         }
         if (nearbyEnemies.length == 0) {
-            RobotInfo r = getNearestEnemyFromAllies();
+            RobotInfo r = null;
+            if (turnCount != 1) {
+                r = getNearestEnemyFromAllies();
+            }
             if (r == null) { // default behavior if no enemy is found is to send my info
                 enemyLoc = myLocation;
                 enemyType = rc.getType();
