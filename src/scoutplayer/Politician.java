@@ -196,7 +196,7 @@ public class Politician extends Unit {
     public void considerBoostEC() throws GameActionException {
         int distToBase = myLocation.distanceSquaredTo(baseLocation);
         // Be close to base
-        if (distToBase <= 2) {
+        if (distToBase <= RobotType.POLITICIAN.actionRadiusSquared) {
             double multiplier = rc.getEmpowerFactor(allyTeam, 0);
             // Have non-trivial boost
             if (multiplier > 2) {
@@ -207,7 +207,7 @@ public class Politician extends Unit {
                     }
                 }
                 // Boost is sizable even after dispersion
-                if (multiplier > numInRangeUnits && rc.canEmpower(distToBase)) {
+                if (multiplier > numInRangeUnits*2 && rc.canEmpower(distToBase)) {
                     rc.empower(distToBase);
                 }
             }
