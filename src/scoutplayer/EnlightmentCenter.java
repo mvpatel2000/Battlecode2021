@@ -282,7 +282,7 @@ public class EnlightmentCenter extends Robot {
 
                 // High empower factor, OK with dying because will recover influence
                 if (rc.getEmpowerFactor(allyTeam, 11) > 10 && myConviction - 5 > 0) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, true) : optimalDestination(true, false, true);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, 0, spawnDestIsGuess);
                 }
                 // Highly EC at risk, only build muckrakers to dilute damage
@@ -314,14 +314,27 @@ public class EnlightmentCenter extends Robot {
                 }
                 // Build politician
                 else {
-                    if (rc.getInfluence() > 1000) {
-                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, true) : optimalDestination(true, false, true);
-                        System.out.println("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
-                    } else {
-                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, true) : optimalDestination(false, false, true);
-                        System.out.println("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
+                    boolean sendToNeutral = false;
+                    // the third param in optimalDestination is true here: that means prioritize closest ec, period.
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, true) : optimalDestination(true, false, true);
+                    if (neutralECLocs.containsKey(enemyLocation)) {
+                        int influence = neutralECLocs.get(enemyLocation);
+                        if (rc.getInfluence() > influence*1.1 + 10) {
+                            System.out.println("Spawning killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
+                            sendToNeutral = true;
+                        }
+                    }
+                    if (!sendToNeutral) {
+                        if (rc.getInfluence() > 1000) {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
+                            System.out.println("Spawning killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
+                        } else {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
+                            System.out.println("Spawning killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
+                        }
                     }
                     numPoliticians++;
                 }
@@ -677,21 +690,22 @@ public class EnlightmentCenter extends Robot {
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
         if (neutralFirst) {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            }
             if (includeNeutral && neutralECLocs.size() > 0) {
                 for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
                     int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
                     if (neutralECLocDestination < enemyLocationDistance) {
                         enemyLocation = neutralECLoc;
                         enemyLocationDistance = neutralECLocDestination;
-                        spawnDestIsGuess = false;
-                    }
-                }
-            } else if (enemyECLocs.size() > 0) {
-                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
-                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                    if (enemyECLocDestination < enemyLocationDistance) {
-                        enemyLocation = enemyECLoc;
-                        enemyLocationDistance = enemyECLocDestination;
                         spawnDestIsGuess = false;
                     }
                 }
@@ -1732,6 +1746,16 @@ public class EnlightmentCenter extends Robot {
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
         if (neutralFirst) {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            }
             if (includeNeutral && neutralECLocs.size() > 0) {
                 for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
                     int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
@@ -1741,22 +1765,14 @@ public class EnlightmentCenter extends Robot {
                         spawnDestIsGuess = false;
                     }
                 }
-            } else if (basesToDestinations.size() > 0) {
+            }
+            if (basesToDestinations.size() > 0) {
                 for (Integer key: basesToDestinations.keySet()) {
                     MapLocation destLocation = basesToDestinations.get(key);
                     int destDistance = myLocation.distanceSquaredTo(destLocation);
                     if (destDistance < enemyLocationDistance) {
                         enemyLocation = destLocation;
                         enemyLocationDistance = destDistance;
-                        spawnDestIsGuess = false;
-                    }
-                }
-            } else if (enemyECLocs.size() > 0) {
-                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
-                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                    if (enemyECLocDestination < enemyLocationDistance) {
-                        enemyLocation = enemyECLoc;
-                        enemyLocationDistance = enemyECLocDestination;
                         spawnDestIsGuess = false;
                     }
                 }
