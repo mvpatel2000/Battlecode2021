@@ -30,12 +30,12 @@ public class EnlightmentCenter extends Robot {
     MapLocation[] allyECLocs; // absolute locations
     int[] allyDistances;
 
-    // Environment and enemy
-    Set<MapLocation> enemyECLocs;
-    Set<MapLocation> neutralECLocs;
-    Set<MapLocation> capturedAllyECLocs;    // for an ally captured after us, our robots only communicate
-                                            // the new ally's location, not the ID. So, we cannot add that ally
-                                            // to the allyECID/location arrays above, we must maintain this separate set.
+    // Environment and enemy; maps from MapLocations to influences. If influence is unknown it is null.
+    Map<MapLocation, Integer> enemyECLocs;
+    Map<MapLocation, Integer> neutralECLocs;
+    Map<MapLocation, Integer> capturedAllyECLocs;   // for an ally captured after us, our robots only communicate
+                                                    // the new ally's location, not the ID. So, we cannot add that ally
+                                                    // to the allyECID/location arrays above, we must maintain this separate set.
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -93,9 +93,9 @@ public class EnlightmentCenter extends Robot {
         firstRoundIDsToConsider = new ArrayList<Integer>();
 
         // Initialize environment and enemy tracking variables
-        enemyECLocs = new HashSet<MapLocation>();
-        neutralECLocs = new HashSet<MapLocation>();
-        capturedAllyECLocs = new HashSet<MapLocation>();
+        enemyECLocs = new HashMap<MapLocation, Integer>();
+        neutralECLocs = new HashMap<MapLocation, Integer>();
+        capturedAllyECLocs = new HashMap<MapLocation, Integer>();
         latestSpawnRound = -1;
         spawnDestIsGuess = true;
         // Troop counts
@@ -125,7 +125,7 @@ public class EnlightmentCenter extends Robot {
         super.run();
 
         if (currentRound == 400) {
-            rc.resign(); // TODO: remove; just for debugging
+            // rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -295,7 +295,7 @@ public class EnlightmentCenter extends Robot {
                     System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                     numSlanderers++;
-                } 
+                }
                 // Politicians vs muckrakers ratio
                 else if (numPoliticians > numMuckrakers * 2) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
@@ -378,9 +378,9 @@ public class EnlightmentCenter extends Robot {
                 // Oh no! ally has been captured
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
-                if (!enemyECLocs.contains(allyECLocs[i])) {
+                if (!enemyECLocs.containsKey(allyECLocs[i])) {
                     // Add to list on enemies.
-                    enemyECLocs.add(allyECLocs[i]);
+                    enemyECLocs.put(allyECLocs[i], null);
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
                 // For mid-game ECs. Update another list to remove this EC.
@@ -419,22 +419,21 @@ public class EnlightmentCenter extends Robot {
                     MapLocation ecLoc = ecsf.readRelECLocationFrom(ut.currLoc);
                     int[] relECLoc = new int[] { ecLoc.x - myLocation.x, ecLoc.y - myLocation.y };
                     int ecInf = ecsf.readECInfluence(); // TODO: @Mihir do something with this
-                    if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
-                        if (!neutralECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
+                    if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
+                        if (!neutralECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
-                            neutralECLocs.add(ecLoc);
                             System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
-                    } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC){
-                        if (!enemyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
-                            enemyECLocs.add(ecLoc);
+                        neutralECLocs.put(ecLoc, ecInf);
+                    } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC && !ecLoc.equals(myLocation)) {
+                        if (!enemyECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ENEMY_EC);
                             // This EC has been converted from neutral to enemy since we last saw it.
-                            if(neutralECLocs.contains(ecLoc)) {
+                            if(neutralECLocs.containsKey(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
                             // This EC has been converted from a captured ally to an enemy since we last saw it.
-                            if(capturedAllyECLocs.contains(ecLoc)) {
+                            if(capturedAllyECLocs.containsKey(ecLoc)) {
                                 capturedAllyECLocs.remove(ecLoc);
                             }
                             // It is also possible for one of our original allies to be converted into an enemy.
@@ -442,18 +441,19 @@ public class EnlightmentCenter extends Robot {
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
                             System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
-                    } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC) {
-                        if (!capturedAllyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
-                            capturedAllyECLocs.add(ecLoc);
+                        enemyECLocs.put(ecLoc, ecInf);
+                    } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
+                        if (!capturedAllyECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ALLY_EC);
-                            if (enemyECLocs.contains(ecLoc)) {
+                            if (enemyECLocs.containsKey(ecLoc)) {
                                 enemyECLocs.remove(ecLoc);
                             }
-                            if(neutralECLocs.contains(ecLoc)) {
+                            if(neutralECLocs.containsKey(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
                             System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
+                        capturedAllyECLocs.put(ecLoc, ecInf);
                     }
                     break;
                 case Flag.MAP_TERRAIN_SCHEMA:
@@ -667,7 +667,7 @@ public class EnlightmentCenter extends Robot {
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
         if (enemyECLocs.size() > 0) {
-            for (MapLocation enemyECLoc : enemyECLocs) {
+            for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
                 int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
                 if (enemyECLocDestination < enemyLocationDistance) {
                     enemyLocation = enemyECLoc;
@@ -676,7 +676,7 @@ public class EnlightmentCenter extends Robot {
                 }
             }
         } else if (includeNeutral && neutralECLocs.size() > 0) {
-            for (MapLocation neutralECLoc : neutralECLocs) {
+            for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
                 int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
                 if (neutralECLocDestination < enemyLocationDistance) {
                     enemyLocation = neutralECLoc;
@@ -1699,7 +1699,7 @@ public class EnlightmentCenter extends Robot {
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
         if (enemyECLocs.size() > 0) {
-            for (MapLocation enemyECLoc : enemyECLocs) {
+            for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
                 int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
                 if (enemyECLocDestination < enemyLocationDistance) {
                     enemyLocation = enemyECLoc;
@@ -1718,7 +1718,7 @@ public class EnlightmentCenter extends Robot {
                 }
             }
         } else if (includeNeutral && neutralECLocs.size() > 0) {
-            for (MapLocation neutralECLoc : neutralECLocs) {
+            for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
                 int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
                 if (neutralECLocDestination < enemyLocationDistance) {
                     enemyLocation = neutralECLoc;
