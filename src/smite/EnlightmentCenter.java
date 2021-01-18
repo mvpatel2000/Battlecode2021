@@ -30,12 +30,12 @@ public class EnlightmentCenter extends Robot {
     MapLocation[] allyECLocs; // absolute locations
     int[] allyDistances;
 
-    // Environment and enemy
-    Set<MapLocation> enemyECLocs;
-    Set<MapLocation> neutralECLocs;
-    Set<MapLocation> capturedAllyECLocs;    // for an ally captured after us, our robots only communicate
-                                            // the new ally's location, not the ID. So, we cannot add that ally
-                                            // to the allyECID/location arrays above, we must maintain this separate set.
+    // Environment and enemy; maps from MapLocations to influences. If influence is unknown it is null.
+    Map<MapLocation, Integer> enemyECLocs;
+    Map<MapLocation, Integer> neutralECLocs;
+    Map<MapLocation, Integer> capturedAllyECLocs;   // for an ally captured after us, our robots only communicate
+                                                    // the new ally's location, not the ID. So, we cannot add that ally
+                                                    // to the allyECID/location arrays above, we must maintain this separate set.
 
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
@@ -93,9 +93,9 @@ public class EnlightmentCenter extends Robot {
         firstRoundIDsToConsider = new ArrayList<Integer>();
 
         // Initialize environment and enemy tracking variables
-        enemyECLocs = new HashSet<MapLocation>();
-        neutralECLocs = new HashSet<MapLocation>();
-        capturedAllyECLocs = new HashSet<MapLocation>();
+        enemyECLocs = new HashMap<MapLocation, Integer>();
+        neutralECLocs = new HashMap<MapLocation, Integer>();
+        capturedAllyECLocs = new HashMap<MapLocation, Integer>();
         latestSpawnRound = -1;
         spawnDestIsGuess = true;
         // Troop counts
@@ -282,20 +282,20 @@ public class EnlightmentCenter extends Robot {
 
                 // High empower factor, OK with dying because will recover influence
                 if (rc.getEmpowerFactor(allyTeam, 11) > 10 && myConviction - 5 > 0) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, 0, spawnDestIsGuess);
                 }
                 // Highly EC at risk, only build muckrakers to dilute damage
                 else if (remainingHealth < 0) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
-                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 
+                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
                     int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                     Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
                     MapLocation oneStep = myLocation.add(awayFromEnemy);
                     int dx = oneStep.x - myLocation.x;
@@ -305,23 +305,36 @@ public class EnlightmentCenter extends Robot {
                     //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                     numSlanderers++;
-                } 
+                }
                 // Politicians vs muckrakers ratio
                 else if (numPoliticians > numMuckrakers * 2) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
                 }
                 // Build politician
                 else {
-                    if (rc.getInfluence() > 1000) {
-                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
-                        //System.out.println\("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
-                    } else {
-                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
-                        //System.out.println\("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
+                    boolean sendToNeutral = false;
+                    // the third param in optimalDestination is true here: that means prioritize closest ec, period.
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, true) : optimalDestination(true, false, true);
+                    if (neutralECLocs.containsKey(enemyLocation)) {
+                        int influence = neutralECLocs.get(enemyLocation);
+                        if (rc.getInfluence() > (int)(influence*1.1 + 10)) {
+                            //System.out.println\("Spawning close killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.1 + 10), enemyLocation, 0, spawnDestIsGuess);
+                            sendToNeutral = true;
+                        }
+                    }
+                    if (!sendToNeutral) {
+                        if (rc.getInfluence() > 1000) {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
+                            //System.out.println\("Spawning killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
+                        } else {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
+                            //System.out.println\("Spawning normal: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
+                        }
                     }
                     numPoliticians++;
                 }
@@ -388,9 +401,9 @@ public class EnlightmentCenter extends Robot {
                 // Oh no! ally has been captured
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
-                if (!enemyECLocs.contains(allyECLocs[i])) {
+                if (!enemyECLocs.containsKey(allyECLocs[i])) {
                     // Add to list on enemies.
-                    enemyECLocs.add(allyECLocs[i]);
+                    enemyECLocs.put(allyECLocs[i], null);
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
                 // For mid-game ECs. Update another list to remove this EC.
@@ -429,22 +442,21 @@ public class EnlightmentCenter extends Robot {
                     MapLocation ecLoc = ecsf.readRelECLocationFrom(ut.currLoc);
                     int[] relECLoc = new int[] { ecLoc.x - myLocation.x, ecLoc.y - myLocation.y };
                     int ecInf = ecsf.readECInfluence(); // TODO: @Mihir do something with this
-                    if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
-                        if (!neutralECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
+                    if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
+                        if (!neutralECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
-                            neutralECLocs.add(ecLoc);
                             //System.out.println\("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
-                    } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC){
-                        if (!enemyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
-                            enemyECLocs.add(ecLoc);
+                        neutralECLocs.put(ecLoc, ecInf);
+                    } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC && !ecLoc.equals(myLocation)) {
+                        if (!enemyECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ENEMY_EC);
                             // This EC has been converted from neutral to enemy since we last saw it.
-                            if(neutralECLocs.contains(ecLoc)) {
+                            if(neutralECLocs.containsKey(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
                             // This EC has been converted from a captured ally to an enemy since we last saw it.
-                            if(capturedAllyECLocs.contains(ecLoc)) {
+                            if(capturedAllyECLocs.containsKey(ecLoc)) {
                                 capturedAllyECLocs.remove(ecLoc);
                             }
                             // It is also possible for one of our original allies to be converted into an enemy.
@@ -452,18 +464,19 @@ public class EnlightmentCenter extends Robot {
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
                             //System.out.println\("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
-                    } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC) {
-                        if (!capturedAllyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
-                            capturedAllyECLocs.add(ecLoc);
+                        enemyECLocs.put(ecLoc, ecInf);
+                    } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
+                        if (!capturedAllyECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ALLY_EC);
-                            if (enemyECLocs.contains(ecLoc)) {
+                            if (enemyECLocs.containsKey(ecLoc)) {
                                 enemyECLocs.remove(ecLoc);
                             }
-                            if(neutralECLocs.contains(ecLoc)) {
+                            if(neutralECLocs.containsKey(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
                             //System.out.println\("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
+                        capturedAllyECLocs.put(ecLoc, ecInf);
                     }
                     break;
                 case Flag.MAP_TERRAIN_SCHEMA:
@@ -669,32 +682,56 @@ public class EnlightmentCenter extends Robot {
      *      If randomFallback == False, sets destination based on symmetries ruled out and weighted by current info on map.
      *      If randomFallback == True, sets destination randomly.
      */
-    MapLocation optimalDestination(boolean includeNeutral, boolean randomFallback) {
+    MapLocation optimalDestination(boolean includeNeutral, boolean randomFallback, boolean neutralFirst) {
         if (currentRound < searchBounds.length) {
             int[] dArr = randomDestination();
             return myLocation.translate(dArr[0], dArr[1]);
         }
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
-        if (enemyECLocs.size() > 0) {
-            for (MapLocation enemyECLoc : enemyECLocs) {
-                int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                if (enemyECLocDestination < enemyLocationDistance) {
-                    enemyLocation = enemyECLoc;
-                    enemyLocationDistance = enemyECLocDestination;
-                    spawnDestIsGuess = false;
+        if (neutralFirst) {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
                 }
             }
-        } else if (includeNeutral && neutralECLocs.size() > 0) {
-            for (MapLocation neutralECLoc : neutralECLocs) {
-                int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
-                if (neutralECLocDestination < enemyLocationDistance) {
-                    enemyLocation = neutralECLoc;
-                    enemyLocationDistance = neutralECLocDestination;
-                    spawnDestIsGuess = false;
+            if (includeNeutral && neutralECLocs.size() > 0) {
+                for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
+                    int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                    if (neutralECLocDestination < enemyLocationDistance) {
+                        enemyLocation = neutralECLoc;
+                        enemyLocationDistance = neutralECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
                 }
             }
         } else {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            } else if (includeNeutral && neutralECLocs.size() > 0) {
+                for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
+                    int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                    if (neutralECLocDestination < enemyLocationDistance) {
+                        enemyLocation = neutralECLoc;
+                        enemyLocationDistance = neutralECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            }
+        }
+        if (enemyLocation == null) {
             // FALLBACK: We don't know about any ECs.
             // TODO: Ensure this exploration heuristic produces good results.
             int[] dArr = new int[]{0, 0};
@@ -1705,38 +1742,74 @@ public class EnlightmentCenter extends Robot {
      * Similar to optimalDestination(), except used for mid-game ECs only. Our potential destinations
      * includes a list of recent destinations our original allies sent robots too.
      */
-    MapLocation optimalDestinationMidGame(boolean includeNeutral, boolean randomFallback) {
+    MapLocation optimalDestinationMidGame(boolean includeNeutral, boolean randomFallback, boolean neutralFirst) {
         MapLocation enemyLocation = null;
         int enemyLocationDistance = 999999999;
-        if (enemyECLocs.size() > 0) {
-            for (MapLocation enemyECLoc : enemyECLocs) {
-                int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
-                if (enemyECLocDestination < enemyLocationDistance) {
-                    enemyLocation = enemyECLoc;
-                    enemyLocationDistance = enemyECLocDestination;
-                    spawnDestIsGuess = false;
+        if (neutralFirst) {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
                 }
             }
-        } else if (basesToDestinations.size() > 0) {
-            for (Integer key: basesToDestinations.keySet()) {
-                MapLocation destLocation = basesToDestinations.get(key);
-                int destDistance = myLocation.distanceSquaredTo(destLocation);
-                if (destDistance < enemyLocationDistance) {
-                    enemyLocation = destLocation;
-                    enemyLocationDistance = destDistance;
-                    spawnDestIsGuess = false;
+            if (includeNeutral && neutralECLocs.size() > 0) {
+                for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
+                    int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                    if (neutralECLocDestination < enemyLocationDistance) {
+                        enemyLocation = neutralECLoc;
+                        enemyLocationDistance = neutralECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
                 }
             }
-        } else if (includeNeutral && neutralECLocs.size() > 0) {
-            for (MapLocation neutralECLoc : neutralECLocs) {
-                int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
-                if (neutralECLocDestination < enemyLocationDistance) {
-                    enemyLocation = neutralECLoc;
-                    enemyLocationDistance = neutralECLocDestination;
-                    spawnDestIsGuess = false;
+            if (basesToDestinations.size() > 0) {
+                for (Integer key: basesToDestinations.keySet()) {
+                    MapLocation destLocation = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    if (destDistance < enemyLocationDistance) {
+                        enemyLocation = destLocation;
+                        enemyLocationDistance = destDistance;
+                        spawnDestIsGuess = false;
+                    }
                 }
             }
         } else {
+            if (enemyECLocs.size() > 0) {
+                for (MapLocation enemyECLoc : enemyECLocs.keySet()) {
+                    int enemyECLocDestination = myLocation.distanceSquaredTo(enemyECLoc);
+                    if (enemyECLocDestination < enemyLocationDistance) {
+                        enemyLocation = enemyECLoc;
+                        enemyLocationDistance = enemyECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            } else if (basesToDestinations.size() > 0) {
+                for (Integer key: basesToDestinations.keySet()) {
+                    MapLocation destLocation = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    if (destDistance < enemyLocationDistance) {
+                        enemyLocation = destLocation;
+                        enemyLocationDistance = destDistance;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            } else if (includeNeutral && neutralECLocs.size() > 0) {
+                for (MapLocation neutralECLoc : neutralECLocs.keySet()) {
+                    int neutralECLocDestination = myLocation.distanceSquaredTo(neutralECLoc);
+                    if (neutralECLocDestination < enemyLocationDistance) {
+                        enemyLocation = neutralECLoc;
+                        enemyLocationDistance = neutralECLocDestination;
+                        spawnDestIsGuess = false;
+                    }
+                }
+            }
+        }
+
+        if (enemyLocation == null) {
             // FALLBACK: We don't know about any ECs.
             // Note: Heuristic from optimalDestination() only applies to initial ECs, not mid-game ECs.
             int[] dArr = randomDestination();
