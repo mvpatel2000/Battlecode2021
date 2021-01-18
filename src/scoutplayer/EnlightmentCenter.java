@@ -282,7 +282,7 @@ public class EnlightmentCenter extends Robot {
                     numMuckrakers++;
                 }
                 // Consider various unit builds
-                else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
+                else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
