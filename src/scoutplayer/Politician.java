@@ -26,7 +26,7 @@ public class Politician extends Unit {
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
         // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
-        onlyECHunter = rc.getInfluence() > 499;
+        onlyECHunter = rc.getInfluence() > 15;
         convertedPolitician = false;
     }
 
