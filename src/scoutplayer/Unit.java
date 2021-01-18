@@ -257,7 +257,7 @@ public abstract class Unit extends Robot {
                     if (capturedAllyECLocsToIDs.containsKey(ri.location)) {
                         capturedAllyECLocsToIDs.remove(ri.location);
                     }
-                    setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn);
+                    setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn, ri.influence);
                     // we may not want to return in the future when there is more computation to be done.
                     // than just setting a flag.
                     return;
@@ -268,7 +268,7 @@ public abstract class Unit extends Robot {
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (!neutralECLocsToIDs.containsKey(ri.location)) {
                     neutralECLocsToIDs.put(ri.location, ri.ID);
-                    setECSightingFlagHelper(ri.location, neutralTeam, moveThisTurn);
+                    setECSightingFlagHelper(ri.location, neutralTeam, moveThisTurn, ri.influence);
                     return;
                 }
             }
@@ -280,14 +280,14 @@ public abstract class Unit extends Robot {
                     neutralECLocsToIDs.remove(ri.location);
                     sawNewAllyLastTurn = 1;
                     seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
+                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
                     return;
                 } else if (enemyECLocsToIDs.containsKey(ri.location)) {
                     capturedAllyECLocsToIDs.put(ri.location, ri.ID);
                     enemyECLocsToIDs.remove(ri.location);
                     sawNewAllyLastTurn = 1;
                     seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn);
+                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
                     return;
                 } else if (!seenAllyECs.contains(ri.ID)) {
                     seenAllyECs.add(ri.ID);
@@ -301,14 +301,14 @@ public abstract class Unit extends Robot {
     /**
      * Helper function to actually set an ECSightingFlag.
      */
-    public void setECSightingFlagHelper(MapLocation ecLoc, Team t, Direction lastMove) throws GameActionException {
+    public void setECSightingFlagHelper(MapLocation ecLoc, Team t, Direction lastMove, int inf) throws GameActionException {
         int ecType = ECSightingFlag.ENEMY_EC;
         if (t == allyTeam) {
             ecType = ECSightingFlag.ALLY_EC;
         } else if (t == neutralTeam) {
             ecType = ECSightingFlag.NEUTRAL_EC;
         }
-        ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, lastMove);
+        ECSightingFlag ecsf = new ECSightingFlag(ecLoc.x - myLocation.x, ecLoc.y - myLocation.y, ecType, lastMove, inf);
         setFlag(ecsf.flag);
         System.out.println("Sending EC Sighting at " + ecLoc);
     }

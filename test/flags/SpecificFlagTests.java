@@ -3,6 +3,7 @@ package flags;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import battlecode.common.*;
+import scoutplayer.ECSightingFlag;
 import scoutplayer.Flag;
 import scoutplayer.SpawnUnitFlag;
 import scoutplayer.LocationFlag;
@@ -29,13 +30,8 @@ public class SpecificFlagTests {
     }
 
     @Test
-<<<<<<< HEAD
     public void testSpawnDestinationFlag() {
-        SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT);
-=======
-    public void testNewSpawnDestinationFlag() {
         SpawnDestinationFlag sdf = new SpawnDestinationFlag(new MapLocation(23847, 22931), SpawnDestinationFlag.INSTR_SCOUT, true);
->>>>>>> 34db3fdd9613f32b3320b6124cd062d6bd3dc35a
         assertEquals(Flag.SPAWN_DESTINATION_SCHEMA, sdf.getSchema());
         assertEquals(SpawnDestinationFlag.INSTR_SCOUT, sdf.readInstruction());
 		assertEquals(true, sdf.readGuess());
@@ -45,5 +41,13 @@ public class SpecificFlagTests {
     public void testUnitUpdateFlag() {
         UnitUpdateFlag uuf = new UnitUpdateFlag(13409113);
         assertEquals(false, uuf.readIsSlanderer());
+    }
+
+    @Test
+    public void testECSightingFlag() {
+        ECSightingFlag ecsf = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, 94);
+        assertEquals(86, ecsf.readECInfluence());
+        ECSightingFlag ecsf2 = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, Integer.MAX_VALUE);
+        assertEquals(2147483647, ecsf2.readECInfluence());
     }
 }

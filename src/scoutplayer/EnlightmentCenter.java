@@ -406,13 +406,14 @@ public class EnlightmentCenter extends Robot {
                     break;
                 case Flag.EC_SIGHTING_SCHEMA:
                     ECSightingFlag ecsf = new ECSightingFlag(ut.flagInt);
-                    MapLocation ecLoc = ecsf.readAbsoluteLocation(myLocation);
-                    int[] relECLoc = ecsf.readRelativeLocationFrom(myLocation);
+                    MapLocation ecLoc = ecsf.readRelECLocationFrom(ut.currLoc);
+                    int[] relECLoc = new int[] { ecLoc.x - myLocation.x, ecLoc.y - myLocation.y };
+                    int ecInf = ecsf.readECInfluence(); // TODO: @Mihir do something with this
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC) {
                         if (!neutralECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
                             neutralECLocs.add(ecLoc);
-                            System.out.println("Informed about NEUTRAL EC at " + ecLoc);
+                            System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
                     } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC){
                         if (!enemyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
@@ -429,7 +430,7 @@ public class EnlightmentCenter extends Robot {
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
-                            System.out.println("Informed about ENEMY EC at " + ecLoc);
+                            System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC) {
                         if (!capturedAllyECLocs.contains(ecLoc) && !ecLoc.equals(myLocation)) {
@@ -441,7 +442,7 @@ public class EnlightmentCenter extends Robot {
                             if(neutralECLocs.contains(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
-                            System.out.println("Informed about new ALLY EC at " + ecLoc);
+                            System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
                     }
                     break;
