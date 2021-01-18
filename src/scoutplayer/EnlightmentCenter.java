@@ -285,7 +285,12 @@ public class EnlightmentCenter extends Robot {
                 else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < numMuckrakers + numPoliticians) {
                     int maxInfluence = Math.min(949, rc.getInfluence() - 5);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
-                    MapLocation shiftedLocation = myLocation.translate(myLocation.x - enemyLocation.x, myLocation.y - enemyLocation.y);
+                    Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
+                    MapLocation oneStep = myLocation.add(awayFromEnemy);
+                    int dx = oneStep.x - myLocation.x;
+                    int dy = oneStep.y - myLocation.y;
+                    int multiplier = turnCount < 50 ? 5 : 10;
+                    MapLocation shiftedLocation = myLocation.translate(multiplier*dx, multiplier*dy);
                     System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                     numSlanderers++;
@@ -628,11 +633,11 @@ public class EnlightmentCenter extends Robot {
         }
         rc.buildRobot(type, direction, influence);
         MapLocation spawnLoc = myLocation.add(direction);
-        if (isGuess) { 
-            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode."); 
+        if (isGuess) {
+            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
         }
-        if (!isGuess) { 
-            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode."); 
+        if (!isGuess) {
+            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
         }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
