@@ -54,7 +54,7 @@ public class Politician extends Unit {
                 }
             }
             // Was not set in previous phase, eg no nearbyEnemies or they are all slanderers
-            if (destination != null) {
+            if (destination == null) {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 // Take nearest smoke signal robot as destination
                 if (nearestSignalRobot != null) {
