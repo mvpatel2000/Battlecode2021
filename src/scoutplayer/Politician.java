@@ -256,6 +256,7 @@ public class Politician extends Unit {
         }
         int optimalNumEnemiesKilled = 0;
         int optimalDist = -1;
+        int optimalNumUnitsHit = 0;
         int maxDist = rc.getType().actionRadiusSquared;
         // Loop over subsets of nearbyRobots
         for (int i = 1; i <= nearbyRobots.length; i++) {
@@ -292,10 +293,17 @@ public class Politician extends Unit {
             if (numEnemiesKilled > optimalNumEnemiesKilled) {
                 optimalNumEnemiesKilled = numEnemiesKilled;
                 optimalDist = distanceSquareds[i-1];
+                optimalNumUnitsHit = i;
             }
         }
         // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlandererOrNearBase);
+
+        // 1. Can empower at optimalDist
+        // 2. Either there are enemies you are hitting or you are only hitting one unit (so
+        //    ECHunters don't waste on allied units) or adjacent to target
+        // 3. Either force attack or kill multiple enemies or kill 1 enemy but close to base or slanderers nearby
         if (rc.canEmpower(optimalDist) &&
+            (nearbyEnemies.length > 0 || optimalNumUnitsHit == 1 || myLocation.distanceSquaredTo(destination) <= 2) &&
             (alwaysAttack || optimalNumEnemiesKilled > 1 || (nearbySlandererOrNearBase && optimalNumEnemiesKilled > 0))) {
             rc.empower(optimalDist);
         }
