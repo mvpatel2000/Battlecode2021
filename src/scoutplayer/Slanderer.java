@@ -17,6 +17,8 @@ public class Slanderer extends Unit {
 
     public final static int INITIAL_COOLDOWN = 0;
 
+    // Tracks nearest enemy so we don't constantly update destination from same unit
+    public MapLocation lastNearestLocation;
 
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
@@ -25,6 +27,7 @@ public class Slanderer extends Unit {
             Direction away = myLocation.directionTo(baseLocation).opposite();
             destination = myLocation.add(away).add(away).add(away);
         }
+        lastNearestLocation = myLocation;
     }
 
     @Override
@@ -41,24 +44,25 @@ public class Slanderer extends Unit {
         if (rc.isReady()) {
             RobotInfo nearestMuckraker = null;
             int nearestMuckrakerDistSquared = 1000;
-            RobotInfo nearestEnemy = null;
-            int nearestEnemyDistSquared = 1000;
+            // RobotInfo nearestEnemy = null;
+            // int nearestEnemyDistSquared = 1000;
             for (RobotInfo robot : nearbyEnemies) {
                 int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
                 if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
                     nearestMuckraker = robot;
                     nearestMuckrakerDistSquared = robotDistSquared;
                 }
-                if (robotDistSquared < nearestEnemyDistSquared) {
-                    nearestEnemy = robot;
-                    nearestEnemyDistSquared = robotDistSquared;
-                }
+                // if (robotDistSquared < nearestEnemyDistSquared) {
+                //     nearestEnemy = robot;
+                //     nearestEnemyDistSquared = robotDistSquared;
+                // }
             }
-            if (nearestMuckraker != null) {
+            if (nearestMuckraker != null && !lastNearestLocation.equals(nearestMuckraker.location)) {
                 // Flee from nearest Muckraker.
                 int diffX = myLocation.x - nearestMuckraker.location.x;
                 int diffY = myLocation.y - nearestMuckraker.location.y;
                 destination = myLocation.translate(diffX*2, diffY*2);
+                lastNearestLocation = nearestMuckraker.location;
             } 
             // Move towards nearest non-muckraker enemy. 
             // Disabled because enemy politicians push us into enemy muckrakers.
@@ -70,14 +74,39 @@ public class Slanderer extends Unit {
             else {
                 //parseVision();
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
-                if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER) {
+                if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER
+                    && !lastNearestLocation.equals(nearestSignalRobot.location)) {
                     int diffX = myLocation.x - nearestSignalRobot.location.x;
                     int diffY = myLocation.y - nearestSignalRobot.location.y;
                     destination = myLocation.translate(diffX*2, diffY*2);
+                    lastNearestLocation = nearestSignalRobot.location;
                 }
             }
-            fuzzyMove(destination);
+            slandererMove();
         }
+    }
+
+    /**
+     * Moves to destination. Readjusts destination if destination is off the map to avoid fuzzyMove
+     * leading to movement on map edge.
+     * @throws GameActionException
+     */
+    public void slandererMove() throws GameActionException {
+        Direction toDest = myLocation.directionTo(destination);
+        MapLocation nearDestination = myLocation.add(toDest).add(toDest).add(toDest);
+        // Near destination off map, pick a closer one to stop at
+        if (!rc.onTheMap(nearDestination)) {
+            MapLocation twoStep = myLocation.add(toDest).add(toDest);
+            MapLocation oneStep = myLocation.add(toDest);
+            if (rc.onTheMap(twoStep)) {
+                destination = twoStep;
+            } else if (rc.onTheMap(oneStep)) {
+                destination = oneStep;
+            } else {
+                destination = myLocation;
+            }
+        } 
+        fuzzyMove(destination);
     }
 
     // Returns newly sensable locations relative to the current location

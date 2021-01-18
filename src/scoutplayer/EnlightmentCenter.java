@@ -124,7 +124,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 200) {
+        if (currentRound == 400) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -283,7 +283,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 // Consider various unit builds
                 else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
-                    int maxInfluence = Math.min(949, rc.getInfluence() - 5);
+                    int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
                     MapLocation oneStep = myLocation.add(awayFromEnemy);

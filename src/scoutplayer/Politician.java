@@ -19,6 +19,7 @@ public class Politician extends Unit {
     public final static int INITIAL_COOLDOWN = 10;
 
     boolean onlyECHunter;
+    boolean convertedPolitician;
 
     // MapTerrainQueue mtq;
 
@@ -26,6 +27,7 @@ public class Politician extends Unit {
         super(rc);
         // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         onlyECHunter = rc.getInfluence() > 499;
+        convertedPolitician = false;
     }
 
     @Override
@@ -42,14 +44,17 @@ public class Politician extends Unit {
                 int nearestRobotDistSquared = 1000;
                 for (RobotInfo robot : nearbyEnemies) {
                     int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-                    if (robotDistSquared < nearestRobotDistSquared) {
+                    if (robot.type != RobotType.SLANDERER && robotDistSquared < nearestRobotDistSquared) {
                         nearestRobot = robot;
                         nearestRobotDistSquared = robotDistSquared;
                     }
                 }
-                destination = nearestRobot.location;
+                if (nearestRobot != null) {
+                    destination = nearestRobot.location;
+                }
             }
-            else {
+            // Was not set in previous phase, eg no nearbyEnemies or they are all slanderers
+            if (destination != null) {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 // Take nearest smoke signal robot as destination
                 if (nearestSignalRobot != null) {
@@ -60,6 +65,7 @@ public class Politician extends Unit {
                     destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
                 }
             }
+            convertedPolitician = true;
         }
 
         updateDestinationForExploration();
@@ -75,7 +81,9 @@ public class Politician extends Unit {
             }
         }
 
-        considerBoostEC();
+        if (!convertedPolitician) {
+            considerBoostEC();
+        }
         considerAttack(onlyECHunter, false);
 
         movePolitician();
