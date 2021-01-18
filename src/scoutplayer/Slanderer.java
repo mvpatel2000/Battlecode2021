@@ -59,10 +59,7 @@ public class Slanderer extends Unit {
             }
             if (nearestMuckraker != null && !lastNearestLocation.equals(nearestMuckraker.location)) {
                 // Flee from nearest Muckraker.
-                int diffX = myLocation.x - nearestMuckraker.location.x;
-                int diffY = myLocation.y - nearestMuckraker.location.y;
-                destination = myLocation.translate(diffX*2, diffY*2);
-                lastNearestLocation = nearestMuckraker.location;
+                fleeDestination(nearestMuckraker.location);
             } 
             // Move towards nearest non-muckraker enemy. 
             // Disabled because enemy politicians push us into enemy muckrakers.
@@ -76,14 +73,23 @@ public class Slanderer extends Unit {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER
                     && !lastNearestLocation.equals(nearestSignalRobot.location)) {
-                    int diffX = myLocation.x - nearestSignalRobot.location.x;
-                    int diffY = myLocation.y - nearestSignalRobot.location.y;
-                    destination = myLocation.translate(diffX*2, diffY*2);
-                    lastNearestLocation = nearestSignalRobot.location;
+                    fleeDestination(nearestSignalRobot.location);
                 }
             }
             slandererMove();
         }
+    }
+
+    /**
+     * Update destination to flee from enemy
+     * @param flee
+     * @throws GameActionException
+     */
+    public void fleeDestination(MapLocation flee) throws GameActionException {
+        int diffX = Math.max(Math.min((myLocation.x - flee.x)*2, 5), -5);
+        int diffY = Math.max(Math.min((myLocation.y - flee.y)*2, 5), -5);
+        destination = myLocation.translate(diffX, diffY);
+        lastNearestLocation = flee;
     }
 
     /**
@@ -92,20 +98,21 @@ public class Slanderer extends Unit {
      * @throws GameActionException
      */
     public void slandererMove() throws GameActionException {
-        Direction toDest = myLocation.directionTo(destination);
-        MapLocation nearDestination = myLocation.add(toDest).add(toDest).add(toDest);
-        // Near destination off map, pick a closer one to stop at
-        if (!rc.onTheMap(nearDestination)) {
-            MapLocation twoStep = myLocation.add(toDest).add(toDest);
-            MapLocation oneStep = myLocation.add(toDest);
-            if (rc.onTheMap(twoStep)) {
-                destination = twoStep;
-            } else if (rc.onTheMap(oneStep)) {
-                destination = oneStep;
-            } else {
-                destination = myLocation;
-            }
-        } 
+        // Turn off right now. Instead set max on translation
+        // Direction toDest = myLocation.directionTo(destination);
+        // MapLocation nearDestination = myLocation.add(toDest).add(toDest).add(toDest);
+        // // Near destination off map, pick a closer one to stop at
+        // if (!rc.onTheMap(nearDestination)) {
+        //     MapLocation twoStep = myLocation.add(toDest).add(toDest);
+        //     MapLocation oneStep = myLocation.add(toDest);
+        //     if (rc.onTheMap(twoStep)) {
+        //         destination = twoStep;
+        //     } else if (rc.onTheMap(oneStep)) {
+        //         destination = oneStep;
+        //     } else {
+        //         destination = myLocation;
+        //     }
+        // } 
         fuzzyMove(destination);
     }
 

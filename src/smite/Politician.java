@@ -19,6 +19,7 @@ public class Politician extends Unit {
     public final static int INITIAL_COOLDOWN = 10;
 
     boolean onlyECHunter;
+    boolean convertedPolitician;
 
     // MapTerrainQueue mtq;
 
@@ -26,6 +27,7 @@ public class Politician extends Unit {
         super(rc);
         // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         onlyECHunter = rc.getInfluence() > 499;
+        convertedPolitician = false;
     }
 
     @Override
@@ -42,14 +44,17 @@ public class Politician extends Unit {
                 int nearestRobotDistSquared = 1000;
                 for (RobotInfo robot : nearbyEnemies) {
                     int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-                    if (robotDistSquared < nearestRobotDistSquared) {
+                    if (robot.type != RobotType.SLANDERER && robotDistSquared < nearestRobotDistSquared) {
                         nearestRobot = robot;
                         nearestRobotDistSquared = robotDistSquared;
                     }
                 }
-                destination = nearestRobot.location;
+                if (nearestRobot != null) {
+                    destination = nearestRobot.location;
+                }
             }
-            else {
+            // Was not set in previous phase, eg no nearbyEnemies or they are all slanderers
+            if (destination == null) {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 // Take nearest smoke signal robot as destination
                 if (nearestSignalRobot != null) {
@@ -60,6 +65,7 @@ public class Politician extends Unit {
                     destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
                 }
             }
+            convertedPolitician = true;
         }
 
         updateDestinationForExploration();
@@ -75,7 +81,9 @@ public class Politician extends Unit {
             }
         }
 
-        considerBoostEC();
+        if (!convertedPolitician) {
+            considerBoostEC();
+        }
         considerAttack(onlyECHunter, false);
 
         movePolitician();
@@ -188,7 +196,7 @@ public class Politician extends Unit {
     public void considerBoostEC() throws GameActionException {
         int distToBase = myLocation.distanceSquaredTo(baseLocation);
         // Be close to base
-        if (distToBase <= 2) {
+        if (distToBase <= RobotType.POLITICIAN.actionRadiusSquared) {
             double multiplier = rc.getEmpowerFactor(allyTeam, 0);
             // Have non-trivial boost
             if (multiplier > 2) {
@@ -199,7 +207,7 @@ public class Politician extends Unit {
                     }
                 }
                 // Boost is sizable even after dispersion
-                if (multiplier > numInRangeUnits && rc.canEmpower(distToBase)) {
+                if (multiplier > numInRangeUnits*2 && rc.canEmpower(distToBase)) {
                     rc.empower(distToBase);
                 }
             }
@@ -217,7 +225,8 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
-        boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10;
+        // We kill all muckrakers near our base unless its a knife fight and we're side by side
+        boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10 && myLocation.distanceSquaredTo(baseLocation) > 10;
         double totalAllyConviction = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
@@ -233,7 +242,6 @@ public class Politician extends Unit {
                 }
             }
         }
-        totalAllyConviction *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo
@@ -248,6 +256,7 @@ public class Politician extends Unit {
         }
         int optimalNumEnemiesKilled = 0;
         int optimalDist = -1;
+        int optimalNumUnitsHit = 0;
         int maxDist = rc.getType().actionRadiusSquared;
         // Loop over subsets of nearbyRobots
         for (int i = 1; i <= nearbyRobots.length; i++) {
@@ -267,25 +276,34 @@ public class Politician extends Unit {
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
                     if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
-                        // //System.out.println\("Can kill: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
+                        // //System.out.println\("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled++;
                     } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                        // //System.out.println\("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER
                     && totalAllyConviction > robot.conviction + 5) {
+                    // //System.out.println\("Weaken EC attack!");
                     numEnemiesKilled += 10;
                 }
             }
             if (numEnemiesKilled > optimalNumEnemiesKilled) {
                 optimalNumEnemiesKilled = numEnemiesKilled;
                 optimalDist = distanceSquareds[i-1];
+                optimalNumUnitsHit = i;
             }
         }
         // //System.out.println\("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlandererOrNearBase);
+
+        // 1. Can empower at optimalDist
+        // 2. Either there are enemies you are hitting or you are only hitting one unit (so
+        //    ECHunters don't waste on allied units) or adjacent to target
+        // 3. Either force attack or kill multiple enemies or kill 1 enemy but close to base or slanderers nearby
         if (rc.canEmpower(optimalDist) &&
+            (nearbyEnemies.length > 0 || optimalNumUnitsHit == 1 || myLocation.distanceSquaredTo(destination) <= 2) &&
             (alwaysAttack || optimalNumEnemiesKilled > 1 || (nearbySlandererOrNearBase && optimalNumEnemiesKilled > 0))) {
             rc.empower(optimalDist);
         }

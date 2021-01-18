@@ -188,7 +188,7 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
-        int dInf = currentInfluence - previousInfluence;
+        double dInf = currentInfluence*1.1 - previousInfluence;
         int influenceMultiplier = 1;
         if (currentInfluence > 1000000000) {
             influenceMultiplier = 1000;
@@ -273,16 +273,26 @@ public class EnlightmentCenter extends Robot {
                             remainingHealth -= robot.conviction * enemyMultiplier - 10;
                             break;
                         }
+                        default: {
+                            break;
+                        }
                     }
                 }
+                int myConviction = rc.getConviction();
+
+                // High empower factor, OK with dying because will recover influence
+                if (rc.getEmpowerFactor(allyTeam, 11) > 10 && myConviction - 5 > 0) {
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, 0, spawnDestIsGuess);
+                }
                 // Highly EC at risk, only build muckrakers to dilute damage
-                if (remainingHealth < 0) {
+                else if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
-                else if (rc.getTeamVotes() < 751 && remainingHealth > rc.getConviction()/2 && !nearbyMuckraker && rc.getInfluence() > 40 
+                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
                     int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
