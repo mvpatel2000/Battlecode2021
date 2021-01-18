@@ -225,7 +225,8 @@ public class Politician extends Unit {
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
-        boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10;
+        // We kill all muckrakers near our base unless its a knife fight and we're side by side
+        boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10 && myLocation.distanceSquaredTo(baseLocation) > 10;
         double totalAllyConviction = 0;
         for (RobotInfo robot : nearbyAllies) {
             if (robot.type == RobotType.POLITICIAN) {
@@ -274,15 +275,17 @@ public class Politician extends Unit {
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
                     if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
-                        // System.out.println("Can kill: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
+                        // System.out.println("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled++;
                     } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                        // System.out.println("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER
                     && totalAllyConviction > robot.conviction + 5) {
+                    // System.out.println("Weaken EC attack!");
                     numEnemiesKilled += 10;
                 }
             }
