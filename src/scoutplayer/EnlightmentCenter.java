@@ -799,7 +799,7 @@ public class EnlightmentCenter extends Robot {
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.xLineAboveUpper/horizAbsSum) {
+            if (k < (double)map.xLineAboveUpper/(double)horizAbsSum) {
                 // optimal direction east
                 dx = map.xLineAboveUpper;
             } else {
@@ -829,7 +829,7 @@ public class EnlightmentCenter extends Robot {
         } else {
             // Otherwise, send units in direction proportion to how far away the walls are.
             double k = Math.random();
-            if (k < map.yLineAboveUpper/vertAbsSum) {
+            if (k < (double)map.yLineAboveUpper/(double)vertAbsSum) {
                 // generate north
                 dy = map.yLineAboveUpper;
             } else {
