@@ -241,7 +241,6 @@ public class Politician extends Unit {
                 }
             }
         }
-        totalAllyConviction *= rc.getEmpowerFactor(allyTeam, 0);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo

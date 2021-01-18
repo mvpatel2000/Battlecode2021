@@ -275,14 +275,15 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
-                // Contested EC at risk, only build muckrakers to dilute damage
+                // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
                 }
-                // Consider various unit builds
-                else if (!nearbyMuckraker && rc.getInfluence() > 40 && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
+                // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
+                else if (rc.getTeamVotes() < 751 && remainingHealth < rc.getConviction()/2 && !nearbyMuckraker && rc.getInfluence() > 40 
+                    && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
                     int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                     Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
@@ -294,11 +295,15 @@ public class EnlightmentCenter extends Robot {
                     System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                     numSlanderers++;
-                } else if (numPoliticians > numMuckrakers * 2) {
+                } 
+                // Politicians vs muckrakers ratio
+                else if (numPoliticians > numMuckrakers * 2) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false) : optimalDestination(false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
                     numMuckrakers++;
-                } else {
+                }
+                // Build politician
+                else {
                     if (rc.getInfluence() > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false) : optimalDestination(true, false);
                         System.out.println("Spawning killer: " + enemyLocation);
