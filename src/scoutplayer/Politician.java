@@ -68,7 +68,7 @@ public class Politician extends Unit {
             convertedPolitician = true;
         }
 
-        updateDestinationForExploration();
+        updateDestinationForExploration(onlyECHunter);
         updateDestinationForECHunting();
 
         if (onlyECHunter) {
@@ -242,6 +242,7 @@ public class Politician extends Unit {
                 }
             }
         }
+        // System.out.println("Total Ally Conviction: " + totalAllyConviction);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 // Intentional: Reverse order for this demo
@@ -284,10 +285,11 @@ public class Politician extends Unit {
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
-                else if (robot.team == enemyTeam && robot.type == RobotType.ENLIGHTENMENT_CENTER
-                    && totalAllyConviction > robot.conviction + 5) {
-                    // System.out.println("Weaken EC attack!");
-                    numEnemiesKilled += 10;
+                else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    if (robot.team != allyTeam && totalAllyConviction > robot.conviction + 5) {
+                        // System.out.println("Weaken EC attack!");
+                        numEnemiesKilled += 10;
+                    }
                 }
             }
             if (numEnemiesKilled > optimalNumEnemiesKilled) {

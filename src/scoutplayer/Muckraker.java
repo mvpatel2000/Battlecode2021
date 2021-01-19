@@ -24,7 +24,7 @@ public class Muckraker extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
-        updateDestinationForExploration();
+        updateDestinationForExploration(false);
 
         // Search for nearest slanderer. If one exists, kill it or move towards it.
         if (rc.isReady()) {

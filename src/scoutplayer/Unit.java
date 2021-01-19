@@ -584,14 +584,18 @@ public abstract class Unit extends Robot {
      * TODO: Make this smarter for non-slanderers. Listen to your base and, if possible,
      * go where your base is telling newly spawned units of your type to go.
      */
-    void updateDestinationForExploration() throws GameActionException {
+    void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
         for (int i = 0; i < 3; i++) {
             nearDestination = nearDestination.add(nearDestination.directionTo(destination));
         }
+        // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
+        // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
         if (!rc.onTheMap(nearDestination) ||
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
-            && (!rc.onTheMap(destination) || !rc.isLocationOccupied(destination))) {
+            && (!rc.onTheMap(destination) 
+                || !rc.isLocationOccupied(destination) 
+                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)) {
             priorDestinations.add(destination);
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
