@@ -59,7 +59,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
-    final int MAX_UNITS_TRACKED = 80;
+    int MAX_UNITS_TRACKED = 70;
 
     // Bidding information
     int previousInfluence = 0;
@@ -106,6 +106,7 @@ public class EnlightmentCenter extends Robot {
 
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
+            MAX_UNITS_TRACKED = 60;
             isMidGame = true;
             System.out.println("I am a mid-game EC!");
             basesToDestinations = new HashMap<Integer, MapLocation>();
@@ -136,6 +137,7 @@ public class EnlightmentCenter extends Robot {
         // initialFlagsAndAllies must run here to fit properly with bytecode.
         // This function will return with ~2700 bytecode left for rounds 1 - 3.
         // TODO: Potentially improve initialization scheme for neutral ECs we take over.
+        // System.out.println("Bytecodes used before midgame check: " + Clock.getBytecodeNum());
         if (!isMidGame) {
             if (currentRound < searchBounds.length) {
                 initialFlagsAndAllies();
@@ -158,17 +160,21 @@ public class EnlightmentCenter extends Robot {
             if (turnCount == 1) {
                 putVisionTilesOnMap();
             }
+            // System.out.println("Bytecodes used before tracking new robots: " + Clock.getBytecodeNum());
             trackNewNearbyRobots();
+            // System.out.println("Bytecodes used before reading ec updates: " + Clock.getBytecodeNum());
             readAllyECUpdates(); // read EC updates before building units/prod logic.
+            // System.out.println("Bytecodes used before setting spawn flag: " + Clock.getBytecodeNum());
             setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
         //System.out.println("I am tracking " + unitTrackerList.length + " units");
-        //System.out.println("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
+        // System.out.println("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
-        //System.out.println("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
+        // System.out.println("Bytecodes used before buildUnit: " + Clock.getBytecodeNum());
         buildUnit();
+        // System.out.println("Bytecodes used end: " + Clock.getBytecodeNum());
 
 
         if (currentRound >= searchBounds.length && !flagSetThisRound) {
@@ -1705,7 +1711,9 @@ public class EnlightmentCenter extends Robot {
      */
     void trackNewNearbyRobots() {
         RobotInfo[] nearbyAllies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, allyTeam);
-        for (RobotInfo ri : nearbyAllies) {
+        int maxIters = Math.min(nearbyAllies.length, 20);
+        for (int j = 0; j < maxIters; j++) {
+            RobotInfo ri = nearbyAllies[j];
             if (ri.ID == myID) {
                 continue;
             }
@@ -1729,7 +1737,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 trackedRobots.add(ri.ID);   // technically, this is not a tracked robot, but that's okay, because this list is just something we check against when we see a new robot and we do not want to spend the bytecode every time to check over the ally EC list.
                 continue;
-            } else {
+            } else if (unitTrackerList.length < MAX_UNITS_TRACKED) {
                 // We aren't currently tracking this robot, add it to unitTracker.
                 unitTrackerList.add(new UnitTracker(this, ri.type, ri.ID, ri.location));
                 trackedRobots.add(ri.ID);
