@@ -152,8 +152,8 @@ public class Politician extends Unit {
         int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
         for (RobotInfo robot : nearbyAllies) {
             // If there's a closer politician, don't worry about covering this muckraker.
-            boolean closerPolitician = myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location);
-            if (closerPolitician) {
+            if (robot.type == RobotType.POLITICIAN 
+                    && myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location)) {
                 // Consider using weightedFuzzyMove
                 fuzzyMove(destination);
             }
