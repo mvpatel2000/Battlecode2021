@@ -96,8 +96,6 @@ public abstract class Unit extends Robot {
         runUnit();
 
         // Common wrap-up methods
-        parseVision();
-
         if(sawNewAllyLastTurn == 1) {
             setMidGameAllyIDFlag(moveThisTurn);
             sawNewAllyLastTurn = 2;

@@ -5,17 +5,6 @@ import java.util.*;
 
 public class Politician extends Unit {
 
-    final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4}};
-    final static int[][] NEW_SENSED_LOCS_NORTH = {{1,4},{-1,4},{2,4},{-2,4},{0,5},{3,4},{4,3},{5,0},{-5,0},{-4,3},{-3,4}};
-    final static int[][] NEW_SENSED_LOCS_NORTHEAST = {{0,4},{4,0},{1,4},{4,1},{3,3},{2,4},{4,2},{4,-2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{-3,4}};
-    final static int[][] NEW_SENSED_LOCS_EAST = {{4,1},{4,-1},{4,2},{4,-2},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5}};
-    final static int[][] NEW_SENSED_LOCS_SOUTHEAST = {{4,0},{0,-4},{4,-1},{1,-4},{3,-3},{4,2},{4,-2},{2,-4},{-2,-4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4}};
-    final static int[][] NEW_SENSED_LOCS_SOUTH = {{1,-4},{-1,-4},{2,-4},{-2,-4},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0}};
-    final static int[][] NEW_SENSED_LOCS_SOUTHWEST = {{0,-4},{-4,0},{-1,-4},{-4,-1},{-3,-3},{2,-4},{-2,-4},{-4,-2},{-4,2},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3}};
-    final static int[][] NEW_SENSED_LOCS_WEST = {{-4,-1},{-4,1},{-4,-2},{-4,2},{0,5},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4}};
-    final static int[][] NEW_SENSED_LOCS_NORTHWEST = {{0,4},{-4,0},{-4,1},{-1,4},{-3,3},{2,4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{-4,-3},{-5,0},{-4,3},{-3,4}};
-    final static int[][] NEW_SENSED_LOCS_CENTER = {};
-
     public final static int INITIAL_COOLDOWN = 10;
 
     boolean onlyECHunter;
@@ -36,50 +25,11 @@ public class Politician extends Unit {
 
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
-            baseLocation = myLocation;
-            parseVision();
-            // If enemies nearby, take nearest as destination
-            if (nearbyEnemies.length > 0) {
-                RobotInfo nearestRobot = null;
-                int nearestRobotDistSquared = 1000;
-                for (RobotInfo robot : nearbyEnemies) {
-                    int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-                    if (robot.type != RobotType.SLANDERER && robotDistSquared < nearestRobotDistSquared) {
-                        nearestRobot = robot;
-                        nearestRobotDistSquared = robotDistSquared;
-                    }
-                }
-                if (nearestRobot != null) {
-                    destination = nearestRobot.location;
-                }
-            }
-            // Was not set in previous phase, eg no nearbyEnemies or they are all slanderers
-            if (destination == null) {
-                RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
-                // Take nearest smoke signal robot as destination
-                if (nearestSignalRobot != null) {
-                    destination = nearestSignalRobot.location;
-                }
-                // Pick random destination
-                else {
-                    destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-                }
-            }
-            convertedPolitician = true;
+            setInitialDestination();
         }
 
         updateDestinationForExploration(onlyECHunter);
         updateDestinationForECHunting();
-
-        if (onlyECHunter) {
-            for (RobotInfo robot : nearbyRobots) {
-                if (robot.type == RobotType.ENLIGHTENMENT_CENTER && robot.team != allyTeam) {
-                    destination = robot.location;
-                    exploreMode = false;
-                    break;
-                }
-            }
-        }
 
         if (!convertedPolitician) {
             considerBoostEC();
@@ -87,22 +37,44 @@ public class Politician extends Unit {
         considerAttack(onlyECHunter, false);
 
         movePolitician();
+    }
 
-
-        // else if (mtq.hasRoom()) { // move if queue isn't full
-        // } else if (!mtq.hasRoom()) {
-        //     // System.out.println("MapTerrainQueue full; not moving this round.");
-        // }
-        // mtq.step(rc, moveThisTurn, rc.getLocation());
-        // MapTerrainFlag mtf = new MapTerrainFlag();
-        // mtf.writeLastMove(moveThisTurn);
-        // for (int i = 0; i < MapTerrainFlag.NUM_LOCS; i++) {
-        //     if (mtq.isEmpty()) break;
-        //     MapTerrain terrain = mtq.pop();
-        //     mtf.writePassability(terrain.pa);
-        //     // System.out.println("Added to flag: " + terrain.loc.toString() + " has passability " + terrain.pa);
-        // }
-        // setFlag(mtf.getFlag());
+    /**
+     * Sets initial base location and destination if converted slanderer or politician
+     * @throws GameActionException
+     */
+    void setInitialDestination() throws GameActionException {
+        baseLocation = myLocation;
+        convertedPolitician = true;
+        // If enemies nearby, take nearest non-muck non-slanderer as destination
+        if (nearbyEnemies.length > 0) {
+            RobotInfo nearestRobot = null;
+            int nearestRobotDistSquared = 1000;
+            for (RobotInfo robot : nearbyEnemies) {
+                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+                if (robot.type != RobotType.SLANDERER && robot.type != RobotType.POLITICIAN && 
+                    robotDistSquared < nearestRobotDistSquared) {
+                    nearestRobot = robot;
+                    nearestRobotDistSquared = robotDistSquared;
+                }
+            }
+            if (nearestRobot != null) {
+                destination = nearestRobot.location;
+            }
+        }
+        // Was not set in previous phase, eg no nearbyEnemies or they are all slanderers
+        if (destination == null) {
+            RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+            // Take nearest smoke signal robot as destination
+            if (nearestSignalRobot != null && nearestSignalRobot.type != RobotType.SLANDERER 
+                    && nearestSignalRobot.type != RobotType.POLITICIAN) {
+                destination = nearestSignalRobot.location;
+            }
+            // Pick random destination
+            else {
+                destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            }
+        }
     }
 
     /**
@@ -159,33 +131,6 @@ public class Politician extends Unit {
             }
         }
         fuzzyMove(nearestMuckraker.location);
-    }
-
-    /**
-     * Returns newly sensable locations relative to the current location
-     * after a move in direction lastMove.
-     */
-    public static int[][] newSensedLocationsRelative(Direction lastMove) throws GameActionException {
-        switch (lastMove) {
-            case NORTH:
-                return NEW_SENSED_LOCS_NORTH;
-            case NORTHEAST:
-                return NEW_SENSED_LOCS_NORTHEAST;
-            case EAST:
-                return NEW_SENSED_LOCS_EAST;
-            case SOUTHEAST:
-                return NEW_SENSED_LOCS_SOUTHEAST;
-            case SOUTH:
-                return NEW_SENSED_LOCS_SOUTH;
-            case SOUTHWEST:
-                return NEW_SENSED_LOCS_SOUTHWEST;
-            case WEST:
-                return NEW_SENSED_LOCS_WEST;
-            case NORTHWEST:
-                return NEW_SENSED_LOCS_NORTHWEST;
-            default:
-                return NEW_SENSED_LOCS_CENTER;
-        }
     }
 
     /**
@@ -255,7 +200,7 @@ public class Politician extends Unit {
         for (int i = 0; i < nearbyRobots.length; i++) {
             distanceSquareds[i] = myLocation.distanceSquaredTo(nearbyRobots[i].location);
         }
-        int optimalNumEnemiesKilled = 0;
+        double optimalNumEnemiesKilled = 0;
         int optimalDist = -1;
         int optimalNumUnitsHit = 0;
         int maxDist = rc.getType().actionRadiusSquared;
@@ -271,17 +216,24 @@ public class Politician extends Unit {
             }
             // Count number of units to kill
             int perUnitDamage = (int)(totalDamage / i);
-            int numEnemiesKilled = 0;
+            double numEnemiesKilled = 0;
             for (int j = 0; j < i; j++) {
                 RobotInfo robot = nearbyRobots[j];
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
+                    // 1 point for muckraker
                     if (!onlyECs && robot.type == RobotType.MUCKRAKER) {
                         // System.out.println("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled++;
-                    } else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    } 
+                    // 10 points for enlightenment center
+                    else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         // System.out.println("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
+                    } 
+                    // points for politicians that return net positive influence
+                    else if (robot.type == RobotType.POLITICIAN && multiplier > 2) {
+                        numEnemiesKilled += multiplier * Math.min(robot.influence, perUnitDamage - robot.conviction) / rc.getConviction();
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
