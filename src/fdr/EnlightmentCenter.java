@@ -614,23 +614,6 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
-     * If no scout has been made, spawn a scout. Otherwise, run the
-     * ScoutTracker update loop.
-     *
-     * TODO: figure out direction to send scout in.
-     */
-    boolean spawnScout() throws GameActionException {
-        if (numScouts < 1) { // no scout has been spawned yet
-            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT, true)) { // attempt to spawn scout
-                unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
-                numScouts++;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Spawn a robot without sending it or the other ECs any flags.
      * @param type Type of the robot to build.
      * @param direction Direction to build the robot in.
