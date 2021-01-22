@@ -37,6 +37,9 @@ public abstract class Unit extends Robot {
 
     ArrayList<MapLocation> priorDestinations;
 
+    RobotInfo nearestSignalRobotCache;
+    boolean hasPopulatedNearestSignalRobot;
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
@@ -85,6 +88,7 @@ public abstract class Unit extends Robot {
     @Override
     public void run() throws GameActionException {
         super.run();
+        hasPopulatedNearestSignalRobot = false;
         moveThisTurn = Direction.CENTER;
         myLocation = rc.getLocation();
         parseVision();
@@ -172,6 +176,9 @@ public abstract class Unit extends Robot {
      * as its ID. Returns null if no nearby enemy is known.
      */
     public RobotInfo getNearestEnemyFromAllies() throws GameActionException {
+        if (hasPopulatedNearestSignalRobot) {
+            return nearestSignalRobotCache;
+        }
         // System.out.println("nearest: " + Clock.getBytecodesLeft());
         int minDist = 10000;
         MapLocation enemyLoc = null;
@@ -203,12 +210,16 @@ public abstract class Unit extends Robot {
             }
         }
         // System.out.println("nearest: " + Clock.getBytecodesLeft());
+        hasPopulatedNearestSignalRobot = true;
         if (enemyLoc != null) {
             rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
             rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
-            return new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
+            nearestSignalRobotCache = new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
+            return nearestSignalRobotCache;
+        } else {
+            nearestSignalRobotCache = null;
+            return null;
         }
-        return null;
     }
 
     /**

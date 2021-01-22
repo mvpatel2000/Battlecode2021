@@ -197,11 +197,9 @@ public class Politician extends Unit {
     public boolean considerAttack(boolean onlyECs) throws GameActionException {
         // Recreate arrays with smaller radius only considering attack
         RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
-        RobotInfo[] attackNearbyAllies = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared, allyTeam);
 
         if (attackNearbyRobots.length > 8) {
             attackNearbyRobots = rc.senseNearbyRobots(4);
-            attackNearbyAllies = rc.senseNearbyRobots(4, allyTeam);
         }
 
         double multiplier = rc.getEmpowerFactor(allyTeam, 0);
@@ -212,11 +210,11 @@ public class Politician extends Unit {
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
         double totalAllyConviction = 0;
-        for (int i = 0; i < attackNearbyAllies.length; i++) {
-            RobotInfo robot = attackNearbyAllies[i];
-            boolean isSlanderer = areSlanderers[i];
-            if (robot.type == RobotType.POLITICIAN && !isSlanderer) {
-                totalAllyConviction = robot.conviction * multiplier - 10;
+        int allyLength = Math.min(8, nearbyAllies.length);
+        for (int i = 0; i < allyLength; i++) {
+            RobotInfo robot = nearbyAllies[i];
+            if (robot.type == RobotType.POLITICIAN && !areSlanderers[i]) {
+                totalAllyConviction += robot.conviction * multiplier - 10;
             }
         }
         // System.out.println("Total Ally Conviction: " + totalAllyConviction);
