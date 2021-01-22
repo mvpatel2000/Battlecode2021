@@ -125,7 +125,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 200) {
+        if (currentRound == 400) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -413,7 +413,7 @@ public class EnlightmentCenter extends Robot {
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
                 // For mid-game ECs. Update another list to remove this EC.
-                if (basesToDestinations.containsKey(allyECIDs[i])) {
+                if (basesToDestinations != null && basesToDestinations.containsKey(allyECIDs[i])) {
                     basesToDestinations.remove(allyECIDs[i]);
                 }
                 // Remove EC from list.
