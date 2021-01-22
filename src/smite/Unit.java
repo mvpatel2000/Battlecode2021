@@ -96,17 +96,22 @@ public abstract class Unit extends Robot {
         runUnit();
 
         // Common wrap-up methods
+        // //System.out.println\("11: " + Clock.getBytecodesLeft());
         if(sawNewAllyLastTurn == 1) {
             setMidGameAllyIDFlag(moveThisTurn);
             sawNewAllyLastTurn = 2;
+            // //System.out.println\("11.1: " + Clock.getBytecodesLeft());
         } else if (sawNewAllyLastTurn == 2) {
             setMidGameAllyLocFlag(moveThisTurn);
             sawNewAllyLastTurn = 0;
+            // //System.out.println\("11.2: " + Clock.getBytecodesLeft());
         } else {
             setECSightingFlag();
+            // //System.out.println\("11.3: " + Clock.getBytecodesLeft());
         }
 
         setUnitUpdateFlag();
+        // //System.out.println\("12: " + Clock.getBytecodesLeft());
 
     }
 
@@ -143,7 +148,7 @@ public abstract class Unit extends Robot {
             if (turnCount != 1) {
                 r = getNearestEnemyFromAllies();
             }
-            if (r == null) { // default behavior if no enemy is found is to send my info
+            if (r == null) { // default behavior if no enemy is found is to send my info            
                 enemyLoc = myLocation;
                 enemyType = rc.getType();
                 ////System.out.println\("No nearest enemy known.");
@@ -153,10 +158,10 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         } else { // TODO: remove else, for debugging
-            //rc.setIndicatorLine(myLocation, enemyLoc, 30, 255, 40);
+            //rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
         }
         ////System.out.println\("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
-        //rc.setIndicatorDot(enemyLoc, 30, 255, 40);
+        // //rc.setIndicatorDot(enemyLoc, 30, 255, 40);
         UnitUpdateFlag uuf = new UnitUpdateFlag(moveThisTurn, rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
@@ -165,22 +170,23 @@ public abstract class Unit extends Robot {
      * Get the nearest enemy to me by listening to the allies around me.
      * Returns a RobotInfo with known information about the enemy and 0
      * as its ID. Returns null if no nearby enemy is known.
-     *
-     * WARNING: Make sure parseVision() is called after the most recent
-     * move before you call this function!
      */
     public RobotInfo getNearestEnemyFromAllies() throws GameActionException {
+        // //System.out.println\("nearest: " + Clock.getBytecodesLeft());
         int minDist = 10000;
         MapLocation enemyLoc = null;
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
         RobotType enemyType = null;
-        for (RobotInfo r : nearbyAllies) {
+        for (int i = 0; i < Math.min(20, nearbyAllies.length); i++) {
+            RobotInfo r = nearbyAllies[i];
             if (rc.canGetFlag(r.ID)) {
                 int flag = rc.getFlag(r.ID);
                 if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
                     MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
-                    if (loc != null) {
+                    // Only listen about enemies from units closer to it than you. This ensures it is a DAG
+                    // and prevents echoing on dead units.
+                    if (loc != null && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
                         int dist = myLocation.distanceSquaredTo(loc);
                         enemyType = uuf.readEnemyType();
                         // Penalize non-muckrakers
@@ -196,8 +202,10 @@ public abstract class Unit extends Robot {
                 }
             }
         }
+        // //System.out.println\("nearest: " + Clock.getBytecodesLeft());
         if (enemyLoc != null) {
             //rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
+            //rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
             return new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
         }
         return null;

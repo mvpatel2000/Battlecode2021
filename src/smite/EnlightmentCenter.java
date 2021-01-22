@@ -334,7 +334,7 @@ public class EnlightmentCenter extends Robot {
                 else if (numPoliticians > numMuckrakers) {
                     int muckInf = 1;
                     if (Math.random() < 0.1) {
-                        muckInf = rc.getConviction() / 10;
+                        muckInf = (int) Math.pow(rc.getConviction(), 0.7);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, 0, spawnDestIsGuess);
@@ -348,7 +348,7 @@ public class EnlightmentCenter extends Robot {
                         int influence = neutralECLocs.get(enemyLocation);
                         if (rc.getInfluence() > (int)(influence*1.1 + 10)) {
                             //System.out.println\("Spawning close killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.1 + 10), enemyLocation, 0, spawnDestIsGuess);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.2 + 10), enemyLocation, 0, spawnDestIsGuess);
                             sendToNeutral = true;
                         }
                     }
@@ -438,7 +438,7 @@ public class EnlightmentCenter extends Robot {
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
                 // For mid-game ECs. Update another list to remove this EC.
-                if (basesToDestinations.containsKey(allyECIDs[i])) {
+                if (basesToDestinations != null && basesToDestinations.containsKey(allyECIDs[i])) {
                     basesToDestinations.remove(allyECIDs[i]);
                 }
                 // Remove EC from list.
@@ -636,23 +636,6 @@ public class EnlightmentCenter extends Robot {
             ////System.out.println\("Setting SpawnDestinationFlag: " + latestSpawnDestinationFlag.flag);
             setFlag(latestSpawnDestinationFlag.flag);
         }
-    }
-
-    /**
-     * If no scout has been made, spawn a scout. Otherwise, run the
-     * ScoutTracker update loop.
-     *
-     * TODO: figure out direction to send scout in.
-     */
-    boolean spawnScout() throws GameActionException {
-        if (numScouts < 1) { // no scout has been spawned yet
-            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT, true)) { // attempt to spawn scout
-                unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
-                numScouts++;
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
