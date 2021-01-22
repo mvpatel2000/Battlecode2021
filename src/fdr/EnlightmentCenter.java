@@ -348,9 +348,10 @@ public class EnlightmentCenter extends Robot {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, true) : optimalDestination(true, false, true);
                     if (neutralECLocs.containsKey(enemyLocation)) {
                         int influence = neutralECLocs.get(enemyLocation);
-                        if (rc.getInfluence() > (int)(influence*1.1 + 10)) {
+                        int infNeeded = (int)(influence*1.2 + 10);
+                        if (rc.getInfluence() > infNeeded) {
                             // System.out.println("Spawning close killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.2 + 10), enemyLocation, 0, spawnDestIsGuess);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, 0, spawnDestIsGuess);
                             sendToNeutral = true;
                         }
                     }
