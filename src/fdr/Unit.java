@@ -53,7 +53,7 @@ public abstract class Unit extends Robot {
                 if (rc.canGetFlag(robot.ID)) {
                     SpawnUnitFlag suf = new SpawnUnitFlag(rc.getFlag(robot.ID));
                     if (suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA && suf.readID() == rc.getID()) {
-                        System.out.println("Not spawned silently");
+                        // System.out.println("Not spawned silently");
                         spawnedSilently = false;
                         baseLocation = robot.location;
                         baseID = robot.ID;
@@ -90,7 +90,7 @@ public abstract class Unit extends Robot {
         parseVision();
         readECInstructions();
         switchToLatestBaseDestination();
-        System.out.println("Destination: " + destination);
+        // System.out.println("Destination: " + destination);
 
         // Call unit-specific run method
         runUnit();
@@ -232,8 +232,8 @@ public abstract class Unit extends Robot {
             destination = sdf.readAbsoluteLocation(myLocation);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            System.out.println("I have my destination: " + destination.toString());
-            System.out.println("Explore Mode Status: " + exploreMode);
+            // System.out.println("I have my destination: " + destination.toString());
+            // System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -319,7 +319,7 @@ public abstract class Unit extends Robot {
         }
         ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, inf);
         setFlag(ecsf.flag);
-        System.out.println("Sending EC Sighting at " + ecLoc);
+        // System.out.println("Sending EC Sighting at " + ecLoc);
     }
 
     /**
@@ -329,14 +329,13 @@ public abstract class Unit extends Robot {
      * and then you send this message the next round (hence the var sawNewAllyLastTurn).
      * Why is this necessary? We want mid-game ECs to know the original bases, so they
      * can read that base's messages.
+     * 
+     * Returns without doing anything if unit does not have a base.
      */
     public void setMidGameAllyIDFlag(Direction lastMove) throws GameActionException {
-        MidGameAllyFlag maf = new MidGameAllyFlag();
-        maf.writeLastMove(lastMove);
-        maf.writeType(MidGameAllyFlag.ID_MAF);
-        maf.writeID(baseID);
+        if (baseID == 0) return;
+        MidGameAllyFlag maf = new MidGameAllyFlag(lastMove, MidGameAllyFlag.ID_MAF, baseID);
         setFlag(maf.flag);
-        System.out.println("Telling ally EC about my base: " + baseID);
     }
 
     /**
@@ -349,7 +348,7 @@ public abstract class Unit extends Robot {
          maf.writeType(MidGameAllyFlag.LOCATION_MAF);
          maf.writeLocation(baseLocation);
          setFlag(maf.flag);
-         System.out.println("Telling ally EC about my base loc: " + baseLocation);
+        //  System.out.println("Telling ally EC about my base loc: " + baseLocation);
      }
 
     /**
@@ -521,16 +520,15 @@ public abstract class Unit extends Robot {
 
 
         if (potentialDest == null) {
-            System.out.println("Did not switch, base not giving destinations.");
+            // System.out.println("Did not switch, base not giving destinations.");
             return false;
         }
-
         if (baseGivingExplore) {
-            System.out.println("Did not switch, base giving explore.");
+            // System.out.println("Did not switch, base giving explore.");
             return false;
         }
         if (potentialDest.equals(destination)) {
-            System.out.println("Did not switch, base giving same destination.");
+            // System.out.println("Did not switch, base giving same destination.");
             return false;
         }
 
@@ -556,10 +554,10 @@ public abstract class Unit extends Robot {
                 (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
                 destination = potentialDest;
                 exploreMode = false;
-                System.out.println("Re-routing to latest base destination!! " + potentialDest);
+                // System.out.println("Re-routing to latest base destination!! " + potentialDest);
                 return true;
             } else {
-                System.out.println("Did not switch for personal location reasons.");
+                // System.out.println("Did not switch for personal location reasons.");
             }
         }
 
@@ -574,12 +572,12 @@ public abstract class Unit extends Robot {
                     if(destRobot.team == allyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         destination = potentialDest;
                         exploreMode = false;
-                        System.out.println("Re-routing to latest base destination!! " + potentialDest);
+                        // System.out.println("Re-routing to latest base destination!! " + potentialDest);
                         return true;
                     }
                 }
             }
-            System.out.println("Did not switch for personal location reasons.");
+            // System.out.println("Did not switch for personal location reasons.");
         }
         return false;
     }

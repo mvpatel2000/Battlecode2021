@@ -32,6 +32,14 @@ public class MidGameAllyFlag extends LocationFlag {
         setSchema(MIDGAME_ALLY_SCHEMA);
     }
 
+    public MidGameAllyFlag(Direction lastMove, int type, int baseID) {
+        super(true); // call the LocationFlag constructor that doesn't set the schema
+        setSchema(MIDGAME_ALLY_SCHEMA);
+        writeLastMove(lastMove);
+        writeType(type);
+        writeID(baseID);
+    }
+
     /* Call this when you know the int you just received
      * represents a MidGameAllyFlag.
      */
