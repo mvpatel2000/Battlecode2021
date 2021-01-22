@@ -10,6 +10,8 @@ public class Politician extends Unit {
     boolean onlyECHunter;
     boolean convertedPolitician;
 
+    boolean[] areSlanderers;
+
     // MapTerrainQueue mtq;
 
     public Politician(RobotController rc) throws GameActionException {
@@ -22,6 +24,21 @@ public class Politician extends Unit {
     @Override
     public void runUnit() throws GameActionException {
         super.runUnit();
+
+        // Read flags to check for slanderers
+        areSlanderers = new boolean[nearbyAllies.length];
+        for (int i = 0; i < nearbyAllies.length; i++) {
+            RobotInfo robot = nearbyAllies[i];
+            if (rc.canGetFlag(robot.ID) ) {
+                int flagInt = rc.getFlag(robot.ID);
+                if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
+                    UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
+                    areSlanderers[i] = uf.readIsSlanderer();
+                }
+            }
+        }
+
+        
 
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
@@ -122,9 +139,10 @@ public class Politician extends Unit {
             return;
         }
         int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
-        for (RobotInfo robot : nearbyAllies) {
+        for (int i = 0; i < nearbyAllies.length; i++) {
+            RobotInfo robot = nearbyAllies[i];
             // If there's a closer politician, don't worry about covering this muckraker.
-            if (robot.type == RobotType.POLITICIAN 
+            if (robot.type == RobotType.POLITICIAN && !areSlanderers[i]
                     && myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location)) {
                 // Consider using weightedFuzzyMove
                 fuzzyMove(destination);
@@ -173,24 +191,17 @@ public class Politician extends Unit {
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10 && myLocation.distanceSquaredTo(baseLocation) > 10;
         double totalAllyConviction = 0;
-        for (RobotInfo robot : nearbyAllies) {
-            if (robot.type == RobotType.POLITICIAN) {
+        for (int i = 0; i < nearbyAllies.length; i++) {
+            RobotInfo robot = nearbyAllies[i];
+            boolean isSlanderer = areSlanderers[i];
+            nearbySlandererOrNearBase |= isSlanderer;
+            if (robot.type == RobotType.POLITICIAN && !isSlanderer) {
                 totalAllyConviction = robot.conviction * multiplier - 10;
             }
-            // System.out.println("Robot: " + robot.location);
-            // Cannot tell apart slanderers and politicians, use flag
-            if (rc.canGetFlag(robot.ID) ) {
-                int flagInt = rc.getFlag(robot.ID);
-                if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
-                    UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
-                    nearbySlandererOrNearBase |= uf.readIsSlanderer();
-                }
-            }
         }
-        // System.out.println("Total Ally Conviction: " + totalAllyConviction);
+        System.out.println("Total Ally Conviction: " + totalAllyConviction);
         Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
-                // Intentional: Reverse order for this demo
                 int d1 = myLocation.distanceSquaredTo(r1.location);
                 int d2 = myLocation.distanceSquaredTo(r2.location);
                 return d1 - d2;
