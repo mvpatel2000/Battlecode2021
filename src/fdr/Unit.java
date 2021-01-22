@@ -96,17 +96,22 @@ public abstract class Unit extends Robot {
         runUnit();
 
         // Common wrap-up methods
+        // System.out.println("11: " + Clock.getBytecodesLeft());
         if(sawNewAllyLastTurn == 1) {
             setMidGameAllyIDFlag(moveThisTurn);
             sawNewAllyLastTurn = 2;
+            // System.out.println("11.1: " + Clock.getBytecodesLeft());
         } else if (sawNewAllyLastTurn == 2) {
             setMidGameAllyLocFlag(moveThisTurn);
             sawNewAllyLastTurn = 0;
+            // System.out.println("11.2: " + Clock.getBytecodesLeft());
         } else {
             setECSightingFlag();
+            // System.out.println("11.3: " + Clock.getBytecodesLeft());
         }
 
         setUnitUpdateFlag();
+        // System.out.println("12: " + Clock.getBytecodesLeft());
 
     }
 
@@ -167,11 +172,13 @@ public abstract class Unit extends Robot {
      * as its ID. Returns null if no nearby enemy is known.
      */
     public RobotInfo getNearestEnemyFromAllies() throws GameActionException {
+        // System.out.println("nearest: " + Clock.getBytecodesLeft());
         int minDist = 10000;
         MapLocation enemyLoc = null;
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
         RobotType enemyType = null;
-        for (RobotInfo r : nearbyAllies) {
+        for (int i = 0; i < Math.min(20, nearbyAllies.length); i++) {
+            RobotInfo r = nearbyAllies[i];
             if (rc.canGetFlag(r.ID)) {
                 int flag = rc.getFlag(r.ID);
                 if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
@@ -195,6 +202,7 @@ public abstract class Unit extends Robot {
                 }
             }
         }
+        // System.out.println("nearest: " + Clock.getBytecodesLeft());
         if (enemyLoc != null) {
             rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
             rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
