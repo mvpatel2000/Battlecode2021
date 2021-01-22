@@ -50,6 +50,9 @@ public class EnlightmentCenter extends Robot {
     int numPoliticians;
     int numScouts; // scouts don't count in troop counts
 
+    // Build order
+    int initialBuildStep;
+
     // Mid-game EC variables.
     boolean isMidGame;
     Map<Integer, MapLocation> basesToDestinations;  // <BaseID, DestinationForRobots>
@@ -103,6 +106,8 @@ public class EnlightmentCenter extends Robot {
         numMuckrakers = 0;
         numPoliticians = 0;
         numScouts = 0;
+        // Build orders
+        initialBuildStep = 0;
 
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
@@ -125,7 +130,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
+        if (currentRound == 300) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -253,12 +258,27 @@ public class EnlightmentCenter extends Robot {
         if (!rc.isReady()) {
             return;
         }
-        // Turn 1 spawn silent slanderer
-        if (turnCount == 1) {
+        // Opening build order
+        if (!isMidGame && initialBuildStep < 4) {
             Direction optimalDir = findOptimalSpawnDir();
-            if (optimalDir != null) {
-                spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
+            if (optimalDir == null) return;
+            switch (initialBuildStep) {
+                case 0:
+                    spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
+                    break;
+                case 1:
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                case 2:
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                case 3:
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                default:
+                    break;
             }
+            initialBuildStep++;
         }
         // Otherwise, do normal build order
         else {
@@ -287,7 +307,7 @@ public class EnlightmentCenter extends Robot {
                 int myConviction = rc.getConviction();
 
                 // High empower factor, OK with dying because will recover influence
-                if (rc.getEmpowerFactor(allyTeam, 11) > 10 && myConviction - 5 > 0) {
+                if (rc.getEmpowerFactor(allyTeam, 11) > 4.5 && myConviction - 5 > 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, 0, spawnDestIsGuess);
                 }
@@ -295,7 +315,6 @@ public class EnlightmentCenter extends Robot {
                 else if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
-                    numMuckrakers++;
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
@@ -310,13 +329,15 @@ public class EnlightmentCenter extends Robot {
                     MapLocation shiftedLocation = myLocation.translate(multiplier*dx, multiplier*dy);
                     System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
-                    numSlanderers++;
                 }
-                // Politicians vs muckrakers ratio
-                else if (numPoliticians > numMuckrakers * 2) {
+                // Politicians vs muckrakers ratio 1:1
+                else if (numPoliticians > numMuckrakers) {
+                    int muckInf = 1;
+                    if (Math.random() < 0.1) {
+                        muckInf = (int) Math.pow(rc.getConviction(), 0.7);
+                    }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
-                    numMuckrakers++;
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, 0, spawnDestIsGuess);
                 }
                 // Build politician
                 else {
@@ -327,11 +348,16 @@ public class EnlightmentCenter extends Robot {
                         int influence = neutralECLocs.get(enemyLocation);
                         if (rc.getInfluence() > (int)(influence*1.1 + 10)) {
                             System.out.println("Spawning close killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.1 + 10), enemyLocation, 0, spawnDestIsGuess);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.2 + 10), enemyLocation, 0, spawnDestIsGuess);
                             sendToNeutral = true;
                         }
                     }
                     if (!sendToNeutral) {
+                        if (rc.getInfluence() > 10000) {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
+                            System.out.println("Spawning thicc killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, 0, spawnDestIsGuess);
+                        }
                         if (rc.getInfluence() > 1000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                             System.out.println("Spawning killer: " + enemyLocation);
@@ -342,7 +368,6 @@ public class EnlightmentCenter extends Robot {
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
                         }
                     }
-                    numPoliticians++;
                 }
             }
         }
@@ -667,6 +692,19 @@ public class EnlightmentCenter extends Robot {
             return false;
         }
         rc.buildRobot(type, direction, influence);
+        switch (type) {
+            case MUCKRAKER:
+                numMuckrakers++;
+                break;
+            case POLITICIAN:
+                numPoliticians++;
+                break;
+            case SLANDERER:
+                numSlanderers++;
+                break;
+            default:
+                break;
+        }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
             System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");

@@ -88,10 +88,10 @@ public class ECSightingFlag extends Flag {
 
     // TODO: optimize log2?
     public boolean writeECInfluence(int influence) {
-        return writeToFlag(1+(int)(3.5*Math.log(influence) / 0.69314718056), EC_INF_BITS);
+        return writeToFlag(1+(int)(4*Math.log(influence) / 0.69314718056), EC_INF_BITS);
     }
 
     public int readECInfluence() {
-        return (int) Math.pow(2, (readFromFlag(SCHEMA_BITS + REL_COORD_BITS + REL_COORD_BITS + EC_TYPE_BITS + LAST_MOVE_BITS, EC_INF_BITS) - 0.5)/3.5);
+        return (int) Math.pow(2, (readFromFlag(SCHEMA_BITS + REL_COORD_BITS + REL_COORD_BITS + EC_TYPE_BITS + LAST_MOVE_BITS, EC_INF_BITS) - 0.5)/4);
     }
 }

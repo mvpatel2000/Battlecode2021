@@ -2,6 +2,12 @@
 
 This is team Smite's Battlecode 2021 repository.
 
+### Bots
+- `scoutplayer`
+    Base bot with comms and simple micro. Submitted to sprint 2.
+- `fdr`
+    Improved build order and revamped bot. Named after FDR because of the New Deal, and because of his cleanup after the Great Depression.
+
 ### Project Structure
 
 - `README.md`

@@ -3,12 +3,12 @@ package flags;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import battlecode.common.*;
-import scoutplayer.ECSightingFlag;
-import scoutplayer.Flag;
-import scoutplayer.SpawnUnitFlag;
-import scoutplayer.LocationFlag;
-import scoutplayer.SpawnDestinationFlag;
-import scoutplayer.UnitUpdateFlag;
+import fdr.ECSightingFlag;
+import fdr.Flag;
+import fdr.SpawnUnitFlag;
+import fdr.LocationFlag;
+import fdr.SpawnDestinationFlag;
+import fdr.UnitUpdateFlag;
 
 public class SpecificFlagTests {
 
@@ -45,9 +45,11 @@ public class SpecificFlagTests {
 
     @Test
     public void testECSightingFlag() {
-        ECSightingFlag ecsf = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, 94);
-        assertEquals(86, ecsf.readECInfluence());
-        ECSightingFlag ecsf2 = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, Integer.MAX_VALUE);
-        assertEquals(2147483647, ecsf2.readECInfluence());
+        ECSightingFlag ecsf = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, 100);
+        assertEquals(98, ecsf.readECInfluence());
+        ECSightingFlag ecsf2 = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, 500);
+        assertEquals(469, ecsf2.readECInfluence());
+        ECSightingFlag ecsf3 = new ECSightingFlag(3, 4, ECSightingFlag.NEUTRAL_EC, Direction.NORTH, Integer.MAX_VALUE);
+        assertEquals(1969251187, ecsf3.readECInfluence());
     }
 }

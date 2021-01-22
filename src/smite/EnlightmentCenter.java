@@ -50,6 +50,9 @@ public class EnlightmentCenter extends Robot {
     int numPoliticians;
     int numScouts; // scouts don't count in troop counts
 
+    // Build order
+    int initialBuildStep;
+
     // Mid-game EC variables.
     boolean isMidGame;
     Map<Integer, MapLocation> basesToDestinations;  // <BaseID, DestinationForRobots>
@@ -59,7 +62,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     List<UnitTracker> unitTrackerList;
-    final int MAX_UNITS_TRACKED = 80;
+    int MAX_UNITS_TRACKED = 70;
 
     // Bidding information
     int previousInfluence = 0;
@@ -103,9 +106,12 @@ public class EnlightmentCenter extends Robot {
         numMuckrakers = 0;
         numPoliticians = 0;
         numScouts = 0;
+        // Build orders
+        initialBuildStep = 0;
 
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
+            MAX_UNITS_TRACKED = 60;
             isMidGame = true;
             //System.out.println\("I am a mid-game EC!");
             basesToDestinations = new HashMap<Integer, MapLocation>();
@@ -124,7 +130,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
+        if (currentRound == 300) {
             //rc.resign\(); // TODO: remove; just for debugging
         }
 
@@ -136,6 +142,7 @@ public class EnlightmentCenter extends Robot {
         // initialFlagsAndAllies must run here to fit properly with bytecode.
         // This function will return with ~2700 bytecode left for rounds 1 - 3.
         // TODO: Potentially improve initialization scheme for neutral ECs we take over.
+        // //System.out.println\("Bytecodes used before midgame check: " + Clock.getBytecodeNum());
         if (!isMidGame) {
             if (currentRound < searchBounds.length) {
                 initialFlagsAndAllies();
@@ -158,17 +165,21 @@ public class EnlightmentCenter extends Robot {
             if (turnCount == 1) {
                 putVisionTilesOnMap();
             }
+            // //System.out.println\("Bytecodes used before tracking new robots: " + Clock.getBytecodeNum());
             trackNewNearbyRobots();
+            // //System.out.println\("Bytecodes used before reading ec updates: " + Clock.getBytecodeNum());
             readAllyECUpdates(); // read EC updates before building units/prod logic.
+            // //System.out.println\("Bytecodes used before setting spawn flag: " + Clock.getBytecodeNum());
             setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
         ////System.out.println\("I am tracking " + unitTrackerList.length + " units");
-        ////System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
+        // //System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
-        ////System.out.println\("Bytecodes used after UnitTrackers: " + Clock.getBytecodeNum());
+        // //System.out.println\("Bytecodes used before buildUnit: " + Clock.getBytecodeNum());
         buildUnit();
+        // //System.out.println\("Bytecodes used end: " + Clock.getBytecodeNum());
 
 
         if (currentRound >= searchBounds.length && !flagSetThisRound) {
@@ -247,12 +258,27 @@ public class EnlightmentCenter extends Robot {
         if (!rc.isReady()) {
             return;
         }
-        // Turn 1 spawn silent slanderer
-        if (turnCount == 1) {
+        // Opening build order
+        if (!isMidGame && initialBuildStep < 4) {
             Direction optimalDir = findOptimalSpawnDir();
-            if (optimalDir != null) {
-                spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 140);
+            if (optimalDir == null) return;
+            switch (initialBuildStep) {
+                case 0:
+                    spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
+                    break;
+                case 1:
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                case 2:
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                case 3:
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false, false, false), 0, spawnDestIsGuess);
+                    break;
+                default:
+                    break;
             }
+            initialBuildStep++;
         }
         // Otherwise, do normal build order
         else {
@@ -281,7 +307,7 @@ public class EnlightmentCenter extends Robot {
                 int myConviction = rc.getConviction();
 
                 // High empower factor, OK with dying because will recover influence
-                if (rc.getEmpowerFactor(allyTeam, 11) > 10 && myConviction - 5 > 0) {
+                if (rc.getEmpowerFactor(allyTeam, 11) > 4.5 && myConviction - 5 > 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, 0, spawnDestIsGuess);
                 }
@@ -289,7 +315,6 @@ public class EnlightmentCenter extends Robot {
                 else if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
-                    numMuckrakers++;
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
@@ -304,13 +329,15 @@ public class EnlightmentCenter extends Robot {
                     MapLocation shiftedLocation = myLocation.translate(multiplier*dx, multiplier*dy);
                     //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
-                    numSlanderers++;
                 }
-                // Politicians vs muckrakers ratio
-                else if (numPoliticians > numMuckrakers * 2) {
+                // Politicians vs muckrakers ratio 1:1
+                else if (numPoliticians > numMuckrakers) {
+                    int muckInf = 1;
+                    if (Math.random() < 0.1) {
+                        muckInf = rc.getConviction() / 10;
+                    }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, 0, spawnDestIsGuess);
-                    numMuckrakers++;
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, 0, spawnDestIsGuess);
                 }
                 // Build politician
                 else {
@@ -326,6 +353,11 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                     if (!sendToNeutral) {
+                        if (rc.getInfluence() > 10000) {
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
+                            //System.out.println\("Spawning thicc killer: " + enemyLocation);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, 0, spawnDestIsGuess);
+                        }
                         if (rc.getInfluence() > 1000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                             //System.out.println\("Spawning killer: " + enemyLocation);
@@ -336,7 +368,6 @@ public class EnlightmentCenter extends Robot {
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
                         }
                     }
-                    numPoliticians++;
                 }
             }
         }
@@ -661,6 +692,19 @@ public class EnlightmentCenter extends Robot {
             return false;
         }
         rc.buildRobot(type, direction, influence);
+        switch (type) {
+            case MUCKRAKER:
+                numMuckrakers++;
+                break;
+            case POLITICIAN:
+                numPoliticians++;
+                break;
+            case SLANDERER:
+                numSlanderers++;
+                break;
+            default:
+                break;
+        }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
             //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
@@ -1705,7 +1749,9 @@ public class EnlightmentCenter extends Robot {
      */
     void trackNewNearbyRobots() {
         RobotInfo[] nearbyAllies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, allyTeam);
-        for (RobotInfo ri : nearbyAllies) {
+        int maxIters = Math.min(nearbyAllies.length, 20);
+        for (int j = 0; j < maxIters; j++) {
+            RobotInfo ri = nearbyAllies[j];
             if (ri.ID == myID) {
                 continue;
             }
@@ -1729,7 +1775,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 trackedRobots.add(ri.ID);   // technically, this is not a tracked robot, but that's okay, because this list is just something we check against when we see a new robot and we do not want to spend the bytecode every time to check over the ally EC list.
                 continue;
-            } else {
+            } else if (unitTrackerList.length < MAX_UNITS_TRACKED) {
                 // We aren't currently tracking this robot, add it to unitTracker.
                 unitTrackerList.add(new UnitTracker(this, ri.type, ri.ID, ri.location));
                 trackedRobots.add(ri.ID);
