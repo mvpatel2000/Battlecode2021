@@ -438,7 +438,7 @@ public class EnlightmentCenter extends Robot {
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
                 }
                 // For mid-game ECs. Update another list to remove this EC.
-                if (basesToDestinations.containsKey(allyECIDs[i])) {
+                if (basesToDestinations != null && basesToDestinations.containsKey(allyECIDs[i])) {
                     basesToDestinations.remove(allyECIDs[i]);
                 }
                 // Remove EC from list.
@@ -636,23 +636,6 @@ public class EnlightmentCenter extends Robot {
             //System.out.println("Setting SpawnDestinationFlag: " + latestSpawnDestinationFlag.flag);
             setFlag(latestSpawnDestinationFlag.flag);
         }
-    }
-
-    /**
-     * If no scout has been made, spawn a scout. Otherwise, run the
-     * ScoutTracker update loop.
-     *
-     * TODO: figure out direction to send scout in.
-     */
-    boolean spawnScout() throws GameActionException {
-        if (numScouts < 1) { // no scout has been spawned yet
-            if (spawnRobot(RobotType.POLITICIAN, Direction.EAST, 1, myLocation, SpawnDestinationFlag.INSTR_SCOUT, true)) { // attempt to spawn scout
-                unitTrackerList.add(new ScoutTracker(this, RobotType.POLITICIAN, latestSpawnFlag.readID(), myLocation.add(Direction.EAST)));
-                numScouts++;
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

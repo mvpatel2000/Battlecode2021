@@ -10,6 +10,8 @@ public class Politician extends Unit {
     boolean onlyECHunter;
     boolean convertedPolitician;
 
+    boolean[] areSlanderers;
+
     // MapTerrainQueue mtq;
 
     public Politician(RobotController rc) throws GameActionException {
@@ -23,20 +25,47 @@ public class Politician extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
+        // System.out.println("1: " + Clock.getBytecodesLeft());
+        // Read flags to check for slanderers
+        areSlanderers = new boolean[nearbyAllies.length];
+        for (int i = 0; i < nearbyAllies.length; i++) {
+            // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
+            RobotInfo robot = nearbyAllies[i];
+            if (rc.canGetFlag(robot.ID) ) {
+                // System.out.println("s2 (" + i + "): " + Clock.getBytecodesLeft());
+                int flagInt = rc.getFlag(robot.ID);
+                // System.out.println("s3 (" + i + "): " + Clock.getBytecodesLeft());
+                if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
+                    // System.out.println("s4 (" + i + "): " + Clock.getBytecodesLeft());
+                    UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
+                    // System.out.println("s5 (" + i + "): " + Clock.getBytecodesLeft());
+                    areSlanderers[i] = uf.readIsSlanderer();
+                }
+            }
+            // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
+        }
+
+        
+        // System.out.println("2: " + Clock.getBytecodesLeft());
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
             setInitialDestination();
         }
 
+        // System.out.println("3: " + Clock.getBytecodesLeft());
         updateDestinationForExploration(onlyECHunter);
+        // System.out.println("4: " + Clock.getBytecodesLeft());
         updateDestinationForECHunting();
 
+        // System.out.println("5: " + Clock.getBytecodesLeft());
         if (!convertedPolitician) {
             considerBoostEC();
         }
+        // System.out.println("6: " + Clock.getBytecodesLeft());
         considerAttack(onlyECHunter, false);
-
+        // System.out.println("7: " + Clock.getBytecodesLeft());
         movePolitician();
+        // System.out.println("8: " + Clock.getBytecodesLeft());
     }
 
     /**
@@ -122,9 +151,10 @@ public class Politician extends Unit {
             return;
         }
         int myDistance = myLocation.distanceSquaredTo(nearestMuckraker.location);
-        for (RobotInfo robot : nearbyAllies) {
+        for (int i = 0; i < nearbyAllies.length; i++) {
+            RobotInfo robot = nearbyAllies[i];
             // If there's a closer politician, don't worry about covering this muckraker.
-            if (robot.type == RobotType.POLITICIAN 
+            if (robot.type == RobotType.POLITICIAN && !areSlanderers[i]
                     && myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location)) {
                 // Consider using weightedFuzzyMove
                 fuzzyMove(destination);
@@ -165,6 +195,15 @@ public class Politician extends Unit {
      * passed in.
      */
     public boolean considerAttack(boolean onlyECs, boolean alwaysAttack) throws GameActionException {
+        // Recreate arrays with smaller radius only considering attack
+        RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
+        RobotInfo[] attackNearbyAllies = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared, allyTeam);
+
+        if (attackNearbyRobots.length > 8) {
+            attackNearbyRobots = rc.senseNearbyRobots(4);
+            attackNearbyAllies = rc.senseNearbyRobots(4, allyTeam);
+        }
+
         double multiplier = rc.getEmpowerFactor(allyTeam, 0);
         double totalDamage = rc.getConviction() * multiplier - 10;
         if (!rc.isReady() || totalDamage <= 0) {
@@ -173,41 +212,34 @@ public class Politician extends Unit {
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbySlandererOrNearBase = myLocation.distanceSquaredTo(baseLocation) < 10 && myLocation.distanceSquaredTo(baseLocation) > 10;
         double totalAllyConviction = 0;
-        for (RobotInfo robot : nearbyAllies) {
-            if (robot.type == RobotType.POLITICIAN) {
+        for (int i = 0; i < attackNearbyAllies.length; i++) {
+            RobotInfo robot = attackNearbyAllies[i];
+            boolean isSlanderer = areSlanderers[i];
+            nearbySlandererOrNearBase |= isSlanderer;
+            if (robot.type == RobotType.POLITICIAN && !isSlanderer) {
                 totalAllyConviction = robot.conviction * multiplier - 10;
-            }
-            // System.out.println("Robot: " + robot.location);
-            // Cannot tell apart slanderers and politicians, use flag
-            if (rc.canGetFlag(robot.ID) ) {
-                int flagInt = rc.getFlag(robot.ID);
-                if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
-                    UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
-                    nearbySlandererOrNearBase |= uf.readIsSlanderer();
-                }
             }
         }
         // System.out.println("Total Ally Conviction: " + totalAllyConviction);
-        Arrays.sort(nearbyRobots, new Comparator<RobotInfo>() {
+        // System.out.println("Attack sort: " + Clock.getBytecodesLeft());
+        Arrays.sort(attackNearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
-                // Intentional: Reverse order for this demo
-                int d1 = myLocation.distanceSquaredTo(r1.location);
-                int d2 = myLocation.distanceSquaredTo(r2.location);
-                return d1 - d2;
+                return myLocation.distanceSquaredTo(r1.location) - myLocation.distanceSquaredTo(r2.location);
             }
         });
-        int[] distanceSquareds = new int[nearbyRobots.length];
-        for (int i = 0; i < nearbyRobots.length; i++) {
-            distanceSquareds[i] = myLocation.distanceSquaredTo(nearbyRobots[i].location);
+        // System.out.println("Attack sort: " + Clock.getBytecodesLeft());
+        int[] distanceSquareds = new int[attackNearbyRobots.length];
+        for (int i = 0; i < attackNearbyRobots.length; i++) {
+            distanceSquareds[i] = myLocation.distanceSquaredTo(attackNearbyRobots[i].location);
         }
         double optimalNumEnemiesKilled = 0;
         int optimalDist = -1;
         int optimalNumUnitsHit = 0;
         int maxDist = rc.getType().actionRadiusSquared;
-        // Loop over subsets of nearbyRobots
-        for (int i = 1; i <= nearbyRobots.length; i++) {
+        // Loop over subsets of attackNearbyRobots
+        for (int i = 1; i <= attackNearbyRobots.length; i++) {
             // Skip over subsets which don't actually change range
-            if (i != nearbyRobots.length && distanceSquareds[i-1] == distanceSquareds[i]) {
+            if (i != attackNearbyRobots.length && distanceSquareds[i-1] == distanceSquareds[i]) {
                 continue;
             }
             // Remaining units are out of range, break.
@@ -218,7 +250,7 @@ public class Politician extends Unit {
             int perUnitDamage = (int)(totalDamage / i);
             double numEnemiesKilled = 0;
             for (int j = 0; j < i; j++) {
-                RobotInfo robot = nearbyRobots[j];
+                RobotInfo robot = attackNearbyRobots[j];
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
                     // 1 point for muckraker
@@ -239,7 +271,7 @@ public class Politician extends Unit {
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                     if (robot.team != allyTeam && totalAllyConviction > robot.conviction + 5) {
-                        // System.out.println("Weaken EC attack!");
+                        // System.out.println("Weaken EC attack! Confirmed.");
                         numEnemiesKilled += 10;
                     }
                 }
