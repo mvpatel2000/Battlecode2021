@@ -49,12 +49,18 @@ public class ECSightingFlag extends LocationFlag {
         return readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS, EC_TYPE_BITS);
     }
 
-    // TODO: optimize log2? Better formula here?
     public boolean writeECInfluence(int influence) {
-        return writeToFlag(1+(int)(Math.log(influence) / 0.69314718056), EC_INF_BITS);
+        int encoded = (int) ((influence - 50) / 15);
+        if (encoded > 31) encoded = 31;
+        if (encoded < 0) encoded = 0;
+        return writeToFlag(encoded, EC_INF_BITS);
     }
 
+    /**
+     * Returns an upper bound on the EC's influence when the influence is at most 515.
+     * If it returns 530, then the influence is at least 516, but could be arbitrarily high.
+     */
     public int readECInfluence() {
-        return (int) Math.pow(2, readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS + EC_TYPE_BITS, EC_INF_BITS) - 0.5);
+        return 15 * readFromFlag(SCHEMA_BITS + COORD_BITS + COORD_BITS + EC_TYPE_BITS, EC_INF_BITS) + 65;
     }
 }
