@@ -98,7 +98,8 @@ public class Muckraker extends Unit {
                     break;
                 }
                 else if (rc.canMove(dir)) {
-                    rc.move(dir);
+                    System.out.println("Took deny neutral EC move: " + dir);
+                    move(dir);
                     break;
                 }
             }

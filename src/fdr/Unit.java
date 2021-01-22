@@ -143,7 +143,7 @@ public abstract class Unit extends Robot {
             if (turnCount != 1) {
                 r = getNearestEnemyFromAllies();
             }
-            if (r == null) { // default behavior if no enemy is found is to send my info
+            if (r == null) { // default behavior if no enemy is found is to send my info            
                 enemyLoc = myLocation;
                 enemyType = rc.getType();
                 //System.out.println("No nearest enemy known.");
@@ -153,10 +153,10 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         } else { // TODO: remove else, for debugging
-            rc.setIndicatorLine(myLocation, enemyLoc, 30, 255, 40);
+            rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
         }
         //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
-        rc.setIndicatorDot(enemyLoc, 30, 255, 40);
+        // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
         UnitUpdateFlag uuf = new UnitUpdateFlag(moveThisTurn, rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
@@ -165,9 +165,6 @@ public abstract class Unit extends Robot {
      * Get the nearest enemy to me by listening to the allies around me.
      * Returns a RobotInfo with known information about the enemy and 0
      * as its ID. Returns null if no nearby enemy is known.
-     *
-     * WARNING: Make sure parseVision() is called after the most recent
-     * move before you call this function!
      */
     public RobotInfo getNearestEnemyFromAllies() throws GameActionException {
         int minDist = 10000;
@@ -180,7 +177,9 @@ public abstract class Unit extends Robot {
                 if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
                     MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
-                    if (loc != null) {
+                    // Only listen about enemies from units closer to it than you. This ensures it is a DAG
+                    // and prevents echoing on dead units.
+                    if (loc != null && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
                         int dist = myLocation.distanceSquaredTo(loc);
                         enemyType = uuf.readEnemyType();
                         // Penalize non-muckrakers
@@ -198,6 +197,7 @@ public abstract class Unit extends Robot {
         }
         if (enemyLoc != null) {
             rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
+            rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
             return new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
         }
         return null;
