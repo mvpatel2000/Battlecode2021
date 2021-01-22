@@ -162,7 +162,7 @@ public abstract class Unit extends Robot {
         }
         //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
-        UnitUpdateFlag uuf = new UnitUpdateFlag(moveThisTurn, rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
+        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
 
@@ -317,7 +317,7 @@ public abstract class Unit extends Robot {
         } else if (t == neutralTeam) {
             ecType = ECSightingFlag.NEUTRAL_EC;
         }
-        ECSightingFlag ecsf = new ECSightingFlag(ecLoc.x - myLocation.x, ecLoc.y - myLocation.y, ecType, lastMove, inf);
+        ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, inf);
         setFlag(ecsf.flag);
         System.out.println("Sending EC Sighting at " + ecLoc);
     }

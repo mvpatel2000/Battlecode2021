@@ -14,16 +14,14 @@ public class UnitUpdateFlag extends Flag {
     /**
      * Flag breakdown:
      * - flag schema (SCHEMA_BITS)
-     * - last move (LAST_MOVE_BITS)
      * - isSlanderer (IS_SLANDERER_BITS)
      * - nearest enemy relative x (COORD_BITS)
      * - nearest enemy relative y (COORD_BITS)
      * - nearest enemy type (ENEMY_TYPE_BITS)
      * 
-     * Total bits used: 3 + 4 + 1 + 7 + 7 + 2 = 24.
+     * Total bits used: 3 + 1 + 7 + 7 + 2 = 20.
      */
 
-    final int LAST_MOVE_BITS = 4;
     final int IS_SLANDERER_BITS = 1;
     final int COORD_BITS = 7;
     final int ENEMY_TYPE_BITS = 2;
@@ -32,24 +30,16 @@ public class UnitUpdateFlag extends Flag {
         super();
         setSchema(UNIT_UPDATE_SCHEMA);
     }
-
-    public UnitUpdateFlag(Direction lastMove) {
+    
+    public UnitUpdateFlag(boolean isSlanderer) {
         super();
         setSchema(UNIT_UPDATE_SCHEMA);
-        writeLastMove(lastMove);
-    }
-
-    public UnitUpdateFlag(Direction lastMove, boolean isSlanderer) {
-        super();
-        setSchema(UNIT_UPDATE_SCHEMA);
-        writeLastMove(lastMove);
         writeIsSlanderer(isSlanderer);
     }
 
-    public UnitUpdateFlag(Direction lastMove, boolean isSlanderer, MapLocation enemyLoc, RobotType enemyType) {
+    public UnitUpdateFlag(boolean isSlanderer, MapLocation enemyLoc, RobotType enemyType) {
         super();
         setSchema(UNIT_UPDATE_SCHEMA);
-        writeLastMove(lastMove);
         writeIsSlanderer(isSlanderer);
         writeEnemyLocation(enemyLoc);
         writeEnemyType(enemyType);
@@ -58,21 +48,8 @@ public class UnitUpdateFlag extends Flag {
     public UnitUpdateFlag(int flag) {
         super(flag);
     }
-
-    public Direction readLastMove() {
-        return Robot.allDirections[readFromFlag(SCHEMA_BITS, LAST_MOVE_BITS)];
-    }
-
-    public boolean writeLastMove(int lm) {
-        return writeToFlag(lm, LAST_MOVE_BITS);
-    }
-
-    public boolean writeLastMove(Direction lm) {
-        return writeLastMove(Robot.directionToInt(lm));
-    }
-
     public boolean readIsSlanderer() {
-        return readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS, IS_SLANDERER_BITS) == 1;
+        return readFromFlag(SCHEMA_BITS, IS_SLANDERER_BITS) == 1;
     }
 
     public boolean writeIsSlanderer(boolean isSlanderer) {
@@ -105,7 +82,7 @@ public class UnitUpdateFlag extends Flag {
      * [location.x % 128, location.y % 128]
      */
     public int[] readEnemyLocation() {
-        return new int[]{ readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + IS_SLANDERER_BITS, COORD_BITS), readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + IS_SLANDERER_BITS + COORD_BITS, COORD_BITS) };
+        return new int[]{ readFromFlag(SCHEMA_BITS + IS_SLANDERER_BITS, COORD_BITS), readFromFlag(SCHEMA_BITS + IS_SLANDERER_BITS + COORD_BITS, COORD_BITS) };
     }
 
     /**
@@ -117,13 +94,13 @@ public class UnitUpdateFlag extends Flag {
      */
     public int[] readRelativeEnemyLocationFrom(MapLocation myLoc) {
         // extract relative x and y s.t. both lie within the map
-        int xRel = readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + IS_SLANDERER_BITS, COORD_BITS) - (myLoc.x & 127);
+        int xRel = readFromFlag(SCHEMA_BITS + IS_SLANDERER_BITS, COORD_BITS) - (myLoc.x & 127);
         if (xRel > 64) {
             xRel -= 128;
         } else if (xRel < -64) {
             xRel += 128;
         }
-        int yRel = readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + IS_SLANDERER_BITS + COORD_BITS, COORD_BITS) - (myLoc.y & 127);
+        int yRel = readFromFlag(SCHEMA_BITS + IS_SLANDERER_BITS + COORD_BITS, COORD_BITS) - (myLoc.y & 127);
         if (yRel > 64) {
             yRel -= 128;
         } else if (yRel < -64) {
@@ -158,7 +135,7 @@ public class UnitUpdateFlag extends Flag {
     }
 
     public RobotType readEnemyType() {
-        switch (readFromFlag(SCHEMA_BITS + LAST_MOVE_BITS + IS_SLANDERER_BITS + COORD_BITS + COORD_BITS, ENEMY_TYPE_BITS)) {
+        switch (readFromFlag(SCHEMA_BITS + IS_SLANDERER_BITS + COORD_BITS + COORD_BITS, ENEMY_TYPE_BITS)) {
             case 1:
                 return RobotType.POLITICIAN;
             case 2:

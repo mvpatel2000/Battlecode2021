@@ -61,8 +61,9 @@ public class EnlightmentCenter extends Robot {
     Set<Integer> trackedBases;
 
     // UnitTrackers
-    List<UnitTracker> unitTrackerList;
-    int MAX_UNITS_TRACKED = 70;
+    int[] trackingList;
+    int MAX_UNITS_TRACKED = 400;
+    int numUnitsTracked;
 
     // Bidding information
     int previousInfluence = 0;
@@ -120,8 +121,9 @@ public class EnlightmentCenter extends Robot {
             trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
         }
 
-        // List of all unit trackers
-        unitTrackerList = new List<UnitTracker>();
+        // Tracking
+        trackingList = new int[MAX_UNITS_TRACKED];
+        numUnitsTracked = 0;
 
         previousInfluence = 0;
     }
@@ -399,15 +401,10 @@ public class EnlightmentCenter extends Robot {
                         SpawnUnitFlag suf = new SpawnUnitFlag(flagInt);
                         RobotType spawnType = suf.readUnitType();
                         int spawnID = suf.readID();
-                        Direction spawnDir = suf.readSpawnDir();
-                        if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                            unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
-                        }
-                        System.out.println("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
+                        startTrackingBot(spawnID, spawnType);
+                        System.out.println("Ally " + allyECLocs[i] + "told me about new " + spawnType);
                         break;
                     case Flag.SPAWN_DESTINATION_SCHEMA:
-                        // TODO: @Vinjai: handle the case where scouts are spawned
-                        // and we want to set up a ScoutTracker instead of UnitTracker.
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
                             if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
@@ -452,27 +449,83 @@ public class EnlightmentCenter extends Robot {
     }
 
     /**
+     * Helper function to start tracking a robot with a given ID and type.
+     */
+    void startTrackingBot(int id, RobotType type) {
+        System.out.println("Tracking " + type.toString() + "#" + id);
+        if (numUnitsTracked == MAX_UNITS_TRACKED) return;
+        int typeInt = 0;
+        switch (type) {
+            case POLITICIAN:
+                typeInt = 0;
+                break;
+            case SLANDERER:
+                typeInt = 1;
+                break;
+            case MUCKRAKER:
+                typeInt = 2;
+                break;
+            case ENLIGHTENMENT_CENTER:
+                typeInt = 3;
+                break;
+        }
+        trackingList[numUnitsTracked] = (typeInt << 28) + id;
+        numUnitsTracked++;
+    }
+
+    /**
+     * Helper function to get the ID of a robot being tracked.
+     */
+    int getTrackedID(int index) {
+        return trackingList[index] & 268435455;
+    }
+
+    /**
+     * Helper function to get the type of a robot being tracked.
+     */
+    RobotType getTrackedType(int index) {
+        switch (trackingList[index] >>> 28) {
+            case 0:
+                return RobotType.POLITICIAN;
+            case 1:
+                return RobotType.SLANDERER;
+            case 2:
+                return RobotType.MUCKRAKER;
+            default:
+                return RobotType.ENLIGHTENMENT_CENTER;
+        }
+    }
+
+    /**
+     * Stop tracking a robot at a particular index, e.g. when the robot is dead.
+     */
+    void stopTrackingBot(int index) {
+        trackingList[index] = trackingList[numUnitsTracked - 1];
+        numUnitsTracked--;
+    }
+
+    /**
      * Reads flags from all tracked units (not ally ECs).
      * Handles logic: Given a flag from a unit we're tracking,
      * what does this EC do?
      */
     void updateUnitTrackers() throws GameActionException {
-        unitTrackerList.resetIter();
-        while(unitTrackerList.currNotNull()) {
-            UnitTracker ut = unitTrackerList.curr();
-            int unitUpdate = ut.update();
-            if (unitUpdate == -1) {
-                unitTrackerList.popStep();
+        for (int i = 0; i < numUnitsTracked; i++) {
+            int trackedID = getTrackedID(i);
+            if (!rc.canGetFlag(trackedID)) { // if I can't get its flag, the bot is dead
+                stopTrackingBot(i);
+                i--;
                 continue;
             }
-            switch(unitUpdate) {
+            int flagInt = rc.getFlag(trackedID);
+            switch (Flag.getSchema(flagInt)) {
                 case Flag.NO_SCHEMA:
                     break;
                 case Flag.EC_SIGHTING_SCHEMA:
-                    ECSightingFlag ecsf = new ECSightingFlag(ut.flagInt);
-                    MapLocation ecLoc = ecsf.readRelECLocationFrom(ut.currLoc);
+                    ECSightingFlag ecsf = new ECSightingFlag(flagInt);
+                    MapLocation ecLoc = ecsf.readAbsoluteLocation(myLocation);
                     int[] relECLoc = new int[] { ecLoc.x - myLocation.x, ecLoc.y - myLocation.y };
-                    int ecInf = ecsf.readECInfluence(); // TODO: @Mihir do something with this
+                    int ecInf = ecsf.readECInfluence();
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
                         if (!neutralECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
@@ -526,17 +579,17 @@ public class EnlightmentCenter extends Robot {
                     // Units communicate to mid-game ECs their base ID and location.
                     // Here, we process those flags.
                     if (isMidGame) {
-                        MidGameAllyFlag maf = new MidGameAllyFlag(ut.flagInt);
+                        MidGameAllyFlag maf = new MidGameAllyFlag(flagInt);
                         if (maf.readType() == MidGameAllyFlag.ID_MAF) {
                             int newBaseID = maf.readID();
                             if (!trackedBases.contains(newBaseID)) {
-                                pendingBaseLocations.put(ut.robotID, newBaseID);
+                                pendingBaseLocations.put(trackedID, newBaseID);
                             }
                         } else {
                             // Must be LOCATION_MAF
-                            if(pendingBaseLocations.containsKey(ut.robotID)) {
+                            if(pendingBaseLocations.containsKey(trackedID)) {
                                 // Ensure base is not already tracked and added to list of allies.
-                                int newBaseID = pendingBaseLocations.get(ut.robotID);
+                                int newBaseID = pendingBaseLocations.get(trackedID);
                                 if (!trackedBases.contains(newBaseID)) {
                                     MapLocation baseLoc = maf.readAbsoluteLocation(myLocation);
                                     int[] relLoc = maf.readRelativeLocationFrom(myLocation);
@@ -548,14 +601,13 @@ public class EnlightmentCenter extends Robot {
                                     trackedBases.add(newBaseID);
                                 } else {
                                     // We're already aware of this robot's base, no need to keep in set.
-                                    pendingBaseLocations.remove(ut.robotID);
+                                    pendingBaseLocations.remove(trackedID);
                                 }
                             }
                         }
                     }
                     break;
             }
-            unitTrackerList.step();
         }
     }
 
@@ -569,9 +621,7 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotSilentlyWithTracker(RobotType type, Direction direction, int influence) throws GameActionException {
         if (spawnRobotSilently(type, direction, influence)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
-            }
+            startTrackingBot(id, type);
             return true;
         }
         return false;
@@ -590,9 +640,7 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean isGuess) throws GameActionException {
         if (spawnRobot(type, direction, influence, destination, instruction, isGuess)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
-            }
+            startTrackingBot(id, type);
             return true;
         }
         return false;
@@ -1758,9 +1806,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 trackedRobots.add(ri.ID);   // technically, this is not a tracked robot, but that's okay, because this list is just something we check against when we see a new robot and we do not want to spend the bytecode every time to check over the ally EC list.
                 continue;
-            } else if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                // We aren't currently tracking this robot, add it to unitTracker.
-                unitTrackerList.add(new UnitTracker(this, ri.type, ri.ID, ri.location));
+            } else if (numUnitsTracked < MAX_UNITS_TRACKED) {
+                startTrackingBot(ri.ID, ri.type);
                 trackedRobots.add(ri.ID);
             }
         }
