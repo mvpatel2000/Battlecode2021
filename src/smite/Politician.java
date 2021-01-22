@@ -13,11 +13,8 @@ public class Politician extends Unit {
     boolean[] areSlanderers;
     boolean nearbySlanderer;
 
-    // MapTerrainQueue mtq;
-
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        // mtq = new MapTerrainQueue(RobotType.POLITICIAN);
         onlyECHunter = rc.getInfluence() > 15;
         convertedPolitician = false;
     }
