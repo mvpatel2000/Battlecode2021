@@ -1,4 +1,4 @@
-package smite;
+package taft;
 
 import battlecode.common.*;
 import java.util.ArrayList;
@@ -56,7 +56,7 @@ public abstract class Unit extends Robot {
                 if (rc.canGetFlag(robot.ID)) {
                     SpawnUnitFlag suf = new SpawnUnitFlag(rc.getFlag(robot.ID));
                     if (suf.getSchema() == Flag.SPAWN_UNIT_SCHEMA && suf.readID() == rc.getID()) {
-                        // //System.out.println\("Not spawned silently");
+                        // System.out.println("Not spawned silently");
                         spawnedSilently = false;
                         baseLocation = robot.location;
                         baseID = robot.ID;
@@ -94,28 +94,28 @@ public abstract class Unit extends Robot {
         parseVision();
         readECInstructions();
         switchToLatestBaseDestination();
-        // //System.out.println\("Destination: " + destination);
+        // System.out.println("Destination: " + destination);
 
         // Call unit-specific run method
         runUnit();
 
         // Common wrap-up methods
-        // //System.out.println\("11: " + Clock.getBytecodesLeft());
+        // System.out.println("11: " + Clock.getBytecodesLeft());
         if(sawNewAllyLastTurn == 1) {
             setMidGameAllyIDFlag(moveThisTurn);
             sawNewAllyLastTurn = 2;
-            // //System.out.println\("11.1: " + Clock.getBytecodesLeft());
+            // System.out.println("11.1: " + Clock.getBytecodesLeft());
         } else if (sawNewAllyLastTurn == 2) {
             setMidGameAllyLocFlag(moveThisTurn);
             sawNewAllyLastTurn = 0;
-            // //System.out.println\("11.2: " + Clock.getBytecodesLeft());
+            // System.out.println("11.2: " + Clock.getBytecodesLeft());
         } else {
             setECSightingFlag();
-            // //System.out.println\("11.3: " + Clock.getBytecodesLeft());
+            // System.out.println("11.3: " + Clock.getBytecodesLeft());
         }
 
         setUnitUpdateFlag();
-        // //System.out.println\("12: " + Clock.getBytecodesLeft());
+        // System.out.println("12: " + Clock.getBytecodesLeft());
 
     }
 
@@ -155,17 +155,17 @@ public abstract class Unit extends Robot {
             if (r == null) { // default behavior if no enemy is found is to send my info            
                 enemyLoc = myLocation;
                 enemyType = rc.getType();
-                ////System.out.println\("No nearest enemy known.");
+                //System.out.println("No nearest enemy known.");
             }
             else {
                 enemyLoc = r.location;
                 enemyType = r.type;
             }
         } else { // TODO: remove else, for debugging
-            //rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
+            rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
         }
-        ////System.out.println\("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
-        // //rc.setIndicatorDot(enemyLoc, 30, 255, 40);
+        //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
+        // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
         UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
@@ -179,7 +179,7 @@ public abstract class Unit extends Robot {
         if (hasPopulatedNearestSignalRobot) {
             return nearestSignalRobotCache;
         }
-        // //System.out.println\("nearest: " + Clock.getBytecodesLeft());
+        // System.out.println("nearest: " + Clock.getBytecodesLeft());
         int minDist = 10000;
         MapLocation enemyLoc = null;
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
@@ -209,11 +209,11 @@ public abstract class Unit extends Robot {
                 }
             }
         }
-        // //System.out.println\("nearest: " + Clock.getBytecodesLeft());
+        // System.out.println("nearest: " + Clock.getBytecodesLeft());
         hasPopulatedNearestSignalRobot = true;
         if (enemyLoc != null) {
-            //rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
-            //rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
+            rc.setIndicatorLine(myLocation, allyLoc, 30, 255, 40);
+            rc.setIndicatorLine(myLocation, enemyLoc, 30, 30, 255);
             nearestSignalRobotCache = new RobotInfo(0, enemyTeam, enemyType, 0, 0, enemyLoc);
             return nearestSignalRobotCache;
         } else {
@@ -232,19 +232,19 @@ public abstract class Unit extends Robot {
         }
         if (turnCount == 2) { // expect SpawnDestinationFlag
             if (!rc.canGetFlag(baseID)) {
-                //System.out.println\("MAJOR ERROR: I was expecting a flag from the EC, but can't see one!");
+                System.out.println("MAJOR ERROR: I was expecting a flag from the EC, but can't see one!");
                 return false;
             }
             SpawnDestinationFlag sdf = new SpawnDestinationFlag(rc.getFlag(baseID));
             if (sdf.getSchema() != Flag.SPAWN_DESTINATION_SCHEMA) {
-                //System.out.println\("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
+                System.out.println("MAJOR ERROR: I was expecting a SpawnDestinationFlag from the EC, but didn't get one!");
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            // //System.out.println\("I have my destination: " + destination.toString());
-            // //System.out.println\("Explore Mode Status: " + exploreMode);
+            // System.out.println("I have my destination: " + destination.toString());
+            // System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -330,7 +330,7 @@ public abstract class Unit extends Robot {
         }
         ECSightingFlag ecsf = new ECSightingFlag(ecLoc, ecType, inf);
         setFlag(ecsf.flag);
-        // //System.out.println\("Sending EC Sighting at " + ecLoc);
+        // System.out.println("Sending EC Sighting at " + ecLoc);
     }
 
     /**
@@ -359,7 +359,7 @@ public abstract class Unit extends Robot {
          maf.writeType(MidGameAllyFlag.LOCATION_MAF);
          maf.writeLocation(baseLocation);
          setFlag(maf.flag);
-        //  //System.out.println\("Telling ally EC about my base loc: " + baseLocation);
+        //  System.out.println("Telling ally EC about my base loc: " + baseLocation);
      }
 
     /**
@@ -531,15 +531,15 @@ public abstract class Unit extends Robot {
 
 
         if (potentialDest == null) {
-            // //System.out.println\("Did not switch, base not giving destinations.");
+            // System.out.println("Did not switch, base not giving destinations.");
             return false;
         }
         if (baseGivingExplore) {
-            // //System.out.println\("Did not switch, base giving explore.");
+            // System.out.println("Did not switch, base giving explore.");
             return false;
         }
         if (potentialDest.equals(destination)) {
-            // //System.out.println\("Did not switch, base giving same destination.");
+            // System.out.println("Did not switch, base giving same destination.");
             return false;
         }
 
@@ -565,10 +565,10 @@ public abstract class Unit extends Robot {
                 (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
                 destination = potentialDest;
                 exploreMode = false;
-                // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
+                // System.out.println("Re-routing to latest base destination!! " + potentialDest);
                 return true;
             } else {
-                // //System.out.println\("Did not switch for personal location reasons.");
+                // System.out.println("Did not switch for personal location reasons.");
             }
         }
 
@@ -583,12 +583,12 @@ public abstract class Unit extends Robot {
                     if(destRobot.team == allyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         destination = potentialDest;
                         exploreMode = false;
-                        // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
+                        // System.out.println("Re-routing to latest base destination!! " + potentialDest);
                         return true;
                     }
                 }
             }
-            // //System.out.println\("Did not switch for personal location reasons.");
+            // System.out.println("Did not switch for personal location reasons.");
         }
         return false;
     }

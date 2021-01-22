@@ -1,4 +1,4 @@
-package smite;
+package taft;
 
 import battlecode.common.*;
 

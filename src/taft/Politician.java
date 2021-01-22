@@ -1,4 +1,4 @@
-package smite;
+package taft;
 
 import battlecode.common.*;
 import java.util.*;
@@ -23,49 +23,49 @@ public class Politician extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
-        // //System.out.println\("1: " + Clock.getBytecodesLeft());
+        // System.out.println("1: " + Clock.getBytecodesLeft());
         // Read flags to check for slanderers
         areSlanderers = new boolean[nearbyAllies.length];
         nearbySlanderer = false;
         for (int i = 0; i < nearbyAllies.length; i++) {
-            // //System.out.println\("s (" + i + "): " + Clock.getBytecodesLeft());
+            // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
             RobotInfo robot = nearbyAllies[i];
             if (rc.canGetFlag(robot.ID) ) {
-                // //System.out.println\("s2 (" + i + "): " + Clock.getBytecodesLeft());
+                // System.out.println("s2 (" + i + "): " + Clock.getBytecodesLeft());
                 int flagInt = rc.getFlag(robot.ID);
-                // //System.out.println\("s3 (" + i + "): " + Clock.getBytecodesLeft());
+                // System.out.println("s3 (" + i + "): " + Clock.getBytecodesLeft());
                 if (Flag.getSchema(flagInt) == Flag.UNIT_UPDATE_SCHEMA) {
-                    // //System.out.println\("s4 (" + i + "): " + Clock.getBytecodesLeft());
+                    // System.out.println("s4 (" + i + "): " + Clock.getBytecodesLeft());
                     UnitUpdateFlag uf = new UnitUpdateFlag(flagInt);
-                    // //System.out.println\("s5 (" + i + "): " + Clock.getBytecodesLeft());
+                    // System.out.println("s5 (" + i + "): " + Clock.getBytecodesLeft());
                     areSlanderers[i] = uf.readIsSlanderer();
                     nearbySlanderer |= areSlanderers[i];
                 }
             }
-            // //System.out.println\("s (" + i + "): " + Clock.getBytecodesLeft());
+            // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
         }
 
         
-        // //System.out.println\("2: " + Clock.getBytecodesLeft());
+        // System.out.println("2: " + Clock.getBytecodesLeft());
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
             setInitialDestination();
         }
 
-        // //System.out.println\("3: " + Clock.getBytecodesLeft());
+        // System.out.println("3: " + Clock.getBytecodesLeft());
         updateDestinationForExploration(onlyECHunter);
-        // //System.out.println\("4: " + Clock.getBytecodesLeft());
+        // System.out.println("4: " + Clock.getBytecodesLeft());
         updateDestinationForECHunting();
 
-        // //System.out.println\("5: " + Clock.getBytecodesLeft());
+        // System.out.println("5: " + Clock.getBytecodesLeft());
         if (!convertedPolitician) {
             considerBoostEC();
         }
-        // //System.out.println\("6: " + Clock.getBytecodesLeft());
+        // System.out.println("6: " + Clock.getBytecodesLeft());
         considerAttack(onlyECHunter);
-        // //System.out.println\("7: " + Clock.getBytecodesLeft());
+        // System.out.println("7: " + Clock.getBytecodesLeft());
         movePolitician();
-        // //System.out.println\("8: " + Clock.getBytecodesLeft());
+        // System.out.println("8: " + Clock.getBytecodesLeft());
     }
 
     /**
@@ -217,14 +217,14 @@ public class Politician extends Unit {
                 totalAllyConviction += robot.conviction * multiplier - 10;
             }
         }
-        // //System.out.println\("Total Ally Conviction: " + totalAllyConviction);
-        // //System.out.println\("Attack sort: " + Clock.getBytecodesLeft());
+        // System.out.println("Total Ally Conviction: " + totalAllyConviction);
+        // System.out.println("Attack sort: " + Clock.getBytecodesLeft());
         Arrays.sort(attackNearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
                 return myLocation.distanceSquaredTo(r1.location) - myLocation.distanceSquaredTo(r2.location);
             }
         });
-        // //System.out.println\("Attack sort: " + Clock.getBytecodesLeft());
+        // System.out.println("Attack sort: " + Clock.getBytecodesLeft());
         int[] distanceSquareds = new int[attackNearbyRobots.length];
         for (int i = 0; i < attackNearbyRobots.length; i++) {
             distanceSquareds[i] = myLocation.distanceSquaredTo(attackNearbyRobots[i].location);
@@ -252,24 +252,24 @@ public class Politician extends Unit {
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
                     // 1 point for muckraker
                     if ((!onlyECs || nearbySlanderer) && robot.type == RobotType.MUCKRAKER) {
-                        // //System.out.println\("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
+                        // System.out.println("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled++;
                     } 
                     // 10 points for enlightenment center
                     else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
-                        // //System.out.println\("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
+                        // System.out.println("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
                     } 
                     // points for politicians that return net positive influence
                     else if (robot.type == RobotType.POLITICIAN && multiplier > 2) {
-                        // //System.out.println\("Can kill PN: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
+                        // System.out.println("Can kill PN: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += multiplier * Math.min(robot.influence, perUnitDamage - robot.conviction) / rc.getConviction();
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                     if (robot.team != allyTeam && totalAllyConviction > robot.conviction + 5) {
-                        // //System.out.println\("Weaken EC attack! Confirmed.");
+                        // System.out.println("Weaken EC attack! Confirmed.");
                         numEnemiesKilled += 10;
                     }
                 }
@@ -280,7 +280,7 @@ public class Politician extends Unit {
                 optimalNumUnitsHit = i;
             }
         }
-        // //System.out.println\("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
+        // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
 
         // 1. Can empower at optimalDist
         // 2. Either there are enemies you are hitting or you are only hitting one unit (so
