@@ -61,8 +61,9 @@ public class EnlightmentCenter extends Robot {
     Set<Integer> trackedBases;
 
     // UnitTrackers
-    List<UnitTracker> unitTrackerList;
-    int MAX_UNITS_TRACKED = 70;
+    int[] trackingList;
+    int MAX_UNITS_TRACKED = 400;
+    int numUnitsTracked;
 
     // Bidding information
     int previousInfluence = 0;
@@ -113,15 +114,16 @@ public class EnlightmentCenter extends Robot {
         if (currentRound > 1) {
             MAX_UNITS_TRACKED = 60;
             isMidGame = true;
-            //System.out.println\("I am a mid-game EC!");
+            // //System.out.println\("I am a mid-game EC!");
             basesToDestinations = new HashMap<Integer, MapLocation>();
             pendingBaseLocations = new HashMap<Integer, Integer>();
             trackedRobots = new HashSet<Integer>(); // set for quick access to see if a robot is already in our UnitTracker.
             trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
         }
 
-        // List of all unit trackers
-        unitTrackerList = new List<UnitTracker>();
+        // Tracking
+        trackingList = new int[MAX_UNITS_TRACKED];
+        numUnitsTracked = 0;
 
         previousInfluence = 0;
     }
@@ -130,7 +132,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 300) {
+        if (currentRound == 100) {
             //rc.resign\(); // TODO: remove; just for debugging
         }
 
@@ -327,7 +329,7 @@ public class EnlightmentCenter extends Robot {
                     int dy = oneStep.y - myLocation.y;
                     int multiplier = turnCount < 50 ? 5 : 10;
                     MapLocation shiftedLocation = myLocation.translate(multiplier*dx, multiplier*dy);
-                    //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
+                    // //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
                 // Politicians vs muckrakers ratio 1:1
@@ -347,7 +349,7 @@ public class EnlightmentCenter extends Robot {
                     if (neutralECLocs.containsKey(enemyLocation)) {
                         int influence = neutralECLocs.get(enemyLocation);
                         if (rc.getInfluence() > (int)(influence*1.1 + 10)) {
-                            //System.out.println\("Spawning close killer: " + enemyLocation);
+                            // //System.out.println\("Spawning close killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int)(influence*1.2 + 10), enemyLocation, 0, spawnDestIsGuess);
                             sendToNeutral = true;
                         }
@@ -355,16 +357,16 @@ public class EnlightmentCenter extends Robot {
                     if (!sendToNeutral) {
                         if (rc.getInfluence() > 10000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
-                            //System.out.println\("Spawning thicc killer: " + enemyLocation);
+                            // //System.out.println\("Spawning thicc killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, 0, spawnDestIsGuess);
                         }
                         if (rc.getInfluence() > 1000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
-                            //System.out.println\("Spawning killer: " + enemyLocation);
+                            // //System.out.println\("Spawning killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, 0, spawnDestIsGuess);
                         } else {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
-                            //System.out.println\("Spawning normal: " + enemyLocation);
+                            // //System.out.println\("Spawning normal: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, 0, spawnDestIsGuess);
                         }
                     }
@@ -399,15 +401,10 @@ public class EnlightmentCenter extends Robot {
                         SpawnUnitFlag suf = new SpawnUnitFlag(flagInt);
                         RobotType spawnType = suf.readUnitType();
                         int spawnID = suf.readID();
-                        Direction spawnDir = suf.readSpawnDir();
-                        if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                            unitTrackerList.add(new UnitTracker(this, spawnType, spawnID, allyECLocs[i].add(spawnDir)));
-                        }
-                        //System.out.println\("Ally " + allyECLocs[i] + "told me about new " + spawnType + " at " + allyECLocs[i].add(spawnDir));
+                        startTrackingBot(spawnID, spawnType);
+                        // //System.out.println\("Ally " + allyECLocs[i] + " told me about new " + spawnType);
                         break;
                     case Flag.SPAWN_DESTINATION_SCHEMA:
-                        // TODO: @Vinjai: handle the case where scouts are spawned
-                        // and we want to set up a ScoutTracker instead of UnitTracker.
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
                             if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
@@ -416,7 +413,7 @@ public class EnlightmentCenter extends Robot {
                                 MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
                                 if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
                                     basesToDestinations.put(allyECIDs[i], potentialEnemy);
-                                    //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                    // //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
                             }
                         }
@@ -446,9 +443,65 @@ public class EnlightmentCenter extends Robot {
                 allyECLocs[i] = allyECLocs[numAllyECs-1];
                 numAllyECs -= 1;
                 i -= 1;
-                //System.out.println\("Ally Lost! I now have " + numAllyECs + " original allies.");
+                // //System.out.println\("Ally Lost! I now have " + numAllyECs + " original allies.");
             }
         }
+    }
+
+    /**
+     * Helper function to start tracking a robot with a given ID and type.
+     */
+    void startTrackingBot(int id, RobotType type) {
+        // //System.out.println\("Tracking " + type.toString() + "#" + id);
+        if (numUnitsTracked == MAX_UNITS_TRACKED) return;
+        int typeInt = 0;
+        switch (type) {
+            case POLITICIAN:
+                typeInt = 0;
+                break;
+            case SLANDERER:
+                typeInt = 1;
+                break;
+            case MUCKRAKER:
+                typeInt = 2;
+                break;
+            case ENLIGHTENMENT_CENTER:
+                typeInt = 3;
+                break;
+        }
+        trackingList[numUnitsTracked] = (typeInt << 28) + id;
+        numUnitsTracked++;
+    }
+
+    /**
+     * Helper function to get the ID of a robot being tracked.
+     */
+    int getTrackedID(int index) {
+        return trackingList[index] & 268435455;
+    }
+
+    /**
+     * Helper function to get the type of a robot being tracked.
+     */
+    RobotType getTrackedType(int index) {
+        switch (trackingList[index] >>> 28) {
+            case 0:
+                return RobotType.POLITICIAN;
+            case 1:
+                return RobotType.SLANDERER;
+            case 2:
+                return RobotType.MUCKRAKER;
+            default:
+                return RobotType.ENLIGHTENMENT_CENTER;
+        }
+    }
+
+    /**
+     * Stop tracking a robot at a particular index, e.g. when the robot is dead.
+     */
+    void stopTrackingBot(int index) {
+        trackingList[index] = trackingList[numUnitsTracked - 1];
+        numUnitsTracked--;
     }
 
     /**
@@ -457,26 +510,26 @@ public class EnlightmentCenter extends Robot {
      * what does this EC do?
      */
     void updateUnitTrackers() throws GameActionException {
-        unitTrackerList.resetIter();
-        while(unitTrackerList.currNotNull()) {
-            UnitTracker ut = unitTrackerList.curr();
-            int unitUpdate = ut.update();
-            if (unitUpdate == -1) {
-                unitTrackerList.popStep();
+        for (int i = 0; i < numUnitsTracked; i++) {
+            int trackedID = getTrackedID(i);
+            if (!rc.canGetFlag(trackedID)) { // if I can't get its flag, the bot is dead
+                stopTrackingBot(i);
+                i--;
                 continue;
             }
-            switch(unitUpdate) {
+            int flagInt = rc.getFlag(trackedID);
+            switch (Flag.getSchema(flagInt)) {
                 case Flag.NO_SCHEMA:
                     break;
                 case Flag.EC_SIGHTING_SCHEMA:
-                    ECSightingFlag ecsf = new ECSightingFlag(ut.flagInt);
-                    MapLocation ecLoc = ecsf.readRelECLocationFrom(ut.currLoc);
+                    ECSightingFlag ecsf = new ECSightingFlag(flagInt);
+                    MapLocation ecLoc = ecsf.readAbsoluteLocation(myLocation);
                     int[] relECLoc = new int[] { ecLoc.x - myLocation.x, ecLoc.y - myLocation.y };
-                    int ecInf = ecsf.readECInfluence(); // TODO: @Mihir do something with this
+                    int ecInf = ecsf.readECInfluence();
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
                         if (!neutralECLocs.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
-                            //System.out.println\("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
+                            // //System.out.println\("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
                         neutralECLocs.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC && !ecLoc.equals(myLocation)) {
@@ -493,7 +546,7 @@ public class EnlightmentCenter extends Robot {
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
-                            //System.out.println\("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
+                            // //System.out.println\("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         enemyECLocs.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
@@ -505,7 +558,7 @@ public class EnlightmentCenter extends Robot {
                             if(neutralECLocs.containsKey(ecLoc)) {
                                 neutralECLocs.remove(ecLoc);
                             }
-                            //System.out.println\("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
+                            // //System.out.println\("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         capturedAllyECLocs.put(ecLoc, ecInf);
                     }
@@ -526,17 +579,17 @@ public class EnlightmentCenter extends Robot {
                     // Units communicate to mid-game ECs their base ID and location.
                     // Here, we process those flags.
                     if (isMidGame) {
-                        MidGameAllyFlag maf = new MidGameAllyFlag(ut.flagInt);
+                        MidGameAllyFlag maf = new MidGameAllyFlag(flagInt);
                         if (maf.readType() == MidGameAllyFlag.ID_MAF) {
                             int newBaseID = maf.readID();
                             if (!trackedBases.contains(newBaseID)) {
-                                pendingBaseLocations.put(ut.robotID, newBaseID);
+                                pendingBaseLocations.put(trackedID, newBaseID);
                             }
                         } else {
                             // Must be LOCATION_MAF
-                            if(pendingBaseLocations.containsKey(ut.robotID)) {
+                            if(pendingBaseLocations.containsKey(trackedID)) {
                                 // Ensure base is not already tracked and added to list of allies.
-                                int newBaseID = pendingBaseLocations.get(ut.robotID);
+                                int newBaseID = pendingBaseLocations.get(trackedID);
                                 if (!trackedBases.contains(newBaseID)) {
                                     MapLocation baseLoc = maf.readAbsoluteLocation(myLocation);
                                     int[] relLoc = maf.readRelativeLocationFrom(myLocation);
@@ -544,18 +597,17 @@ public class EnlightmentCenter extends Robot {
                                     allyECIDs[numAllyECs] = newBaseID;
                                     allyECLocs[numAllyECs] = baseLoc;
                                     numAllyECs += 1;
-                                    //System.out.println\("A robot has just informed me of its BASE at " + baseLoc);
+                                    // //System.out.println\("A robot has just informed me of its BASE at " + baseLoc);
                                     trackedBases.add(newBaseID);
                                 } else {
                                     // We're already aware of this robot's base, no need to keep in set.
-                                    pendingBaseLocations.remove(ut.robotID);
+                                    pendingBaseLocations.remove(trackedID);
                                 }
                             }
                         }
                     }
                     break;
             }
-            unitTrackerList.step();
         }
     }
 
@@ -569,9 +621,7 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotSilentlyWithTracker(RobotType type, Direction direction, int influence) throws GameActionException {
         if (spawnRobotSilently(type, direction, influence)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
-            }
+            startTrackingBot(id, type);
             return true;
         }
         return false;
@@ -590,9 +640,7 @@ public class EnlightmentCenter extends Robot {
     boolean spawnRobotWithTracker(RobotType type, Direction direction, int influence, MapLocation destination, int instruction, boolean isGuess) throws GameActionException {
         if (spawnRobot(type, direction, influence, destination, instruction, isGuess)) {
             int id = rc.senseRobotAtLocation(myLocation.add(direction)).ID;
-            if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                unitTrackerList.add(new UnitTracker(this, type, id, myLocation.add(direction)));
-            }
+            startTrackingBot(id, type);
             return true;
         }
         return false;
@@ -651,8 +699,8 @@ public class EnlightmentCenter extends Robot {
             return false;
         }
         rc.buildRobot(type, direction, influence);
-        MapLocation spawnLoc = myLocation.add(direction);
-        //System.out.println\("Built " + type.toString() + " silently at " + spawnLoc.toString());
+        // MapLocation spawnLoc = myLocation.add(direction);
+        // //System.out.println\("Built " + type.toString() + " silently at " + spawnLoc.toString());
         return true;
     }
 
@@ -690,10 +738,9 @@ public class EnlightmentCenter extends Robot {
         }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
-            //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
-        }
-        if (!isGuess) {
-            //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
+            // //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
+        } else {
+            // //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
         }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
@@ -776,7 +823,7 @@ public class EnlightmentCenter extends Robot {
 
                 double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
                 if (symmetries[0] == true && symmetries[1] == true) {
-                    //System.out.println\("Unknown symmetry. Horizontal and vertical both potential.");
+                    // //System.out.println\("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
                         int sendX = allyDistances[1];
@@ -803,15 +850,15 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 } else if (symmetries[0] == true) {
-                    //System.out.println\("Horizontal Symmetry."); // send units vertically
+                    // //System.out.println\("Horizontal Symmetry."); // send units vertically
                     dArr = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                 } else if (symmetries[1] == true) {
-                    //System.out.println\("Vertical Symmetry.");   // send units horizontally
+                    // //System.out.println\("Vertical Symmetry.");   // send units horizontally
                     dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                 } else {
                     // only rotational symmetry possible
-                    //System.out.println\("Only rotational symmetry.");
-                    //System.out.println\("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
+                    // //System.out.println\("Only rotational symmetry.");
+                    // //System.out.println\("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
                         int sendX = allyDistances[1];
@@ -824,11 +871,11 @@ public class EnlightmentCenter extends Robot {
                                 break;
                             }
                         }
-                        //System.out.println\("Sending: X: " + stop*sendX + " Y:" + stop*sendY);
+                        // //System.out.println\("Sending: X: " + stop*sendX + " Y:" + stop*sendY);
                         dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
                         dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
                         enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-                        //System.out.println\("Sending to enemyLoc: " + enemyLocation);
+                        // //System.out.println\("Sending to enemyLoc: " + enemyLocation);
                     } else {
                         // Send at 45 degree angle cross-map
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
@@ -1000,7 +1047,7 @@ public class EnlightmentCenter extends Robot {
         if (currentRound == 1) {
             if (rc.canSetFlag(initialFaf.flag)) {
                 setFlag(initialFaf.flag);
-                //System.out.println\("I set my initial flag to: " + initialFaf.flag);
+                // //System.out.println\("I set my initial flag to: " + initialFaf.flag);
             } else {
                 //System.out.println\("MAJOR ERROR: FindAllyFlag IS LIKELY WRONG: " + initialFaf.flag);
             }
@@ -1019,8 +1066,8 @@ public class EnlightmentCenter extends Robot {
                     map.set(relLocs[0], relLocs[1], RelativeMap.ALLY_EC);
                     allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                     numAllyECs += 1;
-                    //System.out.println\("Found a POTENTIAL ally! ID: " + i + ". I now have: " + numAllyECs + " allies.");
-                    //System.out.println\("Adding POTENTIAL ally " + i + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                    // //System.out.println\("Found a POTENTIAL ally! ID: " + i + ". I now have: " + numAllyECs + " allies.");
+                    // //System.out.println\("Adding POTENTIAL ally " + i + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                 }
             }
             firstRoundIDsToConsider.clear();
@@ -1030,7 +1077,7 @@ public class EnlightmentCenter extends Robot {
         if (!scannedAllIDs) {
             int startPoint = searchBounds[searchRound];
             int endPoint = searchBounds[searchRound+1];
-            //System.out.println\("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
+            // //System.out.println\("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             // We partially unroll this loop to optimize bytecode. Without unrolling, we get 14.1
             // bytecode per iteration, and with unrolling it's 12.2. This lets us do scanning in 3 turns.
             for (int i=startPoint; i<endPoint; i+=32) {
@@ -1048,7 +1095,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1069,7 +1116,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1090,7 +1137,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1111,7 +1158,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1132,7 +1179,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1153,7 +1200,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1174,7 +1221,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1195,7 +1242,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1216,7 +1263,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1237,7 +1284,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1258,7 +1305,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1279,7 +1326,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1300,7 +1347,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1321,7 +1368,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1342,7 +1389,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1363,7 +1410,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1384,7 +1431,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1405,7 +1452,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1426,7 +1473,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1447,7 +1494,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1468,7 +1515,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1489,7 +1536,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1510,7 +1557,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1531,7 +1578,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1552,7 +1599,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1573,7 +1620,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1594,7 +1641,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1615,7 +1662,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1636,7 +1683,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1657,7 +1704,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1678,7 +1725,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1699,7 +1746,7 @@ public class EnlightmentCenter extends Robot {
                         allyECLocs[numAllyECs] = map.getAbsoluteLocation(relLocs[0], relLocs[1]);
                         numAllyECs += 1;
                         ////System.out.println\("Found a POTENTIAL ally! ID: " + j + ". I now have: " + numAllyECs + " allies.");
-                        //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
+                        // //System.out.println\("Adding POTENTIAL ally " + j + " at RELATIVE location (" + relLocs[0] + ", " + relLocs[1] + ")");
                     } else if (currentRound == 1) {
                         // First turn, not guaranteed that ally flags are set to be secret code yet.
                         // Add to list to revisit in round 2.
@@ -1707,11 +1754,11 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
             }
-            //System.out.println\("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
+            // //System.out.println\("Round: " + rc.getRoundNum() + " Bytecodes: " + Clock.getBytecodesLeft());
             searchRound += 1;
             if (searchRound == searchBounds.length-1) {
                 scannedAllIDs = true;
-                //System.out.println\("Done finding allies.");
+                // //System.out.println\("Done finding allies.");
             }
             return;
         }
@@ -1758,9 +1805,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 trackedRobots.add(ri.ID);   // technically, this is not a tracked robot, but that's okay, because this list is just something we check against when we see a new robot and we do not want to spend the bytecode every time to check over the ally EC list.
                 continue;
-            } else if (unitTrackerList.length < MAX_UNITS_TRACKED) {
-                // We aren't currently tracking this robot, add it to unitTracker.
-                unitTrackerList.add(new UnitTracker(this, ri.type, ri.ID, ri.location));
+            } else if (numUnitsTracked < MAX_UNITS_TRACKED) {
+                startTrackingBot(ri.ID, ri.type);
                 trackedRobots.add(ri.ID);
             }
         }
