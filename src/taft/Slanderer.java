@@ -159,7 +159,7 @@ public class Slanderer extends Unit {
     }
 
     /**
-     * Moves to destination. Readjusts destination if destination is off the map to avoid fuzzyMove
+     * Moves to destination. Readjusts destination if destination is off the map to avoid slandererFuzzyMove
      * leading to movement on map edge.
      * @throws GameActionException
      */
@@ -183,13 +183,51 @@ public class Slanderer extends Unit {
 
         // Fleeing, run away to destination
         if (returnToPositionCooldown >= 1) {
-            fuzzyMove(destination);
+            slandererFuzzyMove(destination);
         } else {
             int dx = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][0];
             int dy = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][1];
             MapLocation spiralPlace = baseLocation.translate(dx, dy);
             // System.out.println("Position Move: " + spiralPlace);
-            fuzzyMove(spiralPlace);
+            slandererFuzzyMove(spiralPlace);
+        }
+    }
+
+    /**
+     * Moves towards destination, in the optimal direction or diagonal offsets based on which is
+     * cheaper to move through. Assumes rc.isReady() == true, or otherwise wastes bytecode on
+     * unnecessary computation. Allows orthogonal moves to unlodge. Penalizes moving around EC.
+     */
+    void slandererFuzzyMove(MapLocation destination) throws GameActionException {
+        // TODO: This is not optimal! Sometimes taking a slower move is better if its diagonal.
+        MapLocation myLocation = rc.getLocation();
+        Direction toDest = myLocation.directionTo(destination);
+        Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(), toDest.rotateRight().rotateRight()};
+        double cost = -1;
+        Direction optimalDir = null;
+        for (int i = 0; i < dirs.length; i++) {
+            // Prefer forward moving steps over horizontal shifts
+            if (i > 2 && cost > 0) {
+                break;
+            }
+            Direction dir = dirs[i];
+            if (rc.canMove(dir)) {
+                double newCost = rc.sensePassability(myLocation.add(dir));
+                // add epsilon boost to forward direction
+                if (dir == toDest) {
+                    newCost += 0.001;
+                }
+                if (myLocation.add(dir).distanceSquaredTo(baseLocation) <= 2) {
+                    newCost -= 0.5;
+                }
+                if (newCost > cost) {
+                    cost = newCost;
+                    optimalDir = dir;
+                }
+            }
+        }
+        if (optimalDir != null) {
+            move(optimalDir);
         }
     }
 }
