@@ -751,13 +751,8 @@ public abstract class Unit extends Robot {
             (rc.canSenseLocation(destination)
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
-<<<<<<< HEAD
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
-=======
-                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter
-                || rc.senseRobotAtLocation(destination).team == allyTeam)) {
->>>>>>> bd249ad4f5ffc703915bc7f85a7c8a764fb46d91
             if (destination != null) {
                 priorDestinations.add(destination);
             }
