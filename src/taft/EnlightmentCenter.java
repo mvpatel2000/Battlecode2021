@@ -395,7 +395,7 @@ public class EnlightmentCenter extends Robot {
                     case Flag.EC_SIGHTING_SCHEMA:
                         // Not relevant, ECs do not send such flags to ECs.
                         break;
-                    case Flag.MAP_TERRAIN_SCHEMA:
+                    case Flag.MAP_INFO_SCHEMA:
                         // Not relevant, ECs do not send such flags to ECs.
                         break;
                     case Flag.LOCATION_SCHEMA:
@@ -568,7 +568,32 @@ public class EnlightmentCenter extends Robot {
                         capturedAllyECLocsToInfluence.put(ecLoc, ecInf);
                     }
                     break;
-                case Flag.MAP_TERRAIN_SCHEMA:
+                case Flag.MAP_INFO_SCHEMA:
+                    // Handles Edge logic.
+                    MapInfoFlag mif = new MapInfoFlag(flagInt);
+                    Direction edgeDir = mif.readEdgeDirection();
+                    int[] relLocs = mif.readRelativeLocationFrom(myLocation);
+                    MapLocation absLoc = mif.readAbsoluteLocation(myLocation);
+                    switch(edgeDir) {
+                        case NORTH:
+                            map.set(relLocs[0], relLocs[1]-1, 1);
+                            map.set(relLocs, 0);
+                            break;
+                        case EAST:
+                            map.set(relLocs[0]-1, relLocs[1], 1);
+                            map.set(relLocs, 0);
+                            break;
+                        case SOUTH:
+                            map.set(relLocs[0], relLocs[1]+1, 1);
+                            map.set(relLocs, 0);
+                            break;
+                        case WEST:
+                            map.set(relLocs[0]+1, relLocs[1], 1);
+                            map.set(relLocs, 0);
+                            break;
+                        default:
+                            break;
+                    }
                     break;
                 case Flag.LOCATION_SCHEMA:
                     break;
