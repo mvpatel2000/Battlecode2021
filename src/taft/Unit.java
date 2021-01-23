@@ -263,6 +263,14 @@ public abstract class Unit extends Robot {
         nearbyNeutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, neutralTeam);
     }
 
+    /**
+     * These three methods
+     * checkIfMapInfoFlagPersists
+     * findMapEdges
+     * setMapEdgeFlag
+     * are for sending information about the four edges of the map
+     * to ECs.
+     */
     public void checkIfMapInfoFlagPersists() {
         if (Flag.getSchema(flagDataSetThisRound) == Flag.MAP_INFO_SCHEMA) {
             MapInfoFlag mif = new MapInfoFlag(flagDataSetThisRound);
@@ -380,6 +388,7 @@ public abstract class Unit extends Robot {
         MapInfoFlag mif = new MapInfoFlag(dirToSet, justOffMapLoc);
         setFlag(mif.flag);
     }
+
     /**
      * Set an ECSightingFlag if I see an EC I'm not already aware of.
      * This is important, so it overwrites an existing flag if there is one.
