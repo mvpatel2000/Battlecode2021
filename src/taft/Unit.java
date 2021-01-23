@@ -143,7 +143,7 @@ public abstract class Unit extends Robot {
      */
     public void setUnitUpdateFlag() throws GameActionException {
         if (flagSetThisRound) return;
-        int minDist = 10000;
+        int minDist = 100000;
         MapLocation enemyLoc = null;
         RobotType enemyType = null;
         for (RobotInfo r : nearbyEnemies) {

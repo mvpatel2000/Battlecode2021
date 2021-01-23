@@ -4,11 +4,9 @@ import battlecode.common.*;
 
 /**
  * Flag used to tell allies about what's going on around me. Includes
- * last move for EC UnitTrackers, info on whether I'm a slanderer for
- * friendly units who can't tell the difference, and where the nearest
- * enemy is to me. If no nearby enemy is found, then the hasEnemyInfo()
- * function will return false, the read enemy location functions will
- * return [0, 0] for relative and the flagbearer's location for absolute.
+ * info on whether I'm a slanderer for friendly units who can't tell the
+ * difference and where the nearest enemy is to me. If no nearby enemy
+ * is found, then @TODO: Mihir
  */
 public class UnitUpdateFlag extends Flag {
     /**

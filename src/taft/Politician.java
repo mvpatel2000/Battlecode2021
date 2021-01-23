@@ -139,6 +139,8 @@ public class Politician extends Unit {
         if (onlyECHunter) {
             fuzzyMove(destination);
             return;
+        } else if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
+            // TODO: behave like a gas; hover in between our slanderers and the enemy, and repel other defenders
         }
         double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         RobotInfo nearestMuckraker = null;
