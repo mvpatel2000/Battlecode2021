@@ -55,7 +55,7 @@ public class Slanderer extends Unit {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
                 // System.out.println("Flee: " + nearestSignalRobot);
                 if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER
-                    && nearestSignalRobot.location.distanceSquaredTo(myLocation) <= 200) {
+                    && nearestSignalRobot.location.distanceSquaredTo(myLocation) <= 64) {
                     fleeDestination(nearestSignalRobot.location);
                 }
             }
@@ -160,7 +160,7 @@ public class Slanderer extends Unit {
         int diffY = Math.max(Math.min((myLocation.y - flee.y)*2, 5), -5);
         destination = myLocation.translate(diffX, diffY);
         lastNearestLocation = flee;
-        returnToPositionCooldown = 50;
+        returnToPositionCooldown = 30;
         // System.out.println("STARTED FLEEING! Destination: " + destination + " Cooldown: " + returnToPositionCooldown);
     }
 
