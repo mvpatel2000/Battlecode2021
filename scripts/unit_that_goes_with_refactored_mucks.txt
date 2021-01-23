@@ -98,11 +98,10 @@ public abstract class Unit extends Robot {
         parseVision();
         findMapEdges();
         readECInstructions();
-        switchToLatestBaseDestination();
-        // System.out.println("Destination: " + destination);
-        if (destination != null) {
-            rc.setIndicatorDot(destination, 255, 255, 255);
+        if (rc.getType() != RobotType.MUCKRAKER) {
+            switchToLatestBaseDestination();
         }
+        // System.out.println("Destination: " + destination);
 
         // Call unit-specific run method
         runUnit();
@@ -165,10 +164,14 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         }
-        // Case where enemyLoc is still null is handled in UnitUpdateFlag constructor.
-        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, instruction == SpawnDestinationFlag.INSTR_DEFEND_ATTACK, enemyLoc, enemyType);
+        // If no nearby enemies, use my information
+        if (enemyLoc == null) {
+            enemyLoc = myLocation;
+            enemyType = rc.getType();
+        }
         //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
+        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
 
@@ -192,10 +195,10 @@ public abstract class Unit extends Robot {
                 int flag = rc.getFlag(r.ID);
                 if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
-                    MapLocation loc = uuf.readAbsoluteLocation(r.location);
+                    MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
                     // Only listen about enemies from units closer to it than you. This ensures it is a DAG
                     // and prevents echoing on dead units.
-                    if (uuf.readHasNearbyEnemy() && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
+                    if (loc != null && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
                         int dist = myLocation.distanceSquaredTo(loc);
                         enemyType = uuf.readEnemyType();
                         // Penalize non-muckrakers
@@ -245,8 +248,8 @@ public abstract class Unit extends Robot {
             destination = sdf.readAbsoluteLocation(myLocation);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            System.out.println("I have my destination: " + destination.toString());
-            System.out.println("Explore Mode Status: " + exploreMode);
+            // System.out.println("I have my destination: " + destination.toString());
+            // System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -557,16 +560,17 @@ public abstract class Unit extends Robot {
     }
 
     /**
-     * Moves towards destination, prefering high passability terrain, with an option
-     * to repel friendly units of the same type.
-     * 
-     * Note: Politicians will repel from slanderers, since they can't tell the difference.
+     * Moves towards destination, prefering high passability terrain. Repels from nearby units of
+     * the same type to avoid clustering after initial few turns.
      */
-    void weightedFuzzyMove(MapLocation destination, boolean shouldRepel) throws GameActionException {
+    void weightedFuzzyMove(MapLocation destination) throws GameActionException {
+        MapLocation myLocation = rc.getLocation();
         Direction toDest = myLocation.directionTo(destination);
         Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
             toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
         double[] costs = new double[8];
+        // Ignore repel factor in beginning and when close to target
+        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
         for (int i = 0; i < dirs.length; i++) {
             MapLocation newLocation = myLocation.add(dirs[i]);
             // Movement invalid, set higher cost than starting value
@@ -610,13 +614,43 @@ public abstract class Unit extends Robot {
     }
 
     /**
-     * Repels from nearby units of the same type after the initial
-     * few turns to avoid clustering.
+     * Just the flag reading part of switchToLatestBaseDestination().
+     * Please ignore if you aren't looking at the Muckracker movement refactor.
      */
-    void weightedFuzzyMove(MapLocation destination) throws GameActionException {
-        // Ignore repel factor in beginning and when close to target
-        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
-        weightedFuzzyMove(destination, shouldRepel);
+    SpawnDestinationFlag getLatestBaseSpawnDestinationFlag() throws GameActionException {
+        if (turnCount <= 3) {
+            return null;
+        }
+        if (rc.canGetFlag(baseID)) {
+            int flagInt = rc.getFlag(baseID);
+            int flagSchema = Flag.getSchema(flagInt);
+            switch (flagSchema) {
+                case Flag.NO_SCHEMA:
+                    break;
+                case Flag.EC_SIGHTING_SCHEMA:
+                    // Not relevant, ECs do not send such flags to robots.
+                    break;
+                case Flag.MAP_INFO_SCHEMA:
+                    // Not relevant, ECs do not send such flags to robots.
+                    break;
+                case Flag.LOCATION_SCHEMA:
+                    break;
+                case Flag.SPAWN_UNIT_SCHEMA:
+                    // Not relevant, handled elsewhere.
+                    break;
+                case Flag.SPAWN_DESTINATION_SCHEMA:
+                    // Use this to figure out where our base is sending currently produced unit
+                    SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
+                    return sdf;
+                case Flag.UNIT_UPDATE_SCHEMA:
+                    // Not relevant, ECs do not send such flags to ECs.
+                    break;
+                case Flag.MIDGAME_ALLY_SCHEMA:
+                    // Not relevant, ECs do not send such flags to ECs.
+                    break;
+            }
+        }
+        return null;
     }
 
     /**
@@ -751,16 +785,13 @@ public abstract class Unit extends Robot {
         // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
         // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
         if (destination == null || !rc.onTheMap(nearDestination) ||
-            (rc.canSenseLocation(destination)
+            myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
-                || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
-                || rc.senseRobotAtLocation(destination).team == allyTeam))) {
+                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter
+                || rc.senseRobotAtLocation(destination).team == allyTeam)) {
             if (destination != null) {
                 priorDestinations.add(destination);
-            }
-            if (baseLocation == null) {
-                baseLocation = myLocation;
             }
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));

@@ -65,12 +65,8 @@ public class Politician extends Unit {
             // System.out.println("4: " + Clock.getBytecodesLeft());
             updateDestinationForECHunting();
     
-            // System.out.println("5: " + Clock.getBytecodesLeft());
-            if (!convertedPolitician) {
-                considerBoostEC();
-            }
             // System.out.println("6: " + Clock.getBytecodesLeft());
-            considerAttack(onlyECHunter);
+            considerAttack(onlyECHunter, false);
         } else {
             rc.setIndicatorDot(myLocation, 0, 0, 255);
             considerDefend();
@@ -151,7 +147,7 @@ public class Politician extends Unit {
         if (onlyECHunter) {
             fuzzyMove(destination);
             return;
-        } else if (instruction == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
+        } else if (defend) {
             weightedFuzzyMove(destination, true);
             return;
         }
@@ -187,32 +183,6 @@ public class Politician extends Unit {
     }
 
     /**
-     * Explode if boost for EC is high.
-     * @return
-     * @throws GameActionException
-     */
-    public void considerBoostEC() throws GameActionException {
-        int distToBase = myLocation.distanceSquaredTo(baseLocation);
-        // Be close to base
-        if (distToBase <= RobotType.POLITICIAN.actionRadiusSquared) {
-            double multiplier = rc.getEmpowerFactor(allyTeam, 0);
-            // Have non-trivial boost
-            if (multiplier > 2) {
-                int numInRangeUnits = 0;
-                for (RobotInfo robot : nearbyRobots) {
-                    if (myLocation.distanceSquaredTo(robot.location) <= distToBase) {
-                        numInRangeUnits++;
-                    }
-                }
-                // Boost is sizable even after dispersion
-                if (multiplier > numInRangeUnits*2 && rc.canEmpower(distToBase)) {
-                    rc.empower(distToBase);
-                }
-            }
-        }
-    }
-
-    /**
      * Analyzes if politician should attack. Returns true if it attacked. Sorts nearbyRobots and
      * considers various ranges of empowerment to optimize kills. Only kills ECs if parameter
      * passed in.
@@ -226,7 +196,7 @@ public class Politician extends Unit {
         }
 
         double multiplier = rc.getEmpowerFactor(allyTeam, 0);
-        double totalDamage = rc.getConviction() * multiplier - 10;
+        double totalDamage = (rc.getConviction() - 10) * multiplier;
         if (!rc.isReady() || totalDamage <= 0) {
             return false;
         }
@@ -240,7 +210,7 @@ public class Politician extends Unit {
         for (int i = 0; i < allyLength; i++) {
             RobotInfo robot = nearbyAllies[i];
             if (robot.type == RobotType.POLITICIAN && !areSlanderers[i]) {
-                totalAllyConviction += robot.conviction * multiplier - 10;
+                totalAllyConviction += (robot.conviction - 10) * multiplier;
             }
         }
         // System.out.println("Total Ally Conviction: " + totalAllyConviction);
@@ -289,7 +259,10 @@ public class Politician extends Unit {
                     // points for politicians that return net positive influence
                     else if (robot.type == RobotType.POLITICIAN && multiplier > 2) {
                         // System.out.println("Can kill PN: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
-                        numEnemiesKilled += multiplier * Math.min(robot.influence, perUnitDamage - robot.conviction) / rc.getConviction();
+                        double conversionScore = multiplier * (Math.min(robot.influence, perUnitDamage - robot.conviction) - 10) / rc.getConviction();
+                        if (conversionScore > 0) {
+                            numEnemiesKilled += conversionScore;
+                        }
                     }
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
