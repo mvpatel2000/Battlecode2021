@@ -751,6 +751,9 @@ public abstract class Unit extends Robot {
             if (destination != null) {
                 priorDestinations.add(destination);
             }
+            if (baseLocation == null) {
+                baseLocation = myLocation;
+            }
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
             exploreMode = true;

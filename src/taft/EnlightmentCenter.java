@@ -206,7 +206,7 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         int currentInfluence = rc.getInfluence();
-        double dInf = (1/50.0 + 0.03 * Math.exp(-0.001 * currentRound)) * currentRound;
+        double dInf = Math.ceil(0.2 * Math.sqrt(currentRound));
         // System.out.println("Income: " + dInf);
 
         // Bid 1 for first 250 turns
