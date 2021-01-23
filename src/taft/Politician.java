@@ -10,6 +10,8 @@ public class Politician extends Unit {
     boolean onlyECHunter;
     boolean convertedPolitician;
 
+    boolean defend; // if true, take a lap around base. if false, head for destination.
+
     boolean[] areSlanderers;
     boolean nearbySlanderer;
 
@@ -17,6 +19,7 @@ public class Politician extends Unit {
         super(rc);
         onlyECHunter = rc.getInfluence() > 15;
         convertedPolitician = false;
+        defend = true;
     }
 
     @Override
@@ -44,7 +47,6 @@ public class Politician extends Unit {
             }
             // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
         }
-
         
         // System.out.println("2: " + Clock.getBytecodesLeft());
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
@@ -52,7 +54,12 @@ public class Politician extends Unit {
             setInitialDestination();
         }
 
-        if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
+        if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
+            defend = false;
+        }
+
+        if (!defend) {
+            rc.setIndicatorDot(myLocation, 255, 0, 0);
             // System.out.println("3: " + Clock.getBytecodesLeft());
             updateDestinationForExploration(onlyECHunter);
             // System.out.println("4: " + Clock.getBytecodesLeft());
@@ -65,6 +72,7 @@ public class Politician extends Unit {
             // System.out.println("6: " + Clock.getBytecodesLeft());
             considerAttack(onlyECHunter);
         } else {
+            rc.setIndicatorDot(myLocation, 0, 0, 255);
             considerDefend();
         }
         // System.out.println("7: " + Clock.getBytecodesLeft());
@@ -72,8 +80,12 @@ public class Politician extends Unit {
         // System.out.println("8: " + Clock.getBytecodesLeft());
     }
 
+    /**
+     * Attack nearby muckrakers to defend slanderers.
+     */
     void considerDefend() throws GameActionException {
-
+        considerAttack(false, true);
+        // TODO: @Mihir Bomb a muckraker if it gets closer to my base than me.
     }
 
     /**
@@ -139,7 +151,7 @@ public class Politician extends Unit {
         if (onlyECHunter) {
             fuzzyMove(destination);
             return;
-        } else if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
+        } else if (instruction == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
             weightedFuzzyMove(destination, true);
             return;
         }
@@ -205,7 +217,7 @@ public class Politician extends Unit {
      * considers various ranges of empowerment to optimize kills. Only kills ECs if parameter
      * passed in.
      */
-    public boolean considerAttack(boolean onlyECs) throws GameActionException {
+    public boolean considerAttack(boolean onlyECs, boolean onlyMuckraker) throws GameActionException {
         // Recreate arrays with smaller radius only considering attack
         RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
 
@@ -220,6 +232,9 @@ public class Politician extends Unit {
         }
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
+        if (destination != null) {
+            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination);
+        }
         double totalAllyConviction = 0;
         int allyLength = Math.min(8, nearbyAllies.length);
         for (int i = 0; i < allyLength; i++) {

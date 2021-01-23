@@ -21,7 +21,7 @@ public class SpawnDestinationFlag extends LocationFlag {
     final int GUESS_BITS = 1;
 
     public static final int INSTR_ATTACK = 0;
-    public static final int INSTR_DEFEND = 1;
+    public static final int INSTR_DEFEND_ATTACK = 1;
     public static final int INSTR_SLANDERER = 2;
 
     public SpawnDestinationFlag() {
