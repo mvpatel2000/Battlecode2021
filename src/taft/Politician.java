@@ -130,9 +130,9 @@ public class Politician extends Unit {
     }
 
     /**
-     * ECHunters bee-line towards enemy ECs. Normal politicians weighted move and seek out nearby
+     * ECHunters bee-line towards enemy ECs. Defenders move like a gas around their destination.
+     * Normal politicians weighted move and seek out nearby
      * muckrakers if they're uncovered.
-     * @throws GameActionException
      */
     void movePolitician() throws GameActionException {
         // ECHunters ignore other units
@@ -140,7 +140,8 @@ public class Politician extends Unit {
             fuzzyMove(destination);
             return;
         } else if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
-            // TODO: behave like a gas; hover in between our slanderers and the enemy, and repel other defenders
+            weightedFuzzyMove(destination, true);
+            return;
         }
         double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         RobotInfo nearestMuckraker = null;
