@@ -6,9 +6,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Arrays;
 
 public class EnlightmentCenter extends Robot {
     final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{2,5},{5,2},{5,-2},{2,-5},{-2,-5},{-5,-2},{-5,2},{-2,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{1,6},{6,1},{6,-1},{1,-6},{-1,-6},{-6,-1},{-6,1},{-1,6},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6}};
+    final static int[] SLANDERER_INFLUENCE_THRESHOLDS = new int[]{21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
     // Symmetries - horizontal, vertical, rotational, true until ruled out.
     boolean[] symmetries;
 
@@ -206,7 +208,7 @@ public class EnlightmentCenter extends Robot {
         int currentInfluence = rc.getInfluence();
         double dInf = Math.ceil(0.2 * Math.sqrt(currentRound));
         // System.out.println("Income: " + dInf);
-        
+
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
             //System.out.println("Bidding 1!");
@@ -258,13 +260,13 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
                     break;
                 case 1:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     break;
                 case 2:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false, false, false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     break;
                 case 3:
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false, false, false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     break;
                 default:
                     break;
@@ -305,6 +307,12 @@ public class EnlightmentCenter extends Robot {
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
                     int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
+                    int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
+                    if (optimalSland < 0) {
+                        optimalSland = -optimalSland;
+                        optimalSland -=2;
+                        maxInfluence = SLANDERER_INFLUENCE_THRESHOLDS[optimalSland];
+                    }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                     Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
                     MapLocation oneStep = myLocation.add(awayFromEnemy);
