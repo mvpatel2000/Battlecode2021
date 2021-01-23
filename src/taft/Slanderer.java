@@ -36,7 +36,10 @@ public class Slanderer extends Unit {
             return;
         }
 
-        scanSpiral();
+        // Skip spiral first turn to avoid TLE
+        if (turnCount > 1) {
+            scanSpiral();
+        }
         returnToPositionCooldown--;
 
         // Run away from nearest Muckraker.
