@@ -205,7 +205,7 @@ public class EnlightmentCenter extends Robot {
         }
         int currentInfluence = rc.getInfluence();
         double dInf = (1/50.0 + 0.03 * Math.exp(-0.001 * currentRound)) * currentRound;
-        System.out.println("Income: " + dInf);
+        // System.out.println("Income: " + dInf);
         
         // Bid 1 for first 250 turns
         if (currentRound <= 250) {
@@ -228,9 +228,9 @@ public class EnlightmentCenter extends Robot {
                 dInf = Math.max(dInf, currentInfluence / 1.0);
             }
             dInf = Math.min(dInf, currentInfluence / 4.0);
-            System.out.println("New bid: " + dInf);
+            // System.out.println("New bid: " + dInf);
             int bidAmount = (int)(dInf);
-            System.out.println("Bid amount: " + bidAmount + " / " + currentInfluence);
+            // System.out.println("Bid amount: " + bidAmount + " / " + currentInfluence);
             if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
                 rc.bid(bidAmount);
             }
@@ -287,7 +287,7 @@ public class EnlightmentCenter extends Robot {
                             break;
                         }
                         case POLITICIAN: {
-                            remainingHealth -= robot.conviction * enemyMultiplier - 10;
+                            remainingHealth -= (robot.conviction - 10) * enemyMultiplier;
                             break;
                         }
                         default: {
@@ -297,13 +297,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 int myConviction = rc.getConviction();
 
-                // High empower factor, OK with dying because will recover influence
-                if (rc.getEmpowerFactor(allyTeam, 11) > 4.5 && myConviction - 5 > 0) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, myConviction - 5, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
-                }
                 // Highly EC at risk, only build muckrakers to dilute damage
-                else if (remainingHealth < 0) {
+                if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
                 }
@@ -533,7 +528,7 @@ public class EnlightmentCenter extends Robot {
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
                         if (!neutralECLocsToInfluence.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
-                            System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
+                            // System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
                         neutralECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC && !ecLoc.equals(myLocation)) {
@@ -550,7 +545,7 @@ public class EnlightmentCenter extends Robot {
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
-                            System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
+                            // System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         enemyECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
@@ -562,7 +557,7 @@ public class EnlightmentCenter extends Robot {
                             if(neutralECLocsToInfluence.containsKey(ecLoc)) {
                                 neutralECLocsToInfluence.remove(ecLoc);
                             }
-                            System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
+                            // System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         capturedAllyECLocsToInfluence.put(ecLoc, ecInf);
                     }

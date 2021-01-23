@@ -52,21 +52,17 @@ public class Politician extends Unit {
             setInitialDestination();
         }
 
-        if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
-            // //System.out.println\("3: " + Clock.getBytecodesLeft());
-            updateDestinationForExploration(onlyECHunter);
-            // //System.out.println\("4: " + Clock.getBytecodesLeft());
-            updateDestinationForECHunting();
-    
-            // //System.out.println\("5: " + Clock.getBytecodesLeft());
-            if (!convertedPolitician) {
-                considerBoostEC();
-            }
-            // //System.out.println\("6: " + Clock.getBytecodesLeft());
-            considerAttack(onlyECHunter);
-        } else {
-            considerDefend();
+        // //System.out.println\("3: " + Clock.getBytecodesLeft());
+        updateDestinationForExploration(onlyECHunter);
+        // //System.out.println\("4: " + Clock.getBytecodesLeft());
+        updateDestinationForECHunting();
+
+        // //System.out.println\("5: " + Clock.getBytecodesLeft());
+        if (!convertedPolitician) {
+            considerBoostEC();
         }
+        // //System.out.println\("6: " + Clock.getBytecodesLeft());
+        considerAttack(onlyECHunter);
         // //System.out.println\("7: " + Clock.getBytecodesLeft());
         movePolitician();
         // //System.out.println\("8: " + Clock.getBytecodesLeft());
@@ -227,7 +223,7 @@ public class Politician extends Unit {
                 totalAllyConviction += robot.conviction * multiplier - 10;
             }
         }
-        // //System.out.println\("Total Ally Conviction: " + totalAllyConviction);
+        //System.out.println\("Total Ally Conviction: " + totalAllyConviction);
         // //System.out.println\("Attack sort: " + Clock.getBytecodesLeft());
         Arrays.sort(attackNearbyRobots, new Comparator<RobotInfo>() {
             public int compare(RobotInfo r1, RobotInfo r2) {
@@ -290,7 +286,7 @@ public class Politician extends Unit {
                 optimalNumUnitsHit = i;
             }
         }
-        // //System.out.println\("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
+        //System.out.println\("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
 
         // 1. Can empower at optimalDist
         // 2. Either there are enemies you are hitting or you are only hitting one unit (so
