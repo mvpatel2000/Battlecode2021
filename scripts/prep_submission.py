@@ -12,6 +12,9 @@ if __name__ == '__main__':
     out_name = Path('./src/') / out_dir_name
     if out_name.exists():
         shutil.rmtree(out_name)
+    zip_name = os.path.join('./src/', 'smite.zip')
+    if os.path.exists(zip_name):
+        os.remove(zip_name)
     out_name.mkdir()
     for f in bot_dir.iterdir():
         out = out_name / f.name

@@ -154,22 +154,18 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         }
-        if (nearbyEnemies.length == 0) {
-            RobotInfo r = null;
-            if (turnCount != 1) {
-                r = getNearestEnemyFromAllies();
-            }
-            if (r == null) { // default behavior if no enemy is found is to send my info
-                enemyLoc = myLocation;
-                enemyType = rc.getType();
-                //System.out.println("No nearest enemy known.");
-            }
-            else {
+        // If enemyType is not muckraker (null is also not muckraker), use smoke signals
+        if (turnCount != 1) {
+            RobotInfo r = getNearestEnemyFromAllies();
+            if (r != null && enemyType != RobotType.MUCKRAKER && r.type == RobotType.MUCKRAKER) {
                 enemyLoc = r.location;
                 enemyType = r.type;
             }
-        } else { // TODO: remove else, for debugging
-            rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
+        }
+        // If no nearby enemies, use my information
+        if (enemyLoc == null) {
+            enemyLoc = myLocation;
+            enemyType = rc.getType();
         }
         //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
@@ -725,17 +721,21 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
-        for (int i = 0; i < 3; i++) {
-            nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+        if (destination != null) {
+            for (int i = 0; i < 3; i++) {
+                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            }
         }
         // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
         // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
-        if (!rc.onTheMap(nearDestination) ||
+        if (destination == null || !rc.onTheMap(nearDestination) ||
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
                 || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)) {
-            priorDestinations.add(destination);
+            if (destination != null) {
+                priorDestinations.add(destination);
+            }
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
             exploreMode = true;
