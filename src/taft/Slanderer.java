@@ -4,6 +4,9 @@ import battlecode.common.*;
 
 public class Slanderer extends Unit {
 
+    int indexInSpiralOrder;
+    final static int[][] SLANDERER_SPIRAL_ORDER = {{0,2},{2,0},{0,-2},{-2,0},{2,2},{2,-2},{-2,-2},{-2,2},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{0,4},{4,0},{0,-4},{-4,0},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6},{1,7},{5,5},{7,1},{7,-1},{5,-5},{1,-7},{-1,-7},{-5,-5},{-7,-1},{-7,1},{-5,5},{-1,7}};    int returnToPositionCooldown;
+
     public final static int INITIAL_COOLDOWN = 0;
 
     // Tracks nearest enemy so we don't constantly update destination from same unit
@@ -11,12 +14,16 @@ public class Slanderer extends Unit {
 
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
+        // IGNORE EC DESTINATION FOR NOW!
         // if no destination was provided from parent EC, set one:
-        if (spawnedSilently) {
-            Direction away = myLocation.directionTo(baseLocation).opposite();
-            destination = myLocation.add(away).add(away).add(away);
-        }
+        // if (spawnedSilently) {
+        //     Direction away = myLocation.directionTo(baseLocation).opposite();
+        //     destination = myLocation.add(away).add(away).add(away);
+        // }
+        destination = baseLocation;
         lastNearestLocation = myLocation;
+        indexInSpiralOrder = 0;
+        returnToPositionCooldown = 0;
     }
 
     @Override
@@ -29,38 +36,21 @@ public class Slanderer extends Unit {
             return;
         }
 
+        scanSpiral();
+        returnToPositionCooldown--;
+
         // Run away from nearest Muckraker.
         if (rc.isReady()) {
-            RobotInfo nearestMuckraker = null;
-            int nearestMuckrakerDistSquared = 1000;
-            // RobotInfo nearestEnemy = null;
-            // int nearestEnemyDistSquared = 1000;
-            for (RobotInfo robot : nearbyEnemies) {
-                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-                if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
-                    nearestMuckraker = robot;
-                    nearestMuckrakerDistSquared = robotDistSquared;
-                }
-                // if (robotDistSquared < nearestEnemyDistSquared) {
-                //     nearestEnemy = robot;
-                //     nearestEnemyDistSquared = robotDistSquared;
-                // }
-            }
-            if (nearestMuckraker != null && !lastNearestLocation.equals(nearestMuckraker.location)) {
-                // Flee from nearest Muckraker.
+            RobotInfo nearestMuckraker = getNearestMuckraker();
+            // System.out.println("Nearest muck: " + nearestMuckraker);
+            // Flee from nearest Muckraker.
+            if (nearestMuckraker != null) {
                 fleeDestination(nearestMuckraker.location);
-            } 
-            // Move towards nearest non-muckraker enemy. 
-            // Disabled because enemy politicians push us into enemy muckrakers.
-            // else if (nearestEnemy != null) {
-            //     int diffX = myLocation.x - nearestEnemy.location.x;
-            //     int diffY = myLocation.y - nearestEnemy.location.y;
-            //     destination = myLocation.translate(diffX*2, diffY*2);
-            // } 
-            else {
+            } else {
                 RobotInfo nearestSignalRobot = getNearestEnemyFromAllies();
+                // System.out.println("Flee: " + nearestSignalRobot);
                 if (nearestSignalRobot != null && nearestSignalRobot.type == RobotType.MUCKRAKER
-                    && !lastNearestLocation.equals(nearestSignalRobot.location)) {
+                    && nearestSignalRobot.location.distanceSquaredTo(myLocation) <= 200) {
                     fleeDestination(nearestSignalRobot.location);
                 }
             }
@@ -69,15 +59,103 @@ public class Slanderer extends Unit {
     }
 
     /**
+     * Gets nearest muckraker in vision radius
+     * @return
+     * @throws GameActionException
+     */
+    public RobotInfo getNearestMuckraker() throws GameActionException {
+        RobotInfo nearestMuckraker = null;
+        int nearestMuckrakerDistSquared = 1000;
+        // RobotInfo nearestEnemy = null;
+        // int nearestEnemyDistSquared = 1000;
+        for (RobotInfo robot : nearbyEnemies) {
+            int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+            if (robot.type == RobotType.MUCKRAKER && robotDistSquared < nearestMuckrakerDistSquared) {
+                nearestMuckraker = robot;
+                nearestMuckrakerDistSquared = robotDistSquared;
+            }
+            // if (robotDistSquared < nearestEnemyDistSquared) {
+            //     nearestEnemy = robot;
+            //     nearestEnemyDistSquared = robotDistSquared;
+            // }
+        }
+        return nearestMuckraker;
+    }
+
+    /**
+     * Scans spiral locations looking for a spot to fit in
+     * @throws GameActionException
+     */
+    public void scanSpiral() throws GameActionException {
+        // System.out.println("Scan Start: " + indexInSpiralOrder);
+        while (scanSpiralHelper()) {
+            indexInSpiralOrder++;
+        }
+        // System.out.println("Scan End: " + indexInSpiralOrder);
+    }
+
+    /**
+     * Checks current index to see if its valid. Returns true if needs to continue scanning.
+     * @throws GameActionException
+     */
+    public boolean scanSpiralHelper() throws GameActionException {
+        int dx = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][0];
+        int dy = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][1];
+        MapLocation spiralPlace = baseLocation.translate(dx, dy);
+        int distanceToSpiralPlace = myLocation.distanceSquaredTo(spiralPlace);
+        // At destination, stay still
+        if (distanceToSpiralPlace == 0) {
+            return false;
+        }
+        // System.out.println("distance: " + distanceToSpiralPlace);
+        // Can sense location
+        if (distanceToSpiralPlace <= RobotType.SLANDERER.sensorRadiusSquared) {
+            // Not on map
+            if (!rc.onTheMap(spiralPlace)) {
+                return true;
+            }
+            // System.out.println("Occ: " + rc.isLocationOccupied(spiralPlace));
+            // If another slanderer occupies a slot, move on
+            if (rc.isLocationOccupied(spiralPlace)) {
+                RobotInfo robot = rc.senseRobotAtLocation(spiralPlace);
+                // System.out.println("Robot: " + robot);
+                // Slanderers cant distinguish slanderers and politicians
+                if (robot.type == RobotType.POLITICIAN) {
+                    return true;
+                }
+            }
+            // In sensing radius and on map / unoccupied, so we can move towards it
+            return false;
+        }
+        MapLocation nearSpiralPlace = myLocation;
+        for (int i = 0; i < 3; i++) {
+            Direction toDest = nearSpiralPlace.directionTo(spiralPlace);
+            nearSpiralPlace.add(toDest);
+        }
+        // Place near destination is off map so destination is off map
+        if (!rc.onTheMap(nearSpiralPlace)) {
+            return true;
+        }
+        // Can't sense it yet, keep moving!
+        return false;
+    }
+
+    /**
      * Update destination to flee from enemy
      * @param flee
      * @throws GameActionException
      */
     public void fleeDestination(MapLocation flee) throws GameActionException {
+        // System.out.println("FLEEING! " + flee + " " + lastNearestLocation);
+        if (lastNearestLocation.equals(flee)) {
+            return;
+        }
         int diffX = Math.max(Math.min((myLocation.x - flee.x)*2, 5), -5);
         int diffY = Math.max(Math.min((myLocation.y - flee.y)*2, 5), -5);
         destination = myLocation.translate(diffX, diffY);
         lastNearestLocation = flee;
+        returnToPositionCooldown = 50;
+        // System.out.println("STARTED FLEEING! Destination: " + destination + " Cooldown: " + returnToPositionCooldown);
     }
 
     /**
@@ -101,6 +179,17 @@ public class Slanderer extends Unit {
         //         destination = myLocation;
         //     }
         // } 
-        fuzzyMove(destination);
+        // System.out.println("Destination: " + destination + " Cooldown: " + returnToPositionCooldown);
+
+        // Fleeing, run away to destination
+        if (returnToPositionCooldown >= 1) {
+            fuzzyMove(destination);
+        } else {
+            int dx = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][0];
+            int dy = SLANDERER_SPIRAL_ORDER[indexInSpiralOrder][1];
+            MapLocation spiralPlace = baseLocation.translate(dx, dy);
+            // System.out.println("Position Move: " + spiralPlace);
+            fuzzyMove(spiralPlace);
+        }
     }
 }
