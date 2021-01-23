@@ -138,7 +138,7 @@ public class EnlightmentCenter extends Robot {
         super.run();
 
         if (currentRound == 500) {
-            // rc.resign(); // TODO: remove; just for debugging
+            rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
