@@ -349,7 +349,6 @@ public class EnlightmentCenter extends Robot {
                     boolean sendToNeutral = false;
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, true, true) : optimalDestination(true, true, true);
                     if (neutralECLocsToInfluence.containsKey(enemyLocation)) {
-                        int targetNeutralECID = neutralECLocsToInfluence.get(enemyLocation);
                         int influence = neutralECLocsToInfluence.get(enemyLocation);
                         int infNeeded = (int)(influence*1.2 + 10);
                         if (rc.getInfluence() > infNeeded) {
