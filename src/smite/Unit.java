@@ -263,6 +263,11 @@ public abstract class Unit extends Robot {
         nearbyNeutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, neutralTeam);
     }
 
+    /**
+     * Checks at the end of round if the MapInfoFlag with edge information
+     * is actually going to be sent out. If it is, then we change a boolean
+     * in the foundEdges array to not send out another flag for that direction.
+     */
     public void checkIfMapInfoFlagPersists() {
         if (Flag.getSchema(flagDataSetThisRound) == Flag.MAP_INFO_SCHEMA) {
             MapInfoFlag mif = new MapInfoFlag(flagDataSetThisRound);
@@ -286,6 +291,11 @@ public abstract class Unit extends Robot {
         }
     }
 
+    /**
+     * Runs near the beginning of every turn. Starts at the four cardinal directions
+     * of the sensor radius and looks for map edges it hasn't already communicated. Sets
+     * a flag if it finds one.
+     */
     public void findMapEdges() throws GameActionException {
         boolean allTrue = true;
         for (int i=0; i<4; i++) {
@@ -376,10 +386,14 @@ public abstract class Unit extends Robot {
         }
     }
 
+    /**
+     * Helper function for findMapEdges() which actually sets the map flag.
+     */
     public void setMapEdgeFlag(Direction dirToSet, MapLocation justOffMapLoc) throws GameActionException {
         MapInfoFlag mif = new MapInfoFlag(dirToSet, justOffMapLoc);
         setFlag(mif.flag);
     }
+
     /**
      * Set an ECSightingFlag if I see an EC I'm not already aware of.
      * This is important, so it overwrites an existing flag if there is one.
@@ -732,7 +746,8 @@ public abstract class Unit extends Robot {
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
-                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)) {
+                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
+                || rc.senseRobotAtLocation(destination).team == allyTeam) {
             if (destination != null) {
                 priorDestinations.add(destination);
             }
