@@ -15,8 +15,8 @@ public class UnitUpdateFlag extends Flag {
      * Flag breakdown:
      * - flag schema (SCHEMA_BITS)
      * - isSlanderer (IS_SLANDERER_BITS)
-     * - nearest enemy relative x (COORD_BITS)
-     * - nearest enemy relative y (COORD_BITS)
+     * - x mod 128 (COORD_BITS)
+     * - y mod 128 (COORD_BITS)
      * - nearest enemy type (ENEMY_TYPE_BITS)
      * 
      * Total bits used: 3 + 1 + 7 + 7 + 2 = 20.

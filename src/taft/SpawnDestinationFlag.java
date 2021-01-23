@@ -12,16 +12,16 @@ public class SpawnDestinationFlag extends LocationFlag {
      * - x coordinate mod 128 (COORD_BITS)
      * - y coordinate mod 128 (COORD_BITS)
      * - instruction (INSTRUCTION_BITS)
-     * - guess (1) or exact (0) (INSTRUCTION_BITS)
+     * - guess (1) or exact (0) (GUESS_BITS)
      *
-     * Total bits used: 3 + 7 + 7 + 3 = 20.
+     * Total bits used: 3 + 7 + 7 + 3 + 1 = 20.
      */
 
     final int INSTRUCTION_BITS = 3;
     final int GUESS_BITS = 1;
 
-    public static final int INSTR_SCOUT = 0;
-    public static final int INSTR_ATTACK = 1;
+    public static final int INSTR_DEFAULT = 0;
+    public static final int INSTR_DEFEND = 1;
     public static final int INSTR_SLANDERER = 2;
 
     public SpawnDestinationFlag() {
