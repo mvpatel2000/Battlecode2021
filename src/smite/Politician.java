@@ -24,7 +24,7 @@ public class Politician extends Unit {
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        onlyECHunter = rc.getInfluence() > 15;
+        onlyECHunter = false;
         convertedPolitician = false;
         defend = true;
         lapClockwise = Math.random() < 0.5; // send half the defenders clockwise, other half counterclockwise
@@ -36,6 +36,12 @@ public class Politician extends Unit {
     @Override
     public void runUnit() throws GameActionException {
         super.runUnit();
+
+        // Can't do any damage, run alternate code
+        if (rc.getConviction() <= 10) {
+            weakPoliticianTurn();
+            return;
+        }
 
         // //System.out.println\("1: " + Clock.getBytecodesLeft());
         // Read flags to check for slanderers
@@ -81,6 +87,7 @@ public class Politician extends Unit {
 
         if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
             defend = false;
+            onlyECHunter = rc.getConviction() > 30;
         }
 
         if (!defend) {
@@ -99,6 +106,29 @@ public class Politician extends Unit {
         // //System.out.println\("7: " + Clock.getBytecodesLeft());
         movePolitician();
         // //System.out.println\("8: " + Clock.getBytecodesLeft());
+    }
+
+    /**
+     * If politician has <= 10 conviction, clog enemy unless you have many allies near you
+     * @throws GameActionException
+     */
+    void weakPoliticianTurn() throws GameActionException {
+        // Suicide if you're clogging allies
+        if ((destination == null || nearbyAllies.length > 7) && rc.canEmpower(1)) {
+            rc.empower(1);
+        }
+        // Clogging enemy 
+        else if (myLocation.distanceSquaredTo(destination) <= 2 &&
+            rc.isLocationOccupied(destination)) {
+            RobotInfo target = rc.senseRobotAtLocation(destination);
+            // Not clogging enemy EC, suicide
+            if ((target.type != RobotType.ENLIGHTENMENT_CENTER || target.team != enemyTeam)
+                && rc.canEmpower(1)) {
+                rc.empower(1);
+            }
+        } else {
+            fuzzyMove(destination);
+        }
     }
 
     /**
@@ -156,10 +186,18 @@ public class Politician extends Unit {
 
     /**
      * ECHunters bee-line towards enemy ECs. Defenders move like a gas around their destination.
-     * Normal politicians weighted move and seek out nearby
-     * muckrakers if they're uncovered.
+     * Normal politicians weighted move and seek out nearby muckrakers if they're uncovered. If
+     * next to enemy EC, stay put.
      */
     void movePolitician() throws GameActionException {
+        // Don't move if next to enemy EC and clogging slots
+        if (myLocation.distanceSquaredTo(destination) <= 2 && rc.isLocationOccupied(destination)) {
+            RobotInfo target = rc.senseRobotAtLocation(destination);
+            if (target.team == enemyTeam && target.type == RobotType.ENLIGHTENMENT_CENTER) {
+                return;
+            }
+        }
+
         // ECHunters ignore other units
         if (defend && instruction >= 0) {
             if (baseLocation == null) { // this shouldn't happen; null-check just to be safe and end defense lap
@@ -236,7 +274,7 @@ public class Politician extends Unit {
         }
         // If no nearby Muckrakers, continue weighted movement.
         if (nearestMuckraker == null) {
-            // Consider using weightedFuzzyMove
+            // Consider using weightedfuFuzzyMove
             fuzzyMove(destination);
             return;
         }
@@ -248,6 +286,7 @@ public class Politician extends Unit {
                     && myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location)) {
                 // Consider using weightedFuzzyMove
                 fuzzyMove(destination);
+                return;
             }
         }
         fuzzyMove(nearestMuckraker.location);
@@ -259,6 +298,15 @@ public class Politician extends Unit {
      * passed in. If paranoid is true then blow up on an enemy muckraker whenever possible.
      */
     public boolean considerAttack(boolean onlyECs, boolean paranoid) throws GameActionException {
+        if (currentRound >= 1490 && rc.getTeamVotes() < 751) {
+            RobotInfo[] adjacentEnemies = rc.senseNearbyRobots(1, enemyTeam);
+            if (adjacentEnemies.length > 0 && rc.canEmpower(1)) {
+                rc.empower(1);
+                return true;
+            }
+        }
+
+
         // Recreate arrays with smaller radius only considering attack
         RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
 
@@ -274,7 +322,7 @@ public class Politician extends Unit {
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
         if (destination != null) {
-            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination);
+            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination) * 2;
         }
         double totalAllyConviction = 0;
         int allyLength = Math.min(8, nearbyAllies.length);
@@ -317,17 +365,24 @@ public class Politician extends Unit {
                 RobotInfo robot = attackNearbyRobots[j];
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
-                    // 1 point for muckraker
-                    if ((!onlyECs || nearbySlanderer) && robot.type == RobotType.MUCKRAKER) {
+                    // Points for muckraker
+                    if (robot.type == RobotType.MUCKRAKER) {
                         // //System.out.println\("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
-                        numEnemiesKilled++;
+                        // 1 point for if slanderer nearby or not only EC
+                        if (!onlyECs || nearbySlanderer) {
+                            numEnemiesKilled++;
+                        } 
+                        // 0.5 points for ECHunter
+                        else {
+                            numEnemiesKilled += 0.5;
+                        }
                     } 
                     // 10 points for enlightenment center
                     else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         // //System.out.println\("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
                     } 
-                    // points for politicians that return net positive influence
+                    // Points for politicians that return net positive influence
                     else if (robot.type == RobotType.POLITICIAN && multiplier > 2) {
                         // //System.out.println\("Can kill PN: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         double conversionScore = multiplier * (Math.min(robot.influence, perUnitDamage - robot.conviction) - 10) / rc.getConviction();

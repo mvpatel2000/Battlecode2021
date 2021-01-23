@@ -114,7 +114,7 @@ public class Politician extends Unit {
      */
     void weakPoliticianTurn() throws GameActionException {
         // Suicide if you're clogging allies
-        if (nearbyAllies.length > 7 && rc.canEmpower(1)) {
+        if ((destination == null || nearbyAllies.length > 7) && rc.canEmpower(1)) {
             rc.empower(1);
         }
         // Clogging enemy 

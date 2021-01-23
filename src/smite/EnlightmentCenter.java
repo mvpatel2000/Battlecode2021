@@ -138,7 +138,7 @@ public class EnlightmentCenter extends Robot {
         super.run();
 
         if (currentRound == 800) {
-            //rc.resign\(); // TODO: remove; just for debugging
+            // //rc.resign\(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -248,7 +248,7 @@ public class EnlightmentCenter extends Robot {
      */
     void buildUnit() throws GameActionException {
         // Not ready to build anything
-        if (!rc.isReady()) {
+        if (!rc.isReady() || rc.getRoundNum() >= 1490) {
             return;
         }
         Direction optimalDir = findOptimalSpawnDir();
