@@ -24,7 +24,7 @@ public class Politician extends Unit {
 
     public Politician(RobotController rc) throws GameActionException {
         super(rc);
-        onlyECHunter = rc.getInfluence() > 15;
+        onlyECHunter = false;
         convertedPolitician = false;
         defend = true;
         lapClockwise = Math.random() < 0.5; // send half the defenders clockwise, other half counterclockwise
@@ -81,6 +81,7 @@ public class Politician extends Unit {
 
         if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
             defend = false;
+            onlyECHunter = rc.getConviction() > 30;
         }
 
         if (!defend) {
