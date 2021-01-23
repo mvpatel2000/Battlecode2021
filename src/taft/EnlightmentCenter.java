@@ -364,7 +364,15 @@ public class EnlightmentCenter extends Robot {
                         } else {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                             // System.out.println("Spawning normal: " + enemyLocation);
-                            int influence = rc.getRoundNum() < 50 ? 14 : (Math.random() < 0.5 ? 18 : 26);
+                            int influence = 14;
+                            if (rc.getRoundNum() > 50) {
+                                if (Math.random() < 0.5) {
+                                    influence = 18;
+                                }
+                                else {
+                                    influence = 30;
+                                }
+                            }
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                         }
                     }
