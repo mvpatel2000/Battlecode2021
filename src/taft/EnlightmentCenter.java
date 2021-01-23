@@ -341,9 +341,9 @@ public class EnlightmentCenter extends Robot {
                     }
                     if (!sendToNeutral) {
                         if (Math.random() < 0.5) { // spawn defender
-                            MapLocation defenderDest = defenderDestination();
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, defenderDest, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
+                            enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                             // System.out.println("Spawning defender: " + defenderDest);
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
                         } else if (rc.getInfluence() > 10000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             // System.out.println("Spawning thicc killer: " + enemyLocation);
@@ -360,19 +360,6 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
             }
-        }
-    }
-
-    MapLocation defenderDestination() {
-        // sometimes also should send to nearest enemy
-        if (Math.random() < 0.5) {
-            Direction di = randomDirection();
-            return myLocation.translate(di.dx*7, di.dy*7);
-        } else {
-            // send towards enemy base
-            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
-            Direction di = myLocation.directionTo(enemyLocation);
-            return myLocation.translate(di.dx*7, di.dy*7);
         }
     }
 
