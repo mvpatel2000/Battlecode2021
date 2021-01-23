@@ -12,7 +12,8 @@ public class Politician extends Unit {
 
     // Variables to keep track of defense lap prior to attack for defend-attackers
     boolean defend; // if true, take a lap around base. if false, head for destination.
-    MapLocation farthestSlandererFromBase;
+    MapLocation edgeSlanderer; // of the visible slanderers that are farther from the base than I am,
+    // what's the nearest to me? if none are farther than I am, this is the nearest slanderer period.
     boolean lapClockwise; // direction of lap around base for defend-attackers
     boolean leftStartingOctant; // true if I've started my lap and left the starting octant
     boolean startedLap; // true if I've moved far enough from my EC to start my lap
@@ -40,8 +41,8 @@ public class Politician extends Unit {
         // Read flags to check for slanderers
         areSlanderers = new boolean[nearbyAllies.length];
         nearbySlanderer = false;
-        farthestSlandererFromBase = null;
-        int maxDist = 0;
+        edgeSlanderer = null;
+        int minDist = 10000000;
         for (int i = 0; i < nearbyAllies.length; i++) {
             // System.out.println("s (" + i + "): " + Clock.getBytecodesLeft());
             RobotInfo robot = nearbyAllies[i];
@@ -55,11 +56,15 @@ public class Politician extends Unit {
                     // System.out.println("s5 (" + i + "): " + Clock.getBytecodesLeft());
                     areSlanderers[i] = uf.readIsSlanderer();
                     nearbySlanderer |= areSlanderers[i];
-                    if (baseLocation != null) {
-                        int dist = baseLocation.distanceSquaredTo(robot.location);
-                        if (areSlanderers[i] && (farthestSlandererFromBase == null || dist > maxDist)) {
-                            farthestSlandererFromBase = robot.location;
-                            dist = maxDist;
+                    if (baseLocation != null && areSlanderers[i]) {
+                        rc.setIndicatorDot(robot.location, 255, 153, 51);
+                        int dist = myLocation.distanceSquaredTo(robot.location);
+                        if (baseLocation.distanceSquaredTo(robot.location) <= baseLocation.distanceSquaredTo(myLocation)) {
+                            dist += 10000;
+                        }
+                        if (dist < minDist) {
+                            edgeSlanderer = robot.location;
+                            minDist = dist;
                         }
                     }
                 }
@@ -71,6 +76,7 @@ public class Politician extends Unit {
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
             setInitialDestination();
+            defend = false;
         }
 
         if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
@@ -155,39 +161,61 @@ public class Politician extends Unit {
      */
     void movePolitician() throws GameActionException {
         // ECHunters ignore other units
-        if (defend) {
+        if (defend && instruction >= 0) {
             if (baseLocation == null) { // this shouldn't happen; null-check just to be safe and end defense lap
+                System.out.println("WARNING: I'm a defender but don't have a baseLocation. Exiting defense mode.");
                 defend = false;
                 movePolitician();
                 return;
             }
             // if no slanderers are seen or if I'm farther away from the base than the farthest slanderer, then proceed in lap
-            else if (farthestSlandererFromBase == null || myLocation.distanceSquaredTo(baseLocation) > farthestSlandererFromBase.distanceSquaredTo(baseLocation)) {
+            else if (edgeSlanderer == null || myLocation.distanceSquaredTo(baseLocation) > edgeSlanderer.distanceSquaredTo(baseLocation)) {
                 if (!startedLap) { // start lap if it hasn't been started yet
                     lapStartDirection = baseLocation.directionTo(myLocation);
+                    System.out.println("Starting defense lap; start direction: " + lapStartDirection);
                     startedLap = true;
                 } else if (startedLap && !leftStartingOctant) { // if we were still in the starting octant before, check if we still are now
                     leftStartingOctant = baseLocation.directionTo(myLocation) != lapStartDirection;
+                    if (leftStartingOctant) {
+                        System.out.println("Left the starting octant in my lap");
+                    }
                 } else if (startedLap && leftStartingOctant && baseLocation.directionTo(myLocation) == lapStartDirection) { // if we did a full lap, end defense lap
+                    System.out.println("Finished a full lap! Exiting defense mode.");
                     defend = false;
                     movePolitician();
                     return;
                 }
                 Direction moveDir;
-                MapLocation pivot = farthestSlandererFromBase == null ? baseLocation : farthestSlandererFromBase;
+                rc.setIndicatorDot(edgeSlanderer == null ? baseLocation : edgeSlanderer, 102, 0, 204);
                 if (lapClockwise) {
-                    moveDir = myLocation.directionTo(pivot).rotateLeft();
+                    moveDir = myLocation.directionTo(baseLocation).rotateLeft();
+                    if (edgeSlanderer != null) {
+                        Direction moveDir2 = myLocation.directionTo(edgeSlanderer).rotateLeft();
+                        if (myLocation.add(moveDir2).distanceSquaredTo(baseLocation) > myLocation.add(moveDir).distanceSquaredTo(baseLocation)) {
+                            moveDir = moveDir2;
+                        }
+                    }
                 } else {
-                    moveDir = myLocation.directionTo(pivot).rotateRight();
+                    moveDir = myLocation.directionTo(baseLocation).rotateRight();
+                    if (edgeSlanderer != null) {
+                        Direction moveDir2 = myLocation.directionTo(edgeSlanderer).rotateRight();
+                        if (myLocation.add(moveDir2).distanceSquaredTo(baseLocation) > myLocation.add(moveDir).distanceSquaredTo(baseLocation)) {
+                            moveDir = moveDir2;
+                        }
+                    }
                 }
                 if (!rc.onTheMap(myLocation.add(moveDir))) { // hit the wall, end defense lap
+                    System.out.println("Lap is taking me off the map. Exiting defense mode.");
                     defend = false;
                     movePolitician();
                     return;
                 }
+                System.out.println("FuzzyMoving " + moveDir + " for my lap");
                 fuzzyMove(myLocation.add(moveDir)); // move orthogonal to direction to pivot, specified by moveDir
             } else { // I need to get farther from the base; get on the far side of the farthest slanderer
-                fuzzyMove(farthestSlandererFromBase.add(farthestSlandererFromBase.directionTo(baseLocation).opposite()));
+                MapLocation farSide = edgeSlanderer.add(edgeSlanderer.directionTo(baseLocation).opposite());
+                System.out.println("Attempting to move to far side: " + farSide);
+                fuzzyMove(farSide);
             }
             return;
         } else if (onlyECHunter) {

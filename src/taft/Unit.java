@@ -87,6 +87,8 @@ public abstract class Unit extends Robot {
         seenAllyECs = new HashSet<>();
         seenAllyECs.add(baseID);
         priorDestinations = new ArrayList<MapLocation>();
+
+        instruction = -1;
     }
 
     @Override
@@ -246,6 +248,7 @@ public abstract class Unit extends Robot {
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
             System.out.println("I have my destination: " + destination.toString());
+            System.out.println("I have my instruction: " + instruction);
             System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }

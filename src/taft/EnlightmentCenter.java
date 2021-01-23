@@ -342,7 +342,7 @@ public class EnlightmentCenter extends Robot {
                     if (!sendToNeutral) {
                         if (Math.random() < 0.5) { // spawn defender
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                            // System.out.println("Spawning defender: " + defenderDest);
+                            System.out.println("Spawning defender: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
                         } else if (rc.getInfluence() > 10000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
