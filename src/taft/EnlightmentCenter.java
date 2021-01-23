@@ -332,8 +332,8 @@ public class EnlightmentCenter extends Robot {
                     // System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
-                // Politicians vs muckrakers ratio 1:1
-                else if (numPoliticians > numMuckrakers) {
+                // Politicians vs muckrakers ratio 3:2
+                else if (numPoliticians > numMuckrakers * 1.5) {
                     int muckInf = 1;
                     if (Math.random() < 0.1) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
@@ -356,16 +356,17 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                     if (!sendToNeutral) {
-                        if (rc.getInfluence() > 10000) {
+                        if (Math.random() < 0.5) { // spawn defender
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, defenderDestination(), SpawnDestinationFlag.INSTR_DEFEND, false);
+                        } else if (rc.getInfluence() > 10000) { // spawn large attacker
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                             // System.out.println("Spawning thicc killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
-                        }
-                        if (rc.getInfluence() > 1000) {
+                        } else if (rc.getInfluence() > 1000) { // spawn attacker
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true, false, false) : optimalDestination(true, false, false);
                             // System.out.println("Spawning killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
-                        } else {
+                        } else { // spawn 14 pol to trade
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
                             // System.out.println("Spawning normal: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
@@ -373,6 +374,19 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
             }
+        }
+    }
+
+    MapLocation defenderDestination() {
+        // sometimes also should send to nearest enemy
+        if (Math.random() < 0.5) {
+            Direction di = randomDirection();
+            return myLocation.translate(di.dx*7, di.dy*7);
+        } else {
+            // send towards enemy base
+            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
+            Direction di = myLocation.directionTo(enemyLocation);
+            return myLocation.translate(di.dx*7, di.dy*7);
         }
     }
 

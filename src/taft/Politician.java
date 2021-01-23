@@ -52,20 +52,28 @@ public class Politician extends Unit {
             setInitialDestination();
         }
 
-        // System.out.println("3: " + Clock.getBytecodesLeft());
-        updateDestinationForExploration(onlyECHunter);
-        // System.out.println("4: " + Clock.getBytecodesLeft());
-        updateDestinationForECHunting();
-
-        // System.out.println("5: " + Clock.getBytecodesLeft());
-        if (!convertedPolitician) {
-            considerBoostEC();
+        if (instruction == SpawnDestinationFlag.INSTR_DEFEND) {
+            // System.out.println("3: " + Clock.getBytecodesLeft());
+            updateDestinationForExploration(onlyECHunter);
+            // System.out.println("4: " + Clock.getBytecodesLeft());
+            updateDestinationForECHunting();
+    
+            // System.out.println("5: " + Clock.getBytecodesLeft());
+            if (!convertedPolitician) {
+                considerBoostEC();
+            }
+            // System.out.println("6: " + Clock.getBytecodesLeft());
+            considerAttack(onlyECHunter);
+        } else {
+            considerDefend();
         }
-        // System.out.println("6: " + Clock.getBytecodesLeft());
-        considerAttack(onlyECHunter);
         // System.out.println("7: " + Clock.getBytecodesLeft());
         movePolitician();
         // System.out.println("8: " + Clock.getBytecodesLeft());
+    }
+
+    void considerDefend() throws GameActionException {
+
     }
 
     /**
