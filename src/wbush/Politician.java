@@ -157,10 +157,18 @@ public class Politician extends Unit {
 
     /**
      * ECHunters bee-line towards enemy ECs. Defenders move like a gas around their destination.
-     * Normal politicians weighted move and seek out nearby
-     * muckrakers if they're uncovered.
+     * Normal politicians weighted move and seek out nearby muckrakers if they're uncovered. If
+     * next to enemy EC, stay put.
      */
     void movePolitician() throws GameActionException {
+        // Don't move if next to enemy EC and clogging slots
+        if (myLocation.distanceSquaredTo(destination) <= 2 && rc.isLocationOccupied(destination)) {
+            RobotInfo target = rc.senseRobotAtLocation(destination);
+            if (target.team == enemyTeam && target.type == RobotType.ENLIGHTENMENT_CENTER) {
+                return;
+            }
+        }
+
         // ECHunters ignore other units
         if (defend && instruction >= 0) {
             if (baseLocation == null) { // this shouldn't happen; null-check just to be safe and end defense lap
@@ -237,7 +245,7 @@ public class Politician extends Unit {
         }
         // If no nearby Muckrakers, continue weighted movement.
         if (nearestMuckraker == null) {
-            // Consider using weightedFuzzyMove
+            // Consider using weightedfuFuzzyMove
             fuzzyMove(destination);
             return;
         }
@@ -249,6 +257,7 @@ public class Politician extends Unit {
                     && myDistance > robot.location.distanceSquaredTo(nearestMuckraker.location)) {
                 // Consider using weightedFuzzyMove
                 fuzzyMove(destination);
+                return;
             }
         }
         fuzzyMove(nearestMuckraker.location);
