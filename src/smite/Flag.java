@@ -19,7 +19,7 @@ public class Flag {
      */
     public static final int NO_SCHEMA = 0; // all units have flag zero by default
 	public static final int EC_SIGHTING_SCHEMA = 1;
-    public static final int MAP_TERRAIN_SCHEMA = 2;
+    public static final int MAP_INFO_SCHEMA = 2;
     public static final int LOCATION_SCHEMA = 3;
     public static final int SPAWN_UNIT_SCHEMA = 4;
 	public static final int SPAWN_DESTINATION_SCHEMA = 5;

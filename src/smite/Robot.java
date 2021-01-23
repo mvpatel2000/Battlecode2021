@@ -14,6 +14,7 @@ public abstract class Robot {
     MapLocation startLocation;
     MapLocation myLocation;
     boolean flagSetThisRound;
+    int flagDataSetThisRound;
     public boolean isSlandererConvertedToPolitician;
 
     static final Direction[] directions = {
@@ -50,18 +51,21 @@ public abstract class Robot {
         startLocation = rc.getLocation();
         myLocation = startLocation;
         flagSetThisRound = false;
+        flagDataSetThisRound = 0;
         isSlandererConvertedToPolitician = false;
     }
 
     public void run() throws GameActionException {
         turnCount++;
         flagSetThisRound = false;
+        flagDataSetThisRound = 0;
         currentRound = rc.getRoundNum();
     }
 
     public void setFlag(int flag) throws GameActionException {
         rc.setFlag(flag);
         flagSetThisRound = true;
+        flagDataSetThisRound = flag;
     }
 
     public int[] getRelativeLocFromModuloLoc(int xMod, int yMod, MapLocation thisLoc) {
