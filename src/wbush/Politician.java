@@ -37,6 +37,12 @@ public class Politician extends Unit {
     public void runUnit() throws GameActionException {
         super.runUnit();
 
+        // Can't do any damage, run alternate code
+        if (rc.getConviction() <= 10) {
+            weakPoliticianTurn();
+            return;
+        }
+
         // System.out.println("1: " + Clock.getBytecodesLeft());
         // Read flags to check for slanderers
         areSlanderers = new boolean[nearbyAllies.length];
@@ -100,6 +106,29 @@ public class Politician extends Unit {
         // System.out.println("7: " + Clock.getBytecodesLeft());
         movePolitician();
         // System.out.println("8: " + Clock.getBytecodesLeft());
+    }
+
+    /**
+     * If politician has <= 10 conviction, clog enemy unless you have many allies near you
+     * @throws GameActionException
+     */
+    void weakPoliticianTurn() throws GameActionException {
+        // Suicide if you're clogging allies
+        if (nearbyAllies.length > 7 && rc.canEmpower(1)) {
+            rc.empower(1);
+        }
+        // Clogging enemy 
+        else if (myLocation.distanceSquaredTo(destination) <= 2 &&
+            rc.isLocationOccupied(destination)) {
+            RobotInfo target = rc.senseRobotAtLocation(destination);
+            // Not clogging enemy EC, suicide
+            if ((target.type != RobotType.ENLIGHTENMENT_CENTER || target.team != enemyTeam)
+                && rc.canEmpower(1)) {
+                rc.empower(1);
+            }
+        } else {
+            fuzzyMove(destination);
+        }
     }
 
     /**
