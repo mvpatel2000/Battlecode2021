@@ -284,7 +284,7 @@ public class Politician extends Unit {
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
         if (destination != null) {
-            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination);
+            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination) * 2;
         }
         double totalAllyConviction = 0;
         int allyLength = Math.min(8, nearbyAllies.length);
