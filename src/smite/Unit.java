@@ -87,6 +87,8 @@ public abstract class Unit extends Robot {
         seenAllyECs = new HashSet<>();
         seenAllyECs.add(baseID);
         priorDestinations = new ArrayList<MapLocation>();
+
+        instruction = -1;
     }
 
     @Override
@@ -100,6 +102,9 @@ public abstract class Unit extends Robot {
         readECInstructions();
         switchToLatestBaseDestination();
         // //System.out.println\("Destination: " + destination);
+        if (destination != null) {
+            //rc.setIndicatorDot(destination, 255, 255, 255);
+        }
 
         // Call unit-specific run method
         runUnit();
@@ -162,14 +167,10 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         }
-        // If no nearby enemies, use my information
-        if (enemyLoc == null) {
-            enemyLoc = myLocation;
-            enemyType = rc.getType();
-        }
+        // Case where enemyLoc is still null is handled in UnitUpdateFlag constructor.
+        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, instruction == SpawnDestinationFlag.INSTR_DEFEND_ATTACK, enemyLoc, enemyType);
         ////System.out.println\("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // //rc.setIndicatorDot(enemyLoc, 30, 255, 40);
-        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, enemyLoc, enemyType);
         setFlag(uuf.flag);
     }
 
@@ -193,10 +194,10 @@ public abstract class Unit extends Robot {
                 int flag = rc.getFlag(r.ID);
                 if (Flag.getSchema(flag) == Flag.UNIT_UPDATE_SCHEMA) {
                     UnitUpdateFlag uuf = new UnitUpdateFlag(flag);
-                    MapLocation loc = uuf.readAbsoluteEnemyLocation(r.location);
+                    MapLocation loc = uuf.readAbsoluteLocation(r.location);
                     // Only listen about enemies from units closer to it than you. This ensures it is a DAG
                     // and prevents echoing on dead units.
-                    if (loc != null && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
+                    if (uuf.readHasNearbyEnemy() && r.location.distanceSquaredTo(loc) < myLocation.distanceSquaredTo(loc)) {
                         int dist = myLocation.distanceSquaredTo(loc);
                         enemyType = uuf.readEnemyType();
                         // Penalize non-muckrakers
@@ -246,8 +247,9 @@ public abstract class Unit extends Robot {
             destination = sdf.readAbsoluteLocation(myLocation);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            // //System.out.println\("I have my destination: " + destination.toString());
-            // //System.out.println\("Explore Mode Status: " + exploreMode);
+            //System.out.println\("I have my destination: " + destination.toString());
+            //System.out.println\("I have my instruction: " + instruction);
+            //System.out.println\("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -558,17 +560,16 @@ public abstract class Unit extends Robot {
     }
 
     /**
-     * Moves towards destination, prefering high passability terrain. Repels from nearby units of
-     * the same type to avoid clustering after initial few turns.
+     * Moves towards destination, prefering high passability terrain, with an option
+     * to repel friendly units of the same type.
+     * 
+     * Note: Politicians will repel from slanderers, since they can't tell the difference.
      */
-    void weightedFuzzyMove(MapLocation destination) throws GameActionException {
-        MapLocation myLocation = rc.getLocation();
+    void weightedFuzzyMove(MapLocation destination, boolean shouldRepel) throws GameActionException {
         Direction toDest = myLocation.directionTo(destination);
         Direction[] dirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
             toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
         double[] costs = new double[8];
-        // Ignore repel factor in beginning and when close to target
-        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
         for (int i = 0; i < dirs.length; i++) {
             MapLocation newLocation = myLocation.add(dirs[i]);
             // Movement invalid, set higher cost than starting value
@@ -609,6 +610,16 @@ public abstract class Unit extends Robot {
         if (optimalDir != null) {
             move(optimalDir);
         }
+    }
+
+    /**
+     * Repels from nearby units of the same type after the initial
+     * few turns to avoid clustering.
+     */
+    void weightedFuzzyMove(MapLocation destination) throws GameActionException {
+        // Ignore repel factor in beginning and when close to target
+        boolean shouldRepel = turnCount > 50 && myLocation.distanceSquaredTo(destination) > 40;
+        weightedFuzzyMove(destination, shouldRepel);
     }
 
     /**
@@ -743,11 +754,11 @@ public abstract class Unit extends Robot {
         // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
         // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
         if (destination == null || !rc.onTheMap(nearDestination) ||
-            myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
+            (rc.canSenseLocation(destination)
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
-                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter
-                || rc.senseRobotAtLocation(destination).team == allyTeam)) {
+                || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
+                || rc.senseRobotAtLocation(destination).team == allyTeam))) {
             if (destination != null) {
                 priorDestinations.add(destination);
             }

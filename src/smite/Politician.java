@@ -10,6 +10,15 @@ public class Politician extends Unit {
     boolean onlyECHunter;
     boolean convertedPolitician;
 
+    // Variables to keep track of defense lap prior to attack for defend-attackers
+    boolean defend; // if true, take a lap around base. if false, head for destination.
+    MapLocation edgeSlanderer; // of the visible slanderers that are farther from the base than I am,
+    // what's the nearest to me? if none are farther than I am, this is the nearest slanderer period.
+    boolean lapClockwise; // direction of lap around base for defend-attackers
+    boolean leftStartingOctant; // true if I've started my lap and left the starting octant
+    boolean startedLap; // true if I've moved far enough from my EC to start my lap
+    Direction lapStartDirection; // direction from baseLocation to me at the start of lap
+
     boolean[] areSlanderers;
     boolean nearbySlanderer;
 
@@ -17,6 +26,11 @@ public class Politician extends Unit {
         super(rc);
         onlyECHunter = rc.getInfluence() > 15;
         convertedPolitician = false;
+        defend = true;
+        lapClockwise = Math.random() < 0.5; // send half the defenders clockwise, other half counterclockwise
+        leftStartingOctant = false;
+        startedLap = false;
+        lapStartDirection = null;
     }
 
     @Override
@@ -27,10 +41,12 @@ public class Politician extends Unit {
         // Read flags to check for slanderers
         areSlanderers = new boolean[nearbyAllies.length];
         nearbySlanderer = false;
+        edgeSlanderer = null;
+        int minDist = 10000000;
         for (int i = 0; i < nearbyAllies.length; i++) {
             // //System.out.println\("s (" + i + "): " + Clock.getBytecodesLeft());
             RobotInfo robot = nearbyAllies[i];
-            if (rc.canGetFlag(robot.ID) ) {
+            if (rc.canGetFlag(robot.ID)) {
                 // //System.out.println\("s2 (" + i + "): " + Clock.getBytecodesLeft());
                 int flagInt = rc.getFlag(robot.ID);
                 // //System.out.println\("s3 (" + i + "): " + Clock.getBytecodesLeft());
@@ -40,25 +56,46 @@ public class Politician extends Unit {
                     // //System.out.println\("s5 (" + i + "): " + Clock.getBytecodesLeft());
                     areSlanderers[i] = uf.readIsSlanderer();
                     nearbySlanderer |= areSlanderers[i];
+                    if (baseLocation != null && areSlanderers[i]) {
+                        //rc.setIndicatorDot(robot.location, 255, 153, 51);
+                        int dist = myLocation.distanceSquaredTo(robot.location);
+                        if (baseLocation.distanceSquaredTo(robot.location) <= baseLocation.distanceSquaredTo(myLocation)) {
+                            dist += 10000;
+                        }
+                        if (dist < minDist) {
+                            edgeSlanderer = robot.location;
+                            minDist = dist;
+                        }
+                    }
                 }
             }
             // //System.out.println\("s (" + i + "): " + Clock.getBytecodesLeft());
         }
-
         
         // //System.out.println\("2: " + Clock.getBytecodesLeft());
         // Converted politician or slanderer turned politician. Set baseLocation and destination.
         if (baseLocation == null) {
             setInitialDestination();
+            defend = false;
         }
 
-        // //System.out.println\("3: " + Clock.getBytecodesLeft());
-        updateDestinationForExploration(onlyECHunter);
-        // //System.out.println\("4: " + Clock.getBytecodesLeft());
-        updateDestinationForECHunting();
+        if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
+            defend = false;
+        }
 
-        // //System.out.println\("6: " + Clock.getBytecodesLeft());
-        considerAttack(onlyECHunter);
+        if (!defend) {
+            //rc.setIndicatorDot(myLocation, 255, 0, 0);
+            // //System.out.println\("3: " + Clock.getBytecodesLeft());
+            updateDestinationForExploration(onlyECHunter);
+            // //System.out.println\("4: " + Clock.getBytecodesLeft());
+            updateDestinationForECHunting();
+    
+            // //System.out.println\("6: " + Clock.getBytecodesLeft());
+            considerAttack(onlyECHunter, false);
+        } else {
+            //rc.setIndicatorDot(myLocation, 0, 0, 255);
+            considerAttack(false, true);
+        }
         // //System.out.println\("7: " + Clock.getBytecodesLeft());
         movePolitician();
         // //System.out.println\("8: " + Clock.getBytecodesLeft());
@@ -118,13 +155,70 @@ public class Politician extends Unit {
     }
 
     /**
-     * ECHunters bee-line towards enemy ECs. Normal politicians weighted move and seek out nearby
+     * ECHunters bee-line towards enemy ECs. Defenders move like a gas around their destination.
+     * Normal politicians weighted move and seek out nearby
      * muckrakers if they're uncovered.
-     * @throws GameActionException
      */
     void movePolitician() throws GameActionException {
         // ECHunters ignore other units
-        if (onlyECHunter) {
+        if (defend && instruction >= 0) {
+            if (baseLocation == null) { // this shouldn't happen; null-check just to be safe and end defense lap
+                //System.out.println\("WARNING: I'm a defender but don't have a baseLocation. Exiting defense mode.");
+                defend = false;
+                movePolitician();
+                return;
+            }
+            // if no slanderers are seen or if I'm farther away from the base than the farthest slanderer, then proceed in lap
+            else if (edgeSlanderer == null || myLocation.distanceSquaredTo(baseLocation) > edgeSlanderer.distanceSquaredTo(baseLocation)) {
+                if (!startedLap) { // start lap if it hasn't been started yet
+                    lapStartDirection = baseLocation.directionTo(myLocation);
+                    //System.out.println\("Starting defense lap; start direction: " + lapStartDirection);
+                    startedLap = true;
+                } else if (startedLap && !leftStartingOctant) { // if we were still in the starting octant before, check if we still are now
+                    leftStartingOctant = baseLocation.directionTo(myLocation) != lapStartDirection;
+                    if (leftStartingOctant) {
+                        //System.out.println\("Left the starting octant in my lap");
+                    }
+                } else if (startedLap && leftStartingOctant && baseLocation.directionTo(myLocation) == lapStartDirection) { // if we did a full lap, end defense lap
+                    //System.out.println\("Finished a full lap! Exiting defense mode.");
+                    defend = false;
+                    movePolitician();
+                    return;
+                }
+                Direction moveDir;
+                //rc.setIndicatorDot(edgeSlanderer == null ? baseLocation : edgeSlanderer, 102, 0, 204);
+                if (lapClockwise) {
+                    moveDir = myLocation.directionTo(baseLocation).rotateLeft();
+                    if (edgeSlanderer != null) {
+                        Direction moveDir2 = myLocation.directionTo(edgeSlanderer).rotateLeft();
+                        if (myLocation.add(moveDir2).distanceSquaredTo(baseLocation) > myLocation.add(moveDir).distanceSquaredTo(baseLocation)) {
+                            moveDir = moveDir2;
+                        }
+                    }
+                } else {
+                    moveDir = myLocation.directionTo(baseLocation).rotateRight();
+                    if (edgeSlanderer != null) {
+                        Direction moveDir2 = myLocation.directionTo(edgeSlanderer).rotateRight();
+                        if (myLocation.add(moveDir2).distanceSquaredTo(baseLocation) > myLocation.add(moveDir).distanceSquaredTo(baseLocation)) {
+                            moveDir = moveDir2;
+                        }
+                    }
+                }
+                if (!rc.onTheMap(myLocation.add(moveDir))) { // hit the wall, end defense lap
+                    //System.out.println\("Lap is taking me off the map. Exiting defense mode.");
+                    defend = false;
+                    movePolitician();
+                    return;
+                }
+                //System.out.println\("FuzzyMoving " + moveDir + " for my lap");
+                fuzzyMove(myLocation.add(moveDir)); // move orthogonal to direction to pivot, specified by moveDir
+            } else { // I need to get farther from the base; get on the far side of the farthest slanderer
+                MapLocation farSide = edgeSlanderer.add(edgeSlanderer.directionTo(baseLocation).opposite());
+                //System.out.println\("Attempting to move to far side: " + farSide);
+                fuzzyMove(farSide);
+            }
+            return;
+        } else if (onlyECHunter) {
             fuzzyMove(destination);
             return;
         }
@@ -162,9 +256,9 @@ public class Politician extends Unit {
     /**
      * Analyzes if politician should attack. Returns true if it attacked. Sorts nearbyRobots and
      * considers various ranges of empowerment to optimize kills. Only kills ECs if parameter
-     * passed in.
+     * passed in. If paranoid is true then blow up on an enemy muckraker whenever possible.
      */
-    public boolean considerAttack(boolean onlyECs) throws GameActionException {
+    public boolean considerAttack(boolean onlyECs, boolean paranoid) throws GameActionException {
         // Recreate arrays with smaller radius only considering attack
         RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
 
@@ -179,6 +273,9 @@ public class Politician extends Unit {
         }
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
+        if (destination != null) {
+            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination);
+        }
         double totalAllyConviction = 0;
         int allyLength = Math.min(8, nearbyAllies.length);
         for (int i = 0; i < allyLength; i++) {
@@ -261,7 +358,7 @@ public class Politician extends Unit {
         // 3. Either force attack or kill multiple enemies or kill 1 enemy but close to base or slanderers nearby or end of game
         if (rc.canEmpower(optimalDist) &&
             (nearbyEnemies.length > 0 || optimalNumUnitsHit == 1 || myLocation.distanceSquaredTo(destination) <= 2) &&
-            (optimalNumEnemiesKilled > 1 || ((nearbySlanderer || nearbyBase || currentRound > 1450) && optimalNumEnemiesKilled > 0))) {
+            (optimalNumEnemiesKilled > 1 || ((nearbySlanderer || nearbyBase || paranoid || currentRound > 1450) && optimalNumEnemiesKilled > 0))) {
             rc.empower(optimalDist);
         }
         return false;

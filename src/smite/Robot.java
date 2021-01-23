@@ -39,6 +39,13 @@ public abstract class Robot {
         Direction.NORTHWEST,
         Direction.CENTER
     };
+    
+    public static final RobotType[] robotTypes = {
+        RobotType.ENLIGHTENMENT_CENTER,
+        RobotType.POLITICIAN,
+        RobotType.SLANDERER,
+        RobotType.MUCKRAKER
+    };
 
     public Robot(RobotController robotController) throws GameActionException {
         rc = robotController;
@@ -107,6 +114,22 @@ public abstract class Robot {
      */
     static Direction randomDirection() {
         return directions[(int) (Math.random() * directions.length)];
+    }
+
+    /**
+     * Convert RobotType to integer.
+     */
+    public static int typeToInt(RobotType type) {
+        switch(type) {
+            case POLITICIAN:
+                return 1;
+            case SLANDERER:
+                return 2;
+            case MUCKRAKER:
+                return 3;
+            default:
+                return 0;
+        }
     }
 
     public static int directionToInt(Direction d) {

@@ -6,7 +6,7 @@ import java.util.*;
 public class Muckraker extends Unit {
 
     public final static int INITIAL_COOLDOWN = 10;
-    
+
     public Muckraker(RobotController rc) throws GameActionException {
         super(rc);
     }
@@ -20,11 +20,36 @@ public class Muckraker extends Unit {
         // Search for nearest slanderer. If one exists, kill it or move towards it.
         if (rc.isReady()) {
             if (!denyNeutralEC()) {
+                unClog();
                 huntSlanderersOrToDestination();
             }
         }
     }
 
+
+    boolean unClog() throws GameActionException {
+        if (rc.canDetectLocation(destination.add(myLocation.directionTo(destination)))) {
+            RobotInfo destRobot = rc.senseRobotAtLocation(destination);
+            if (destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                if (myLocation.distanceSquaredTo(destination) <= 2) {
+                    return false;
+                }
+                if (   (rc.isLocationOccupied(destination.add(Direction.NORTH)) || !rc.onTheMap(destination.add(Direction.NORTH)))
+                    && (rc.isLocationOccupied(destination.add(Direction.NORTHEAST)) || !rc.onTheMap(destination.add(Direction.NORTHEAST)))
+                    && (rc.isLocationOccupied(destination.add(Direction.EAST)) || !rc.onTheMap(destination.add(Direction.EAST)))
+                    && (rc.isLocationOccupied(destination.add(Direction.SOUTHEAST)) || !rc.onTheMap(destination.add(Direction.SOUTHEAST)))
+                    && (rc.isLocationOccupied(destination.add(Direction.SOUTH)) || !rc.onTheMap(destination.add(Direction.SOUTH)))
+                    && (rc.isLocationOccupied(destination.add(Direction.SOUTHWEST)) || !rc.onTheMap(destination.add(Direction.SOUTHWEST)))
+                    && (rc.isLocationOccupied(destination.add(Direction.WEST)) || !rc.onTheMap(destination.add(Direction.WEST)))
+                    && (rc.isLocationOccupied(destination.add(Direction.NORTHWEST)) || !rc.onTheMap(destination.add(Direction.NORTHWEST)))
+                    ) {
+                        destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+                        return true;
+                    }
+            }
+        }
+        return false;
+    }
     /**
      * Dilute enemy politicians when they try to capture neutral EC.
      * Returns true if it took an action.
@@ -75,7 +100,7 @@ public class Muckraker extends Unit {
             if (nearestNeutralECDistance > 2) {
                 fuzzyMove(nearestNeutralEC.location);
             }
-        } 
+        }
         else {
             // Redefine as unchanging variable for compiler
             MapLocation nearestEnemyPoliticianLocation = nearestEnemyPolitician.location;
@@ -85,10 +110,10 @@ public class Muckraker extends Unit {
                 public int compare(Direction d1, Direction d2) {
                     MapLocation m1 = myLocation.add(d1);
                     MapLocation m2 = myLocation.add(d2);
-                    int cost1 = m1.distanceSquaredTo(nearestEnemyPoliticianLocation) <= nearestEnemyPoliticianDistanceFinal ? 0 : 100000; 
+                    int cost1 = m1.distanceSquaredTo(nearestEnemyPoliticianLocation) <= nearestEnemyPoliticianDistanceFinal ? 0 : 100000;
                     int cost2 = m2.distanceSquaredTo(nearestEnemyPoliticianLocation) <= nearestEnemyPoliticianDistanceFinal ? 0 : 100000;
-                    cost1 += m1.distanceSquaredTo(nearestNeutralECLocation); 
-                    cost2 += m2.distanceSquaredTo(nearestNeutralECLocation); 
+                    cost1 += m1.distanceSquaredTo(nearestNeutralECLocation);
+                    cost2 += m2.distanceSquaredTo(nearestNeutralECLocation);
                     return cost1 - cost2;
                 }
             });

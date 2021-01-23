@@ -259,6 +259,15 @@ public class Politician extends Unit {
      * passed in. If paranoid is true then blow up on an enemy muckraker whenever possible.
      */
     public boolean considerAttack(boolean onlyECs, boolean paranoid) throws GameActionException {
+        if (currentRound >= 1490 && rc.getTeamVotes() < 751) {
+            RobotInfo[] adjacentEnemies = rc.senseNearbyRobots(1, enemyTeam);
+            if (adjacentEnemies.length > 0 && rc.canEmpower(1)) {
+                rc.empower(1);
+                return true;
+            }
+        }
+
+
         // Recreate arrays with smaller radius only considering attack
         RobotInfo[] attackNearbyRobots = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared);
 
