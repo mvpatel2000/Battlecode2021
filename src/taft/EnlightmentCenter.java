@@ -248,7 +248,7 @@ public class EnlightmentCenter extends Robot {
      */
     void buildUnit() throws GameActionException {
         // Not ready to build anything
-        if (!rc.isReady()) {
+        if (!rc.isReady() || rc.getRoundNum() >= 1490) {
             return;
         }
         Direction optimalDir = findOptimalSpawnDir();
