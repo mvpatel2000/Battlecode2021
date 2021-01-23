@@ -1,0 +1,331 @@
+package taft;
+
+import battlecode.common.*;
+import java.util.*;
+
+public class Muckraker extends Unit {
+
+    public final static int INITIAL_COOLDOWN = 10;
+    boolean gasMode;
+    boolean temporaryGasMode;
+    MapLocation gasModeDestination;
+
+    public Muckraker(RobotController rc) throws GameActionException {
+        super(rc);
+        temporaryGasMode = false;
+        gasMode = false;
+        gasModeDestination = null;
+    }
+
+    @Override
+    public void runUnit() throws GameActionException {
+        super.runUnit();
+        //updateDestinationForExploration(false);
+
+        // Search for nearest slanderer. If one exists, kill it or move towards it.
+        if (rc.isReady()) {
+            if (!denyNeutralEC()) {
+                takeAction();
+            } else {
+                System.out.println("Denying neutral.");
+            }
+        }
+    }
+
+    boolean takeAction() throws GameActionException {
+        boolean tookAction = false;
+        boolean canSenseDestination = rc.canSenseLocation(destination);
+        tookAction = sitNextToEnemyECs();
+        if (tookAction) { System.out.println("Sitting Next to enemy EC."); return true; }
+
+        tookAction = huntSlanderers();
+        if (tookAction) { System.out.println("Hunting Sland."); return true; }
+
+        tookAction = gasModeActions();
+        if (tookAction) { System.out.println("In Gas Mode."); return true; }
+
+        tookAction = temporaryGasModeActions();
+        if (tookAction) { System.out.println("In Temp Gas Mode."); return true;}
+
+        tookAction = normalModeActions(canSenseDestination);
+        if (tookAction) { return true;}
+
+        return false;
+    }
+
+    /**
+     * Bounce around from random destinations in a gas-like fashion
+     * avoiding other ally muckrakers.
+     */
+    boolean gasModeActions() throws GameActionException {
+        if (!gasMode) {
+            return false;
+        }
+        MapLocation nearDestination = myLocation;
+        if (destination != null) {
+            for (int i = 0; i < 3; i++) {
+                nearDestination = nearDestination.add(nearDestination.directionTo(gasModeDestination));
+            }
+        }
+        if (gasModeDestination == null || myLocation.distanceSquaredTo(gasModeDestination) < 4 || !rc.onTheMap(nearDestination)) {
+            setNewGasModeDestination();
+        }
+
+        gasModeMove();
+        return true;
+    }
+
+    /**
+     * Exactly like the standard gas mode, except we break out of it
+     * when our base sends us a valid destination.
+     */
+    boolean temporaryGasModeActions() throws GameActionException {
+        if (!temporaryGasMode) {
+            return false;
+        }
+        if (gasModeDestination == null || myLocation.distanceSquaredTo(gasModeDestination) < 4) {
+            setNewGasModeDestination();
+        }
+        gasModeMove();
+        boolean updatedDest = updatedDestFromBase(false);
+        if (updatedDest) {
+            temporaryGasMode = false;   // go back to normal mode
+        }
+        return true;
+    }
+
+    /**
+     * Standard mode actions. We have a destination, and we are trying to
+     * go there as efficiently as possible. This destination may be updated
+     * if we get close to it.
+     */
+    boolean normalModeActions(boolean canSenseDestination) throws GameActionException {
+        boolean tookAction = journeyToDestination(canSenseDestination);
+        if (tookAction) { System.out.println("Journeying to Destination."); return true; }
+
+        boolean destIsEnemyEC = checkDestinationIsEnemyEC(canSenseDestination);
+        if (destIsEnemyEC) {
+            gasMode = true;
+        }
+        boolean updatedDest = updatedDestFromBase(destIsEnemyEC);
+        if (updatedDest) {
+            System.out.println("Base has updated destination!");
+            fuzzyMove(destination);
+            temporaryGasMode = false;
+        } else {
+            temporaryGasMode = true;
+        }
+        return true;
+    }
+
+    /**
+     * Dilute enemy politicians when they try to capture neutral EC.
+     * Returns true if it took an action.
+     * @throws GameActionException
+     */
+    boolean denyNeutralEC() throws GameActionException {
+        RobotInfo[] nearbyNeutrals = rc.senseNearbyRobots(RobotType.MUCKRAKER.sensorRadiusSquared, neutralTeam);
+        // No nearby neutral units
+        if (nearbyNeutrals.length == 0) {
+            return false;
+        }
+        RobotInfo nearestNeutralEC = null;
+        int nearestNeutralECDistance = 100000;
+        for (RobotInfo robot : nearbyNeutrals) {
+            int distance = robot.location.distanceSquaredTo(myLocation);
+            if (distance < nearestNeutralECDistance) {
+                nearestNeutralECDistance = distance;
+                nearestNeutralEC = robot;
+            }
+        }
+        // No nearby neutral ECs
+        if (nearestNeutralEC == null) {
+            return false;
+        }
+        for (RobotInfo robot : nearbyAllies) {
+            // Another muckraker has EC covered
+            if (robot.type == RobotType.MUCKRAKER && robot.location.distanceSquaredTo(nearestNeutralEC.location) <= 2) {
+                return false;
+            }
+            // Ally policitian attempts to take EC
+            if (robot.type == RobotType.POLITICIAN && robot.location.distanceSquaredTo(nearestNeutralEC.location) <= 2) {
+                return false;
+            }
+        }
+        // Nearest enemy politician
+        RobotInfo nearestEnemyPolitician = null;
+        int nearestEnemyPoliticianDistance = 100000;
+        for (RobotInfo robot : nearbyEnemies) {
+            int distance = robot.location.distanceSquaredTo(nearestNeutralEC.location);
+            if (robot.type == RobotType.POLITICIAN && distance < nearestEnemyPoliticianDistance) {
+                nearestEnemyPoliticianDistance = distance;
+                nearestEnemyPolitician = robot;
+            }
+        }
+        // No enemy politicians
+        if (nearestEnemyPolitician == null) {
+            // Don't move, already adjacent
+            if (nearestNeutralECDistance > 2) {
+                fuzzyMove(nearestNeutralEC.location);
+            }
+        }
+        else {
+            // Redefine as unchanging variable for compiler
+            MapLocation nearestEnemyPoliticianLocation = nearestEnemyPolitician.location;
+            int nearestEnemyPoliticianDistanceFinal = nearestEnemyPoliticianDistance;
+            MapLocation nearestNeutralECLocation = nearestNeutralEC.location;
+            Arrays.sort(allDirections, new Comparator<Direction>() {
+                public int compare(Direction d1, Direction d2) {
+                    MapLocation m1 = myLocation.add(d1);
+                    MapLocation m2 = myLocation.add(d2);
+                    int cost1 = m1.distanceSquaredTo(nearestEnemyPoliticianLocation) <= nearestEnemyPoliticianDistanceFinal ? 0 : 100000;
+                    int cost2 = m2.distanceSquaredTo(nearestEnemyPoliticianLocation) <= nearestEnemyPoliticianDistanceFinal ? 0 : 100000;
+                    cost1 += m1.distanceSquaredTo(nearestNeutralECLocation);
+                    cost2 += m2.distanceSquaredTo(nearestNeutralECLocation);
+                    return cost1 - cost2;
+                }
+            });
+            for (Direction dir : allDirections) {
+                // Stay put
+                if (dir == Direction.CENTER) {
+                    break;
+                }
+                else if (rc.canMove(dir)) {
+                    // System.out.println("Took deny neutral EC move: " + dir);
+                    move(dir);
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * Destination Priority 1. If you are next to enemy EC, sit.
+     */
+    boolean sitNextToEnemyECs() throws GameActionException {
+        int rightNextTo = 2;
+        for (RobotInfo robot : nearbyEnemies) {
+            if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+                if (robotDistSquared <= rightNextTo) {
+                    move(Direction.CENTER);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Destination Priority 2.
+     * Search for nearest slanderer. If one exists, kill it or move towards it.
+     * @throws GameActionException
+     */
+    boolean huntSlanderers() throws GameActionException {
+        RobotInfo nearestSlanderer = null;
+        int nearestSlandererDistSquared = 100;
+        for (RobotInfo robot : nearbyEnemies) {
+            int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
+            if (robot.type == RobotType.SLANDERER && robotDistSquared < nearestSlandererDistSquared) {
+                nearestSlanderer = robot;
+                nearestSlandererDistSquared = robotDistSquared;
+            }
+        }
+        if (nearestSlanderer != null) {
+            // Nearest slanderer exists -- try to kill it or move towards it.
+            if (nearestSlandererDistSquared < rc.getType().actionRadiusSquared) {
+                rc.expose(nearestSlanderer.location);
+                return true;
+            } else {
+                fuzzyMove(nearestSlanderer.location);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Non-gas mode destination priority 3. Go to your destination if it is far away.
+     * Return false if robot can see destination or 3 steps towards destination is off the map.
+     * Return true otherwise, if robot can move towards destination.
+     */
+    boolean journeyToDestination(boolean canSenseDest) throws GameActionException {
+        if (canSenseDest) {
+            return false;
+        }
+        MapLocation nearDestination = myLocation;
+        if (destination != null) {
+            for (int i = 0; i < 3; i++) {
+                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            }
+        }
+        if(!rc.onTheMap(nearDestination)) {
+            return false;
+        }
+        fuzzyMove(destination);
+        return true;
+    }
+
+
+    boolean checkDestinationIsEnemyEC(boolean canSenseDest) throws GameActionException {
+        if (canSenseDest) {
+            RobotInfo destRobot = rc.senseRobotAtLocation(destination);
+            if (destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean updatedDestFromBase(boolean destIsEnemyEC) throws GameActionException {
+        if (destIsEnemyEC) {
+            return false;
+        }
+        SpawnDestinationFlag sdf = getLatestBaseSpawnDestinationFlag();
+        if (sdf == null) {
+            return false;
+        }
+        if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_SLANDERER) {
+            return false;
+        }
+        // the robot spawned is going to an enemy, we may want to go here.
+        MapLocation potentialDest = sdf.readAbsoluteLocation(myLocation);;
+        boolean baseGivingExplore = sdf.readGuess();
+        if (baseGivingExplore) {
+            return false;
+        }
+        destination = potentialDest;
+        return true;
+    }
+
+    void setNewGasModeDestination() throws GameActionException {
+        if (gasModeDestination != null) {
+            priorDestinations.add(gasModeDestination);
+        }
+        Direction[] diagonalDirs = new Direction[]{Direction.NORTHEAST, Direction.NORTHWEST, Direction.SOUTHEAST, Direction.SOUTHWEST};
+
+        boolean valid = true;
+        for (int sample=0; sample<10; sample++) {
+            valid = true;
+            gasModeDestination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            exploreMode = true;
+            for (int i = 0; i < priorDestinations.size(); i++) {
+                if (gasModeDestination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (valid == true) {
+                break;
+            }
+        }
+    }
+
+    boolean gasModeMove() throws GameActionException {
+        weightedFuzzyMove(gasModeDestination);
+        return true;
+    }
+
+}
