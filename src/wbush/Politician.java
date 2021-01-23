@@ -326,17 +326,24 @@ public class Politician extends Unit {
                 RobotInfo robot = attackNearbyRobots[j];
                 // Consider enemy and neutral units
                 if (robot.team != allyTeam && perUnitDamage > robot.conviction) {
-                    // 1 point for muckraker
-                    if ((!onlyECs || nearbySlanderer) && robot.type == RobotType.MUCKRAKER) {
+                    // Points for muckraker
+                    if (robot.type == RobotType.MUCKRAKER) {
                         // System.out.println("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
-                        numEnemiesKilled++;
+                        // 1 point for if slanderer nearby or not only EC
+                        if (!onlyECs || nearbySlanderer) {
+                            numEnemiesKilled++;
+                        } 
+                        // 0.5 points for ECHunter
+                        else {
+                            numEnemiesKilled += 0.5;
+                        }
                     } 
                     // 10 points for enlightenment center
                     else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
                         // System.out.println("Can kill EC: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         numEnemiesKilled += 10;
                     } 
-                    // points for politicians that return net positive influence
+                    // Points for politicians that return net positive influence
                     else if (robot.type == RobotType.POLITICIAN && multiplier > 2) {
                         // System.out.println("Can kill PN: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         double conversionScore = multiplier * (Math.min(robot.influence, perUnitDamage - robot.conviction) - 10) / rc.getConviction();
