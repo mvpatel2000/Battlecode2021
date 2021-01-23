@@ -22,6 +22,8 @@ public abstract class Unit extends Robot {
     MapLocation destination;
     MapLocation latestBaseDestination;
 
+    boolean[] foundEdges;
+
     int instruction;
     boolean spawnedSilently;
     boolean exploreMode;
@@ -43,6 +45,8 @@ public abstract class Unit extends Robot {
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
+                                // North, East, South, West
+        foundEdges = new boolean[]{false, false, false, false};
         // Add base information. If no base is found, baseID will be 0.
         // If spawned silently, then baseLocation will be any base that
         // is adjacent to the unit when it spawns, and is not necessarily
@@ -92,6 +96,7 @@ public abstract class Unit extends Robot {
         moveThisTurn = Direction.CENTER;
         myLocation = rc.getLocation();
         parseVision();
+        findMapEdges();
         readECInstructions();
         switchToLatestBaseDestination();
         // //System.out.println\("Destination: " + destination);
@@ -116,6 +121,8 @@ public abstract class Unit extends Robot {
 
         setUnitUpdateFlag();
         // //System.out.println\("12: " + Clock.getBytecodesLeft());
+
+        checkIfMapInfoFlagPersists();
 
     }
 
@@ -147,22 +154,18 @@ public abstract class Unit extends Robot {
                 enemyType = r.type;
             }
         }
-        if (nearbyEnemies.length == 0) {
-            RobotInfo r = null;
-            if (turnCount != 1) {
-                r = getNearestEnemyFromAllies();
-            }
-            if (r == null) { // default behavior if no enemy is found is to send my info            
-                enemyLoc = myLocation;
-                enemyType = rc.getType();
-                ////System.out.println\("No nearest enemy known.");
-            }
-            else {
+        // If enemyType is not muckraker (null is also not muckraker), use smoke signals
+        if (turnCount != 1) {
+            RobotInfo r = getNearestEnemyFromAllies();
+            if (r != null && enemyType != RobotType.MUCKRAKER && r.type == RobotType.MUCKRAKER) {
                 enemyLoc = r.location;
                 enemyType = r.type;
             }
-        } else { // TODO: remove else, for debugging
-            //rc.setIndicatorLine(myLocation, enemyLoc, 0, 0, 255);
+        }
+        // If no nearby enemies, use my information
+        if (enemyLoc == null) {
+            enemyLoc = myLocation;
+            enemyType = rc.getType();
         }
         ////System.out.println\("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // //rc.setIndicatorDot(enemyLoc, 30, 255, 40);
@@ -260,6 +263,123 @@ public abstract class Unit extends Robot {
         nearbyNeutral = rc.senseNearbyRobots(rc.getType().sensorRadiusSquared, neutralTeam);
     }
 
+    public void checkIfMapInfoFlagPersists() {
+        if (Flag.getSchema(flagDataSetThisRound) == Flag.MAP_INFO_SCHEMA) {
+            MapInfoFlag mif = new MapInfoFlag(flagDataSetThisRound);
+            Direction flagDir = mif.readEdgeDirection();
+            switch(flagDir) {
+                case NORTH:
+                    foundEdges[0] = true;
+                    break;
+                case EAST:
+                    foundEdges[1] = true;
+                    break;
+                case SOUTH:
+                    foundEdges[2] = true;
+                    break;
+                case WEST:
+                    foundEdges[3] = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    public void findMapEdges() throws GameActionException {
+        boolean allTrue = true;
+        for (int i=0; i<4; i++) {
+            if (foundEdges[i] == false) {
+                allTrue = false;
+            }
+        }
+        if (allTrue) {
+            return;
+        }
+        int furthestSight = (int)Math.floor(Math.sqrt(rc.getType().sensorRadiusSquared));
+        int distClosestOff = -1;
+        for (int i=0; i<4; i++) {
+            if (foundEdges[i] == true) {
+                continue;
+            } else {
+                switch (i) {
+                    case 0:
+                        // Look North for Edge of map.
+                        distClosestOff = -1;
+                        for (int j=furthestSight; j>=0; j--) {
+                            MapLocation testLoc = myLocation.translate(0, j);
+                            if (!rc.onTheMap(testLoc)) {
+                                distClosestOff = j;
+                            } else if (rc.onTheMap(testLoc)) {
+                                if (distClosestOff != -1) {
+                                    setMapEdgeFlag(Direction.NORTH, testLoc.translate(0, 1));
+                                    return;
+                                } else {
+                                    break;  // no edge north.
+                                }
+                            }
+                        }
+                        break;
+                    case 1:
+                        // Look East for Edge of map.
+                        distClosestOff = -1;
+                        for (int j=furthestSight; j>=0; j--) {
+                            MapLocation testLoc = myLocation.translate(j, 0);
+                            if (!rc.onTheMap(testLoc)) {
+                                distClosestOff = j;
+                            } else if (rc.onTheMap(testLoc)) {
+                                if (distClosestOff != -1) {
+                                    setMapEdgeFlag(Direction.EAST, testLoc.translate(1, 0));
+                                    return;
+                                } else {
+                                    break;  // no edge east.
+                                }
+                            }
+                        }
+                        break;
+                    case 2:
+                        // Look South for Edge of map.
+                        distClosestOff = -1 ;
+                        for (int j=furthestSight; j>=0; j--) {
+                            MapLocation testLoc = myLocation.translate(0, -j);
+                            if (!rc.onTheMap(testLoc)) {
+                                distClosestOff = j;
+                            } else if (rc.onTheMap(testLoc)) {
+                                if (distClosestOff != -1) {
+                                    setMapEdgeFlag(Direction.SOUTH, testLoc.translate(0, -1));
+                                    return;
+                                } else {
+                                    break;  // no edge south.
+                                }
+                            }
+                        }
+                        break;
+                    case 3:
+                        // Look West for Edge of map.
+                        distClosestOff = -1;
+                        for (int j=furthestSight; j>=0; j--) {
+                            MapLocation testLoc = myLocation.translate(-j, 0);
+                            if (!rc.onTheMap(testLoc)) {
+                                distClosestOff = j;
+                            } else if (rc.onTheMap(testLoc)) {
+                                if (distClosestOff != -1) {
+                                    setMapEdgeFlag(Direction.WEST, testLoc.translate(-1, 0));
+                                    return;
+                                } else {
+                                    break;  // no edge west.
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+    }
+
+    public void setMapEdgeFlag(Direction dirToSet, MapLocation justOffMapLoc) throws GameActionException {
+        MapInfoFlag mif = new MapInfoFlag(dirToSet, justOffMapLoc);
+        setFlag(mif.flag);
+    }
     /**
      * Set an ECSightingFlag if I see an EC I'm not already aware of.
      * This is important, so it overwrites an existing flag if there is one.
@@ -340,7 +460,7 @@ public abstract class Unit extends Robot {
      * and then you send this message the next round (hence the var sawNewAllyLastTurn).
      * Why is this necessary? We want mid-game ECs to know the original bases, so they
      * can read that base's messages.
-     * 
+     *
      * Returns without doing anything if unit does not have a base.
      */
     public void setMidGameAllyIDFlag(Direction lastMove) throws GameActionException {
@@ -503,7 +623,7 @@ public abstract class Unit extends Robot {
                 case Flag.EC_SIGHTING_SCHEMA:
                     // Not relevant, ECs do not send such flags to robots.
                     break;
-                case Flag.MAP_TERRAIN_SCHEMA:
+                case Flag.MAP_INFO_SCHEMA:
                     // Not relevant, ECs do not send such flags to robots.
                     break;
                 case Flag.LOCATION_SCHEMA:
@@ -601,17 +721,21 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
-        for (int i = 0; i < 3; i++) {
-            nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+        if (destination != null) {
+            for (int i = 0; i < 3; i++) {
+                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            }
         }
         // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
         // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
-        if (!rc.onTheMap(nearDestination) ||
+        if (destination == null || !rc.onTheMap(nearDestination) ||
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
-            && (!rc.onTheMap(destination) 
-                || !rc.isLocationOccupied(destination) 
+            && (!rc.onTheMap(destination)
+                || !rc.isLocationOccupied(destination)
                 || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)) {
-            priorDestinations.add(destination);
+            if (destination != null) {
+                priorDestinations.add(destination);
+            }
             boolean valid = true;
             destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
             exploreMode = true;
