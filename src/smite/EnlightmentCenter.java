@@ -228,7 +228,7 @@ public class EnlightmentCenter extends Robot {
         }
         // Bid 1/8th income for first 550 turns
         else if (currentRound <= 550) {
-            int dInfOverEight = (int)(dInf / 8) * influenceMultiplier;
+            int dInfOverEight = Math.min((int)(dInf / 8.0) * influenceMultiplier, (int)(currentInfluence / 4.0));
             ////System.out.println\("Bidding: " + dInfOverEight + " / " + currentInfluence);
             if (currentInfluence > dInfOverEight && rc.canBid(dInfOverEight)) {
                 rc.bid(dInfOverEight);
@@ -238,7 +238,7 @@ public class EnlightmentCenter extends Robot {
         else if (currentRound < 1499) {
             double step = (currentRound - 550.0) / 1500.0;
             double proportion = 1.0/8.0 + step * (5*8.0 - 1.0)/8.0;
-            int bidAmount = (int)(proportion * dInf) * influenceMultiplier;
+            int bidAmount = Math.min((int)(proportion * dInf) * influenceMultiplier, (int)(currentInfluence / 4.0));
             ////System.out.println\("prop: " + proportion + " dInf: " + dInf);
             ////System.out.println\("Bidding: " + bidAmount + " / " + currentInfluence);
             if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
@@ -335,8 +335,8 @@ public class EnlightmentCenter extends Robot {
                     // //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
-                // Politicians vs muckrakers ratio 1:1
-                else if (numPoliticians > numMuckrakers) {
+                // Politicians vs muckrakers ratio 3:2
+                else if (numPoliticians > numMuckrakers * 1.5) {
                     int muckInf = 1;
                     if (Math.random() < 0.1) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
@@ -349,7 +349,6 @@ public class EnlightmentCenter extends Robot {
                     boolean sendToNeutral = false;
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, true, true) : optimalDestination(true, true, true);
                     if (neutralECLocsToInfluence.containsKey(enemyLocation)) {
-                        int targetNeutralECID = neutralECLocsToInfluence.get(enemyLocation);
                         int influence = neutralECLocsToInfluence.get(enemyLocation);
                         int infNeeded = (int)(influence*1.2 + 10);
                         if (rc.getInfluence() > infNeeded) {
@@ -360,12 +359,13 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                     if (!sendToNeutral) {
-                        if (rc.getInfluence() > 10000) {
+                        if (Math.random() < 0.5) { // spawn defender
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, defenderDestination(), SpawnDestinationFlag.INSTR_DEFEND, false);
+                        } else if (rc.getInfluence() > 10000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             // //System.out.println\("Spawning thicc killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
-                        }
-                        if (rc.getInfluence() > 1000) {
+                        } else if (rc.getInfluence() > 1000) {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             // //System.out.println\("Spawning killer: " + enemyLocation);
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, SpawnDestinationFlag.INSTR_DEFAULT, spawnDestIsGuess);
@@ -377,6 +377,19 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
             }
+        }
+    }
+
+    MapLocation defenderDestination() {
+        // sometimes also should send to nearest enemy
+        if (Math.random() < 0.5) {
+            Direction di = randomDirection();
+            return myLocation.translate(di.dx*7, di.dy*7);
+        } else {
+            // send towards enemy base
+            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false, false, false) : optimalDestination(false, false, false);
+            Direction di = myLocation.directionTo(enemyLocation);
+            return myLocation.translate(di.dx*7, di.dy*7);
         }
     }
 

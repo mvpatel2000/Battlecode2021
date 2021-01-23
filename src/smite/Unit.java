@@ -143,7 +143,7 @@ public abstract class Unit extends Robot {
      */
     public void setUnitUpdateFlag() throws GameActionException {
         if (flagSetThisRound) return;
-        int minDist = 10000;
+        int minDist = 100000;
         MapLocation enemyLoc = null;
         RobotType enemyType = null;
         for (RobotInfo r : nearbyEnemies) {
@@ -746,8 +746,8 @@ public abstract class Unit extends Robot {
             myLocation.distanceSquaredTo(destination) < rc.getType().sensorRadiusSquared
             && (!rc.onTheMap(destination)
                 || !rc.isLocationOccupied(destination)
-                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
-                || rc.senseRobotAtLocation(destination).team == allyTeam) {
+                || rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter
+                || rc.senseRobotAtLocation(destination).team == allyTeam)) {
             if (destination != null) {
                 priorDestinations.add(destination);
             }
