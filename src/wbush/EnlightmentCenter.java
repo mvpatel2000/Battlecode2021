@@ -297,6 +297,7 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
                 int myConviction = rc.getConviction();
+                int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
 
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
@@ -305,8 +306,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
-                    && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
-                    int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
+                    && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
+                    && maxInfluence >= 41) {
                     int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
                     if (optimalSland < 0) {
                         optimalSland = -optimalSland;
