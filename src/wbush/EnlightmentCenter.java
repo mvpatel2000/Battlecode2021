@@ -209,8 +209,8 @@ public class EnlightmentCenter extends Robot {
         if (currentVotes > 750) {
             currentBid = 0;
             return;
-        } 
-        
+        }
+
         if (currentBid == 0) currentBid = 1;
 
         int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
@@ -323,6 +323,7 @@ public class EnlightmentCenter extends Robot {
                     int infNeeded = (int)(influence*1.1 + 10);
                     if (rc.getInfluence() > infNeeded) {
                         System.out.println("Spawning neutral killer: " + enemyLocation);
+                        spawnDestIsGuess = false;   // we are sending them to exactly the neutral ECs
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                         sentRobotsToNeutralECs.put(enemyLocation, currentRound);
                     } else {
