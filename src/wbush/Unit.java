@@ -784,7 +784,6 @@ public abstract class Unit extends Robot {
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-                exploreMode = true;
                 if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
                     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
                     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
