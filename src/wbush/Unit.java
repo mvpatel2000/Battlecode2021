@@ -667,7 +667,9 @@ public abstract class Unit extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
+                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER &&
+                        (sdf.readInstruction() == SpawnDestinationFlag.INSTR_MUCKRAKER ^
+                        rc.getType() == RobotType.POLITICIAN)) {
                         // the robot spawned is going to an enemy, we may want to go here.
                         potentialDest = sdf.readAbsoluteLocation(myLocation);
                         baseGivingExplore = sdf.readGuess();
@@ -756,6 +758,7 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
+        System.out.println(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
@@ -770,6 +773,7 @@ public abstract class Unit extends Robot {
                 || !rc.isLocationOccupied(destination)
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
+            System.out.println("Deets, rerouting");
             if (destination != null) {
                 priorDestinations.add(destination);
             }
