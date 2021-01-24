@@ -299,12 +299,29 @@ public class EnlightmentCenter extends Robot {
                 optimalDir = dirToNearestEnemy == null ? optimalDir : dirToNearestEnemy;
                 int myConviction = rc.getConviction();
                 int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
-
+                MapLocation optimalNeutral = getLowestInfluenceNeutralEC();
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                 }
+                // Assuming some base level of income, if we know about neutral ECs, get them.
+                // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
+                else if (numSlanderers > 2 && optimalNeutral != null && (numSlanderers*3*5)+rc.getInfluence() > neutralECLocsToInfluence.get(optimalNeutral)) {
+                    MapLocation enemyLocation = optimalNeutral;
+                    int influence = neutralECLocsToInfluence.get(enemyLocation);
+                    int infNeeded = (int)(influence*1.1 + 10);
+                    if (rc.getInfluence() > infNeeded) {
+                        System.out.println("Spawning neutral killer: " + enemyLocation);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        sentRobotsToNeutralECs.put(enemyLocation, currentRound);
+                    } else {
+                        System.out.println("Biding time and saving for neutral killer.");
+                        enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    }
+                }
+                // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
@@ -337,46 +354,32 @@ public class EnlightmentCenter extends Robot {
                 }
                 // Build politician
                 else {
-                    boolean sendToNeutral = false;
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true, true, true) : optimalDestination(true, true, true);
-                    if (neutralECLocsToInfluence.containsKey(enemyLocation)) {
-                        int influence = neutralECLocsToInfluence.get(enemyLocation);
-                        int infNeeded = (int)(influence*1.2 + 10);
-                        if (rc.getInfluence() > infNeeded) {
-                            // System.out.println("Spawning close killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
-                            sendToNeutral = true;
-                            sentRobotsToNeutralECs.put(enemyLocation, currentRound);
-                        }
-                    }
-                    if (!sendToNeutral) {
-                        if (Math.random() < 0.5) { // spawn defender
-                            enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                            System.out.println("Spawning defender: " + enemyLocation);
-                            int influence = rc.getRoundNum() < 50 ? 14 : 18;
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
-                        } else if (rc.getInfluence() > 10000) {
-                            enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                            // System.out.println("Spawning thicc killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
-                        } else if (rc.getInfluence() > 1000) {
-                            enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                            // System.out.println("Spawning killer: " + enemyLocation);
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
-                        } else {
-                            enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                            // System.out.println("Spawning normal: " + enemyLocation);
-                            int influence = 14;
-                            if (rc.getRoundNum() > 100) {
-                                if (Math.random() < 0.5) {
-                                    influence = 18;
-                                }
-                                else {
-                                    influence = 30;
-                                }
+                    if (Math.random() < 0.5) { // spawn defender
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                        System.out.println("Spawning defender: " + enemyLocation);
+                        int influence = rc.getRoundNum() < 50 ? 14 : 18;
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
+                    } else if (rc.getInfluence() > 10000) {
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
+                        // System.out.println("Spawning thicc killer: " + enemyLocation);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    } else if (rc.getInfluence() > 1000) {
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
+                        // System.out.println("Spawning killer: " + enemyLocation);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    } else {
+                        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                        // System.out.println("Spawning normal: " + enemyLocation);
+                        int influence = 14;
+                        if (rc.getRoundNum() > 100) {
+                            if (Math.random() < 0.5) {
+                                influence = 18;
                             }
-                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                            else {
+                                influence = 30;
+                            }
                         }
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     }
                 }
                 if (rc.isReady()) {
@@ -518,7 +521,7 @@ public class EnlightmentCenter extends Robot {
                     if (ecsf.readECType() == ECSightingFlag.NEUTRAL_EC && !ecLoc.equals(myLocation)) {
                         if (!neutralECLocsToInfluence.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.NEUTRAL_EC);
-                            // System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
+                            System.out.println("Informed about NEUTRAL EC at " + ecLoc + " with influence " + ecInf);
                         }
                         neutralECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ENEMY_EC && !ecLoc.equals(myLocation)) {
@@ -535,7 +538,7 @@ public class EnlightmentCenter extends Robot {
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
                             // are looking for its flag in readAllyECUpdates() and cannot read it.
-                            // System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
+                            System.out.println("Informed about ENEMY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         enemyECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
@@ -547,7 +550,7 @@ public class EnlightmentCenter extends Robot {
                             if(neutralECLocsToInfluence.containsKey(ecLoc)) {
                                 neutralECLocsToInfluence.remove(ecLoc);
                             }
-                            // System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
+                            System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
                         capturedAllyECLocsToInfluence.put(ecLoc, ecInf);
                     }
@@ -770,15 +773,46 @@ public class EnlightmentCenter extends Robot {
         }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
-            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
+            //System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
         } else {
-            System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
+            //System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
         }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
         latestSpawnFlag = new SpawnUnitFlag(type, direction, newBotID);
         latestSpawnDestinationFlag = new SpawnDestinationFlag(destination, instruction, isGuess);
         return true;
+    }
+
+
+    /**
+     * Get lowest influence neutral EC. Tiebreaker goes to closest EC.
+     */
+    MapLocation getLowestInfluenceNeutralEC() {
+        if (neutralECLocsToInfluence.isEmpty()) {
+            return null;
+        }
+        int minInf = 1000000;
+        int minDist = 1000000; // distance is tiebreaker for equal influence.
+        MapLocation minLoc = null;
+        for (MapLocation neutralECLoc : neutralECLocsToInfluence.keySet()) {
+            if (sentToNeutralRecently(neutralECLoc)) {
+                continue;
+            }
+            int thisECInfluence = neutralECLocsToInfluence.get(neutralECLoc);
+            if (thisECInfluence < minInf) {
+                minInf = thisECInfluence;
+                minDist = myLocation.distanceSquaredTo(neutralECLoc);
+                minLoc = neutralECLoc;
+            } else if (thisECInfluence == minInf) {
+                if (myLocation.distanceSquaredTo(neutralECLoc) < minDist) {
+                    minInf = thisECInfluence;
+                    minDist = myLocation.distanceSquaredTo(neutralECLoc);
+                    minLoc = neutralECLoc;
+                }
+            }
+        }
+        return minLoc;
     }
 
     /**
