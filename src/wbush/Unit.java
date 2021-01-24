@@ -42,6 +42,8 @@ public abstract class Unit extends Robot {
     RobotInfo nearestSignalRobotCache;
     boolean hasPopulatedNearestSignalRobot;
 
+    int spawnRound;
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
@@ -90,6 +92,7 @@ public abstract class Unit extends Robot {
         priorDestinations = new ArrayList<MapLocation>();
 
         instruction = -1;
+        spawnRound = rc.getRoundNum();
     }
 
     @Override
@@ -703,8 +706,8 @@ public abstract class Unit extends Robot {
             destRobot = rc.senseRobotAtLocation(destination);
         }
 
-        // Reroute if in explore mode
-        if (exploreMode) {
+        // Reroute if in explore mode and spawned after first 100 turns
+        if (exploreMode && spawnRound > 100) {
             // System.out.println("Explore Reroute: " + potentialDest);
             destination = potentialDest;
             exploreMode = false;
