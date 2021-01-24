@@ -198,7 +198,7 @@ public class Politician extends Unit {
             }
         }
 
-        // ECHunters ignore other units
+        // defense lap code
         if (defend && instruction >= 0) {
             if (baseLocation == null) { // this shouldn't happen; null-check just to be safe and end defense lap
                 System.out.println("WARNING: I'm a defender but don't have a baseLocation. Exiting defense mode.");
@@ -250,16 +250,27 @@ public class Politician extends Unit {
                 }
                 // System.out.println("FuzzyMoving " + moveDir + " for my lap");
                 fuzzyMove(myLocation.add(moveDir)); // move orthogonal to direction to pivot, specified by moveDir
-            } else { // I need to get farther from the base; get on the far side of the farthest slanderer
-                MapLocation farSide = edgeSlanderer.add(edgeSlanderer.directionTo(baseLocation).opposite());
+            } else {
+                // I need to get farther from the base; get on the far side of the farthest slanderer
+                // MapLocation farSide = edgeSlanderer.add(edgeSlanderer.directionTo(baseLocation).opposite());
                 // System.out.println("Attempting to move to far side: " + farSide);
-                fuzzyMove(farSide);
+                // fuzzyMove(farSide);
+
+                System.out.println("Moving farther out in direction " + baseLocation.directionTo(myLocation));
+                MapLocation fartherOut = myLocation.add(baseLocation.directionTo(myLocation));
+                if (lapClockwise) fartherOut = fartherOut.add(baseLocation.directionTo(myLocation).rotateRight());
+                else fartherOut = fartherOut.add(baseLocation.directionTo(myLocation).rotateLeft());
+                rc.setIndicatorDot(fartherOut, 0, 255, 255);
+                fuzzyMove(fartherOut);
             }
             return;
         } else if (onlyECHunter) {
             fuzzyMove(destination);
             return;
         }
+
+
+        // ECHunters ignore other units
         double totalDamage = rc.getConviction() * rc.getEmpowerFactor(allyTeam, 0) - 10;
         RobotInfo nearestMuckraker = null;
         int nearestMuckrakerDistSquared = 100;
