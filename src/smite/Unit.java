@@ -81,6 +81,7 @@ public abstract class Unit extends Robot {
         newAllyLocation = null;
         // Set destination as baseLocation until it's set by EC message
         destination = baseLocation;
+        // //System.out.println\("Constructor: " + destination);
         latestBaseDestination = destination;
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
@@ -247,11 +248,12 @@ public abstract class Unit extends Robot {
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
+            // //System.out.println\("read instr: " + destination);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            //System.out.println\("I have my destination: " + destination.toString());
-            //System.out.println\("I have my instruction: " + instruction);
-            //System.out.println\("Explore Mode Status: " + exploreMode);
+            // //System.out.println\("I have my destination: " + destination.toString());
+            // //System.out.println\("I have my instruction: " + instruction);
+            // //System.out.println\("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -568,7 +570,7 @@ public abstract class Unit extends Robot {
     /**
      * Moves towards destination, prefering high passability terrain, with an option
      * to repel friendly units of the same type.
-     * 
+     *
      * Note: Politicians will repel from slanderers, since they can't tell the difference.
      */
     void weightedFuzzyMove(MapLocation destination, boolean shouldRepel) throws GameActionException {
@@ -700,27 +702,35 @@ public abstract class Unit extends Robot {
             destRobot = rc.senseRobotAtLocation(destination);
         }
 
-        // If you are in explore mode, and the following conditions hold:
-        // 1) If three steps to your destination is off the map
-        // 2) or your destination is off the map
-        // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
-        // then change your destination
+        // Reroute if in explore mode
         if (exploreMode) {
-            MapLocation nearDestination = myLocation;
-            for (int i = 0; i < 3; i++) {
-                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
-            }
+            // //System.out.println\("Explore Reroute: " + potentialDest);
+            destination = potentialDest;
+            exploreMode = false;
+            return true;
 
-            if (!rc.onTheMap(nearDestination) || canSenseDestination &&
-                (!rc.onTheMap(destination) ||
-                (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
-                destination = potentialDest;
-                exploreMode = false;
-                // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
-                return true;
-            } else {
-                // //System.out.println\("Did not switch for personal location reasons.");
-            }
+            // Old Criteria
+            // If you are in explore mode, and the following conditions hold:
+            // 1) If three steps to your destination is off the map
+            // 2) or you can sense your destination and it is off the map
+            // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
+            // then change your destination
+
+            // MapLocation nearDestination = myLocation;
+            // for (int i = 0; i < 3; i++) {
+            //     nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            // }
+
+            // if (!rc.onTheMap(nearDestination) || canSenseDestination &&
+            //     (!rc.onTheMap(destination) ||
+            //     (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
+            //     destination = potentialDest;
+            //     exploreMode = false;
+            //     // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
+            //     return true;
+            // } else {
+            //     // //System.out.println\("Did not switch for personal location reasons.");
+            // }
         }
 
         // If you are NOT in explore mode, and the following conditions hold
@@ -728,18 +738,12 @@ public abstract class Unit extends Robot {
         // 2) AND your destination has an ally EC on it
         // Then change destinations.
         // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
-        if (!exploreMode) {
-            if (canSenseDestination) {
-                if (destRobot != null) {
-                    if(destRobot.team == allyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
-                        destination = potentialDest;
-                        exploreMode = false;
-                        // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
-                        return true;
-                    }
-                }
-            }
-            // //System.out.println\("Did not switch for personal location reasons.");
+        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam 
+                && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
+            destination = potentialDest;
+            exploreMode = false;
+            // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
+            return true;
         }
         return false;
     }
@@ -784,7 +788,6 @@ public abstract class Unit extends Robot {
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-                exploreMode = true;
                 if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
                     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
                     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
@@ -799,6 +802,7 @@ public abstract class Unit extends Robot {
                     }
                 }
             }
+            // //System.out.println\("Exploration dest: " + destination);
         }
     }
 }

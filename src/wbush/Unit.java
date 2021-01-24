@@ -80,6 +80,7 @@ public abstract class Unit extends Robot {
         newAllyLocation = null;
         // Set destination as baseLocation until it's set by EC message
         destination = baseLocation;
+        // System.out.println("Constructor: " + destination);
         latestBaseDestination = destination;
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
@@ -245,11 +246,12 @@ public abstract class Unit extends Robot {
                 return false;
             }
             destination = sdf.readAbsoluteLocation(myLocation);
+            // System.out.println("read instr: " + destination);
             instruction = sdf.readInstruction();
             exploreMode = sdf.readGuess();
-            System.out.println("I have my destination: " + destination.toString());
-            System.out.println("I have my instruction: " + instruction);
-            System.out.println("Explore Mode Status: " + exploreMode);
+            // System.out.println("I have my destination: " + destination.toString());
+            // System.out.println("I have my instruction: " + instruction);
+            // System.out.println("Explore Mode Status: " + exploreMode);
             return true;
         }
         return false;
@@ -664,7 +666,9 @@ public abstract class Unit extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
+                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER &&
+                        (sdf.readInstruction() == SpawnDestinationFlag.INSTR_MUCKRAKER ^
+                        rc.getType() == RobotType.POLITICIAN)) {
                         // the robot spawned is going to an enemy, we may want to go here.
                         potentialDest = sdf.readAbsoluteLocation(myLocation);
                         baseGivingExplore = sdf.readGuess();
@@ -699,15 +703,19 @@ public abstract class Unit extends Robot {
             destRobot = rc.senseRobotAtLocation(destination);
         }
 
-        // If you are in explore mode, and the following conditions hold:
-        // 1) If three steps to your destination is off the map
-        // 2) or you can sense your destination and it is off the map
-        // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
-        // then change your destination
+        // Reroute if in explore mode
         if (exploreMode) {
+            // System.out.println("Explore Reroute: " + potentialDest);
             destination = potentialDest;
             exploreMode = false;
             return true;
+
+            // Old Criteria
+            // If you are in explore mode, and the following conditions hold:
+            // 1) If three steps to your destination is off the map
+            // 2) or you can sense your destination and it is off the map
+            // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
+            // then change your destination
 
             // MapLocation nearDestination = myLocation;
             // for (int i = 0; i < 3; i++) {
@@ -731,18 +739,12 @@ public abstract class Unit extends Robot {
         // 2) AND your destination has an ally EC on it
         // Then change destinations.
         // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
-        if (!exploreMode) {
-            if (canSenseDestination) {
-                if (destRobot != null) {
-                    if(destRobot.team == allyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
-                        destination = potentialDest;
-                        exploreMode = false;
-                        // System.out.println("Re-routing to latest base destination!! " + potentialDest);
-                        return true;
-                    }
-                }
-            }
-            // System.out.println("Did not switch for personal location reasons.");
+        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam 
+                && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
+            destination = potentialDest;
+            exploreMode = false;
+            // System.out.println("Re-routing to latest base destination!! " + potentialDest);
+            return true;
         }
         return false;
     }
@@ -755,6 +757,7 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
+        System.out.println(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
@@ -769,6 +772,7 @@ public abstract class Unit extends Robot {
                 || !rc.isLocationOccupied(destination)
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
+            System.out.println("Deets, rerouting");
             if (destination != null) {
                 priorDestinations.add(destination);
             }
@@ -801,6 +805,7 @@ public abstract class Unit extends Robot {
                     }
                 }
             }
+            // System.out.println("Exploration dest: " + destination);
         }
     }
 }

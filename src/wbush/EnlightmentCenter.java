@@ -141,7 +141,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 200) {
+        if (currentRound == 400) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -214,13 +214,15 @@ public class EnlightmentCenter extends Robot {
         if (currentBid == 0) currentBid = 1;
 
         int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
-        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
+        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 20);
         int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
 
+        // System.out.println("Conds: " + (rc.getTeamVotes() > previousTeamVotes) + " " + descendingBid));
         if (rc.getTeamVotes() > previousTeamVotes) { // we won the last bid
             previousTeamVotes++;
             if (descendingBid) {
                 currentBid = (int) (0.9*currentBid);
+                descendingBid = true;
             }
         } else { // we lost the last bid
             if (descendingBid) {
@@ -228,11 +230,10 @@ public class EnlightmentCenter extends Robot {
                 descendingBid = false;
             } else {
                 currentBid = Math.min((int) (1.5 * currentBid), maxWillingToBid);
-                descendingBid = true;
             }
         }
         // Always bid at least 1
-        currentBid = Math.max(currentBid, 1);
+        currentBid = Math.max(currentBid, 2);
         // Don't bid more than 1 in first 100 turns
         if (currentRound < 100) {
             currentBid = Math.min(currentBid, 1);
@@ -262,10 +263,10 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
                     break;
                 case 1:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 2:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 3:
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
@@ -313,7 +314,7 @@ public class EnlightmentCenter extends Robot {
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
                 // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
@@ -329,7 +330,7 @@ public class EnlightmentCenter extends Robot {
                     } else {
                         System.out.println("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     }
                 }
                 // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
@@ -360,7 +361,7 @@ public class EnlightmentCenter extends Robot {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     // System.out.println("Spawn Muckraker: " + enemyLocation);
                 }
                 // Build politician
@@ -395,7 +396,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 if (rc.isReady()) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
             }
         }

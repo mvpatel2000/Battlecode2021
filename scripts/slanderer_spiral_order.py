@@ -2,11 +2,11 @@ import math
 
 # spiral order starts north and goes clockwise
 
-R2 = 90
+R2 = 150
 D = []
 
-for x in range(-15, 15):
-    for y in range(-15, 15):
+for x in range(-20, 20):
+    for y in range(-20, 20):
         if x**2 + y**2 <= R2 and (x+y) % 2 == 1:
             if abs(x) > 1 or abs(y) > 1:
                 th = math.atan2(x,y) % (2*math.pi)
