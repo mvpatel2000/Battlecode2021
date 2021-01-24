@@ -568,7 +568,7 @@ public abstract class Unit extends Robot {
     /**
      * Moves towards destination, prefering high passability terrain, with an option
      * to repel friendly units of the same type.
-     * 
+     *
      * Note: Politicians will repel from slanderers, since they can't tell the difference.
      */
     void weightedFuzzyMove(MapLocation destination, boolean shouldRepel) throws GameActionException {
@@ -702,7 +702,7 @@ public abstract class Unit extends Robot {
 
         // If you are in explore mode, and the following conditions hold:
         // 1) If three steps to your destination is off the map
-        // 2) or your destination is off the map
+        // 2) or you can sense your destination and it is off the map
         // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
         // then change your destination
         if (exploreMode) {
