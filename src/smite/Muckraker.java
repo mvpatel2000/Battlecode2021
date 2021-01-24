@@ -24,6 +24,7 @@ public class Muckraker extends Unit {
                 huntSlanderersOrToDestination();
             }
         }
+        //rc.setIndicatorLine(myLocation, destination, 255, 0, 0);
     }
 
 

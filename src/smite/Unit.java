@@ -4,8 +4,6 @@ import battlecode.common.*;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Set;
-import java.util.HashSet;
 import java.lang.Integer;
 
 public abstract class Unit extends Robot {
@@ -35,13 +33,14 @@ public abstract class Unit extends Robot {
     MapLocation newAllyLocation;
     Map<MapLocation, Integer> enemyECLocsToIDs;
     Map<MapLocation, Integer> neutralECLocsToIDs;
-    Map<MapLocation, Integer> capturedAllyECLocsToIDs;
-    Set<Integer> seenAllyECs;  // IDs for every ally EC we have seen before.
+    Map<MapLocation, Integer> allyECLocsToIDs;
 
     ArrayList<MapLocation> priorDestinations;
 
     RobotInfo nearestSignalRobotCache;
     boolean hasPopulatedNearestSignalRobot;
+
+    int spawnRound;
 
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
@@ -86,12 +85,12 @@ public abstract class Unit extends Robot {
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
-        capturedAllyECLocsToIDs = new HashMap<>();
-        seenAllyECs = new HashSet<>();
-        seenAllyECs.add(baseID);
+        allyECLocsToIDs = new HashMap<>();
+        allyECLocsToIDs.put(baseLocation, baseID);
         priorDestinations = new ArrayList<MapLocation>();
 
         instruction = -1;
+        spawnRound = rc.getRoundNum();
     }
 
     @Override
@@ -418,8 +417,8 @@ public abstract class Unit extends Robot {
                         neutralECLocsToIDs.remove(ri.location);
                     }
                     // If EC used to be captured ally, remove it from captured allies map
-                    if (capturedAllyECLocsToIDs.containsKey(ri.location)) {
-                        capturedAllyECLocsToIDs.remove(ri.location);
+                    if (allyECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.remove(ri.location);
                     }
                     setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn, ri.influence);
                     // we may not want to return in the future when there is more computation to be done.
@@ -437,26 +436,27 @@ public abstract class Unit extends Robot {
                 }
             }
         }
-        for (RobotInfo ri : nearbyAllies) {
-            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                if (neutralECLocsToIDs.containsKey(ri.location)) {
-                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
-                    neutralECLocsToIDs.remove(ri.location);
-                    sawNewAllyLastTurn = 1;
-                    seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
-                    return;
-                } else if (enemyECLocsToIDs.containsKey(ri.location)) {
-                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
-                    enemyECLocsToIDs.remove(ri.location);
-                    sawNewAllyLastTurn = 1;
-                    seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
-                    return;
-                } else if (!seenAllyECs.contains(ri.ID)) {
-                    seenAllyECs.add(ri.ID);
-                    setMidGameAllyIDFlag(moveThisTurn);
-                    sawNewAllyLastTurn = 2;
+        if (sawNewAllyLastTurn == 0) {
+            for (RobotInfo ri : nearbyAllies) {
+                if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    if (neutralECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        neutralECLocsToIDs.remove(ri.location);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    } else if (enemyECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        enemyECLocsToIDs.remove(ri.location);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    } else if (!allyECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    }
                 }
             }
         }
@@ -667,7 +667,9 @@ public abstract class Unit extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER) {
+                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER &&
+                        (sdf.readInstruction() == SpawnDestinationFlag.INSTR_MUCKRAKER ^
+                        rc.getType() == RobotType.POLITICIAN)) {
                         // the robot spawned is going to an enemy, we may want to go here.
                         potentialDest = sdf.readAbsoluteLocation(myLocation);
                         baseGivingExplore = sdf.readGuess();
@@ -702,8 +704,8 @@ public abstract class Unit extends Robot {
             destRobot = rc.senseRobotAtLocation(destination);
         }
 
-        // Reroute if in explore mode
-        if (exploreMode) {
+        // Reroute if in explore mode and spawned after first 100 turns
+        if (exploreMode && spawnRound > 100) {
             // //System.out.println\("Explore Reroute: " + potentialDest);
             destination = potentialDest;
             exploreMode = false;
@@ -738,7 +740,7 @@ public abstract class Unit extends Robot {
         // 2) AND your destination has an ally EC on it
         // Then change destinations.
         // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
-        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam 
+        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam
                 && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
             destination = potentialDest;
             exploreMode = false;
@@ -756,6 +758,7 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
+        //System.out.println\(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
@@ -770,6 +773,7 @@ public abstract class Unit extends Robot {
                 || !rc.isLocationOccupied(destination)
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
+            //System.out.println\("Deets, rerouting");
             if (destination != null) {
                 priorDestinations.add(destination);
             }

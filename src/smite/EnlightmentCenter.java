@@ -8,6 +8,24 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Arrays;
 
+class Destination {
+    MapLocation destLoc;
+    boolean isGuess;
+
+    Destination(MapLocation thisLocation, boolean thisGuess) {
+        destLoc = thisLocation;
+        isGuess = thisGuess;
+    }
+
+    boolean getGuess() {
+        return isGuess;
+    }
+
+    MapLocation getDestinationLocation() {
+        return destLoc;
+    }
+}
+
 public class EnlightmentCenter extends Robot {
     final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{2,5},{5,2},{5,-2},{2,-5},{-2,-5},{-5,-2},{-5,2},{-2,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{1,6},{6,1},{6,-1},{1,-6},{-1,-6},{-6,-1},{-6,1},{-1,6},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6}};
     final static int[] SLANDERER_INFLUENCE_THRESHOLDS = new int[]{21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
@@ -58,7 +76,7 @@ public class EnlightmentCenter extends Robot {
 
     // Mid-game EC variables.
     boolean isMidGame;
-    Map<Integer, MapLocation> basesToDestinations;  // <BaseID, DestinationForRobots>
+    Map<Integer, Destination> basesToDestinations;  // <BaseID, DestinationForRobots>
     Map<Integer, Integer> pendingBaseLocations;  // <RobotID, BaseID>
     Set<Integer> trackedRobots;
     Set<Integer> trackedBases;
@@ -122,7 +140,7 @@ public class EnlightmentCenter extends Robot {
             MAX_UNITS_TRACKED = 60;
             isMidGame = true;
             // //System.out.println\("I am a mid-game EC!");
-            basesToDestinations = new HashMap<Integer, MapLocation>();
+            basesToDestinations = new HashMap<Integer, Destination>();
             pendingBaseLocations = new HashMap<Integer, Integer>();
             trackedRobots = new HashSet<Integer>(); // set for quick access to see if a robot is already in our UnitTracker.
             trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
@@ -214,7 +232,7 @@ public class EnlightmentCenter extends Robot {
         if (currentBid == 0) currentBid = 1;
 
         int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
-        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
+        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 20);
         int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
 
         // //System.out.println\("Conds: " + (rc.getTeamVotes() > previousTeamVotes) + " " + descendingBid));
@@ -263,10 +281,10 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
                     break;
                 case 1:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 2:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 3:
                     spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
@@ -314,7 +332,7 @@ public class EnlightmentCenter extends Robot {
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
                 // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
@@ -330,7 +348,7 @@ public class EnlightmentCenter extends Robot {
                     } else {
                         //System.out.println\("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     }
                 }
                 // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
@@ -354,21 +372,22 @@ public class EnlightmentCenter extends Robot {
                     // //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
-                // Politicians vs muckrakers ratio 3:2
-                else if (numPoliticians > numMuckrakers * 1.5) {
+                // Politicians vs muckrakers ratio 3:2 in the later game
+                // Ratio 2:3 in early game
+                else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
                     if (Math.random() < 0.1) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     // //System.out.println\("Spawn Muckraker: " + enemyLocation);
                 }
                 // Build politician
                 else {
                     if (Math.random() < 0.5) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        //System.out.println\("Spawning defender: " + enemyLocation);
+                        // //System.out.println\("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
                     } else if (rc.getInfluence() > 10000) {
@@ -391,15 +410,27 @@ public class EnlightmentCenter extends Robot {
                                 influence = 30;
                             }
                         }
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, spawnDestIsGuess);
                     }
                 }
                 if (rc.isReady()) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
             }
         }
+    }
+
+    double poliMuckRatio() {
+        if (rc.getRoundNum() < 100) {
+            return 0.6;
+        } else if (rc.getRoundNum() < 200) {
+            return 0.8;
+        } else if (rc.getRoundNum() < 400) {
+            return 1;
+        } else if (rc.getRoundNum() < 800) {
+            return 1.2;
+        } return 1.5;
     }
 
     /**
@@ -434,13 +465,14 @@ public class EnlightmentCenter extends Robot {
                     case Flag.SPAWN_DESTINATION_SCHEMA:
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK) {
+                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK ||
+                                sdf.readInstruction() == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
                                 // the robot spawned is going to an enemy, we want to record destination
                                 // so we can use it as a destination for our own robots.
                                 MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
                                 if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
-                                    basesToDestinations.put(allyECIDs[i], potentialEnemy);
-                                    // //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                    basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, sdf.readGuess()));
+                                    //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
                             }
                         }
@@ -572,6 +604,7 @@ public class EnlightmentCenter extends Robot {
                     MapInfoFlag mif = new MapInfoFlag(flagInt);
                     Direction edgeDir = mif.readEdgeDirection();
                     int[] relLocs = mif.readRelativeLocationFrom(myLocation);
+                    // //System.out.println\("relLocs: " + relLocs[0] + ", " + relLocs[1] + "; dir: " + edgeDir);
                     switch(edgeDir) {
                         case NORTH:
                             map.set(relLocs[0], relLocs[1]-1, 1);
@@ -592,6 +625,7 @@ public class EnlightmentCenter extends Robot {
                         default:
                             break;
                     }
+                    // map.summarize();
                     break;
                 case Flag.LOCATION_SCHEMA:
                     break;
@@ -785,9 +819,9 @@ public class EnlightmentCenter extends Robot {
         }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
-            ////System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
+            // //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
         } else {
-            ////System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
+            // //System.out.println\("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
         }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
@@ -1951,12 +1985,12 @@ public class EnlightmentCenter extends Robot {
             }
             if (basesToDestinations.size() > 0) {
                 for (Integer key: basesToDestinations.keySet()) {
-                    MapLocation destLocation = basesToDestinations.get(key);
-                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    Destination myDest = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(myDest.destLoc);
                     if (destDistance < enemyLocationDistance) {
-                        enemyLocation = destLocation;
+                        enemyLocation = myDest.destLoc;
                         enemyLocationDistance = destDistance;
-                        spawnDestIsGuess = false;
+                        spawnDestIsGuess = myDest.isGuess;
                     }
                 }
             }
@@ -1972,12 +2006,12 @@ public class EnlightmentCenter extends Robot {
                 }
             } else if (basesToDestinations.size() > 0) {
                 for (Integer key: basesToDestinations.keySet()) {
-                    MapLocation destLocation = basesToDestinations.get(key);
-                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    Destination myDest = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(myDest.destLoc);
                     if (destDistance < enemyLocationDistance) {
-                        enemyLocation = destLocation;
+                        enemyLocation = myDest.destLoc;
                         enemyLocationDistance = destDistance;
-                        spawnDestIsGuess = false;
+                        spawnDestIsGuess = myDest.isGuess;
                     }
                 }
             } else if (includeNeutral && neutralECLocsToInfluence.size() > 0) {
@@ -1997,7 +2031,7 @@ public class EnlightmentCenter extends Robot {
             // Note: Heuristic from optimalDestination() only applies to initial ECs, not mid-game ECs.
             int[] dArr = randomDestination();
             enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-            spawnDestIsGuess = false;
+            spawnDestIsGuess = true;
         }
         return enemyLocation;
     }
