@@ -303,7 +303,8 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
-                optimalDir = fanOutFromBuildDir(dirToNearestEnemy) == null ? optimalDir : dirToNearestEnemy;
+                dirToNearestEnemy = fanOutFromBuildDir(dirToNearestEnemy);
+                optimalDir = dirToNearestEnemy == null ? optimalDir : dirToNearestEnemy;
                 int myConviction = rc.getConviction();
                 int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
 
