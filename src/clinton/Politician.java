@@ -332,9 +332,9 @@ public class Politician extends Unit {
         }
         // We kill all muckrakers near our base unless its a knife fight and we're side by side
         boolean nearbyBase = myLocation.distanceSquaredTo(baseLocation) < 10;
-        if (destination != null) {
-            nearbyBase = myLocation.distanceSquaredTo(baseLocation) < myLocation.distanceSquaredTo(destination) * 2;
-        }
+        // if (destination != null) {
+        //     nearbyBase = myLocation.distanceSquaredTo(baseLocation) * 3 < myLocation.distanceSquaredTo(destination);
+        // }
         double totalAllyConviction = 0;
         int allyLength = Math.min(8, nearbyAllies.length);
         for (int i = 0; i < allyLength; i++) {
@@ -416,7 +416,7 @@ public class Politician extends Unit {
                 optimalNumUnitsHit = i;
             }
         }
-        // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer);
+        // System.out.println("Explode: " + optimalDist + " " + optimalNumEnemiesKilled + " " + nearbySlanderer + " " + nearbyBase + " " + paranoid);
 
         // 1. Can empower at optimalDist
         // 2. Either there are enemies you are hitting or you are only hitting one unit (so
