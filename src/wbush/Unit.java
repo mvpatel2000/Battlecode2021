@@ -4,8 +4,6 @@ import battlecode.common.*;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.Set;
-import java.util.HashSet;
 import java.lang.Integer;
 
 public abstract class Unit extends Robot {

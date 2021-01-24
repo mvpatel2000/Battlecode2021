@@ -410,7 +410,7 @@ public class EnlightmentCenter extends Robot {
                                 influence = 30;
                             }
                         }
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, spawnDestIsGuess);
                     }
                 }
                 if (rc.isReady()) {
@@ -465,7 +465,8 @@ public class EnlightmentCenter extends Robot {
                     case Flag.SPAWN_DESTINATION_SCHEMA:
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK) {
+                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK ||
+                                sdf.readInstruction() == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
                                 // the robot spawned is going to an enemy, we want to record destination
                                 // so we can use it as a destination for our own robots.
                                 MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
