@@ -379,6 +379,10 @@ public class EnlightmentCenter extends Robot {
                 }
             }
         }
+        if (rc.isReady()) {
+            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+        }
     }
 
     /**
