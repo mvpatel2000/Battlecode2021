@@ -141,7 +141,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
+        if (currentRound == 800) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -354,8 +354,9 @@ public class EnlightmentCenter extends Robot {
                     // System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
                     spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
-                // Politicians vs muckrakers ratio 3:2
-                else if (numPoliticians > numMuckrakers * 1.5) {
+                // Politicians vs muckrakers ratio 3:2 in the later game
+                // Ratio 2:3 in early game
+                else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
                     if (Math.random() < 0.1) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
@@ -400,6 +401,18 @@ public class EnlightmentCenter extends Robot {
                 }
             }
         }
+    }
+
+    double poliMuckRatio() {
+        if (rc.getRoundNum() < 100) {
+            return 0.6;
+        } else if (rc.getRoundNum() < 200) {
+            return 0.8;
+        } else if (rc.getRoundNum() < 400) {
+            return 1;
+        } else if (rc.getRoundNum() < 800) {
+            return 1.2;
+        } return 1.5;
     }
 
     /**
