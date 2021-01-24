@@ -450,7 +450,7 @@ public abstract class Unit extends Robot {
                         sawNewAllyLastTurn = 1;
                         setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
                         return;
-                    } else if (!allyECLocsToIDs.containsKey(ri.ID)) {
+                    } else if (!allyECLocsToIDs.containsKey(ri.location)) {
                         allyECLocsToIDs.put(ri.location, ri.ID);
                         sawNewAllyLastTurn = 1;
                         setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
@@ -739,7 +739,7 @@ public abstract class Unit extends Robot {
         // 2) AND your destination has an ally EC on it
         // Then change destinations.
         // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
-        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam 
+        if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam
                 && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
             destination = potentialDest;
             exploreMode = false;
