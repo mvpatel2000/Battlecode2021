@@ -8,6 +8,24 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Arrays;
 
+class Destination {
+    MapLocation destLoc;
+    boolean isGuess;
+
+    Destination(MapLocation thisLocation, boolean thisGuess) {
+        destLoc = thisLocation;
+        isGuess = thisGuess;
+    }
+
+    boolean getGuess() {
+        return isGuess;
+    }
+
+    MapLocation getDestinationLocation() {
+        return destLoc;
+    }
+}
+
 public class EnlightmentCenter extends Robot {
     final static int[][] SENSE_SPIRAL_ORDER = {{0,0},{0,1},{1,0},{0,-1},{-1,0},{1,1},{1,-1},{-1,-1},{-1,1},{0,2},{2,0},{0,-2},{-2,0},{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2},{2,2},{2,-2},{-2,-2},{-2,2},{0,3},{3,0},{0,-3},{-3,0},{1,3},{3,1},{3,-1},{1,-3},{-1,-3},{-3,-1},{-3,1},{-1,3},{2,3},{3,2},{3,-2},{2,-3},{-2,-3},{-3,-2},{-3,2},{-2,3},{0,4},{4,0},{0,-4},{-4,0},{1,4},{4,1},{4,-1},{1,-4},{-1,-4},{-4,-1},{-4,1},{-1,4},{3,3},{3,-3},{-3,-3},{-3,3},{2,4},{4,2},{4,-2},{2,-4},{-2,-4},{-4,-2},{-4,2},{-2,4},{0,5},{3,4},{4,3},{5,0},{4,-3},{3,-4},{0,-5},{-3,-4},{-4,-3},{-5,0},{-4,3},{-3,4},{1,5},{5,1},{5,-1},{1,-5},{-1,-5},{-5,-1},{-5,1},{-1,5},{2,5},{5,2},{5,-2},{2,-5},{-2,-5},{-5,-2},{-5,2},{-2,5},{4,4},{4,-4},{-4,-4},{-4,4},{3,5},{5,3},{5,-3},{3,-5},{-3,-5},{-5,-3},{-5,3},{-3,5},{0,6},{6,0},{0,-6},{-6,0},{1,6},{6,1},{6,-1},{1,-6},{-1,-6},{-6,-1},{-6,1},{-1,6},{2,6},{6,2},{6,-2},{2,-6},{-2,-6},{-6,-2},{-6,2},{-2,6}};
     final static int[] SLANDERER_INFLUENCE_THRESHOLDS = new int[]{21, 41, 63, 85, 107, 130, 154, 178, 203, 228, 255, 282, 310, 339, 368, 399, 431, 463, 497, 532, 568, 605, 643, 683, 724, 766, 810, 855, 902, 949};
@@ -58,7 +76,7 @@ public class EnlightmentCenter extends Robot {
 
     // Mid-game EC variables.
     boolean isMidGame;
-    Map<Integer, MapLocation> basesToDestinations;  // <BaseID, DestinationForRobots>
+    Map<Integer, Destination> basesToDestinations;  // <BaseID, DestinationForRobots>
     Map<Integer, Integer> pendingBaseLocations;  // <RobotID, BaseID>
     Set<Integer> trackedRobots;
     Set<Integer> trackedBases;
@@ -122,7 +140,7 @@ public class EnlightmentCenter extends Robot {
             MAX_UNITS_TRACKED = 60;
             isMidGame = true;
             // System.out.println("I am a mid-game EC!");
-            basesToDestinations = new HashMap<Integer, MapLocation>();
+            basesToDestinations = new HashMap<Integer, Destination>();
             pendingBaseLocations = new HashMap<Integer, Integer>();
             trackedRobots = new HashSet<Integer>(); // set for quick access to see if a robot is already in our UnitTracker.
             trackedBases = new HashSet<Integer>();  // essentially gets built up so it just becomes a set version of allyECIDs.
@@ -369,7 +387,7 @@ public class EnlightmentCenter extends Robot {
                 else {
                     if (Math.random() < 0.5) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        System.out.println("Spawning defender: " + enemyLocation);
+                        // System.out.println("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
                     } else if (rc.getInfluence() > 10000) {
@@ -452,8 +470,8 @@ public class EnlightmentCenter extends Robot {
                                 // so we can use it as a destination for our own robots.
                                 MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
                                 if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
-                                    basesToDestinations.put(allyECIDs[i], potentialEnemy);
-                                    // System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                    basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, sdf.readGuess()));
+                                    System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
                             }
                         }
@@ -582,9 +600,11 @@ public class EnlightmentCenter extends Robot {
                     break;
                 case Flag.MAP_INFO_SCHEMA:
                     // Handles Edge logic.
+                    /*
                     MapInfoFlag mif = new MapInfoFlag(flagInt);
                     Direction edgeDir = mif.readEdgeDirection();
                     int[] relLocs = mif.readRelativeLocationFrom(myLocation);
+                    MapLocation omg = null;
                     switch(edgeDir) {
                         case NORTH:
                             map.set(relLocs[0], relLocs[1]-1, 1);
@@ -605,6 +625,7 @@ public class EnlightmentCenter extends Robot {
                         default:
                             break;
                     }
+                    */
                     break;
                 case Flag.LOCATION_SCHEMA:
                     break;
@@ -798,9 +819,9 @@ public class EnlightmentCenter extends Robot {
         }
         MapLocation spawnLoc = myLocation.add(direction);
         if (isGuess) {
-            //System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
+            // System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in explore mode.");
         } else {
-            //System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
+            // System.out.println("Built " + type.toString() + " at " + spawnLoc.toString() + " to " + destination + " in precise mode.");
         }
         int newBotID = rc.senseRobotAtLocation(spawnLoc).ID;
         latestSpawnRound = currentRound;
@@ -942,6 +963,14 @@ public class EnlightmentCenter extends Robot {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
+                        // System.out.println("Optimal horiz " + dHoriz[0] + " " + dHoriz[1]);
+                        // System.out.println("Optimal Vert " + dVert[0] + " " + dVert[1]);
+                        // System.out.println("Horiz furthest direction: " + horizFurthestDirection);
+                        // System.out.println("Horiz furthest wall: " + horizFurthestWall);
+                        // System.out.println("map.xLineAboveUpper: " + map.xLineAboveUpper);
+                        // System.out.println("Math.abs(map.xLineBelowLower): " + Math.abs(map.xLineBelowLower));
+                        // System.out.println("Vert furthest direction: " + vertFurthestDirection);
+                        // System.out.println("Vert furthest wall: " + vertFurthestWall);
                         double rand = Math.random();
                         if (rand < threshold) {
                             dArr = dVert;
@@ -1964,12 +1993,12 @@ public class EnlightmentCenter extends Robot {
             }
             if (basesToDestinations.size() > 0) {
                 for (Integer key: basesToDestinations.keySet()) {
-                    MapLocation destLocation = basesToDestinations.get(key);
-                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    Destination myDest = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(myDest.destLoc);
                     if (destDistance < enemyLocationDistance) {
-                        enemyLocation = destLocation;
+                        enemyLocation = myDest.destLoc;
                         enemyLocationDistance = destDistance;
-                        spawnDestIsGuess = false;
+                        spawnDestIsGuess = myDest.isGuess;
                     }
                 }
             }
@@ -1985,12 +2014,12 @@ public class EnlightmentCenter extends Robot {
                 }
             } else if (basesToDestinations.size() > 0) {
                 for (Integer key: basesToDestinations.keySet()) {
-                    MapLocation destLocation = basesToDestinations.get(key);
-                    int destDistance = myLocation.distanceSquaredTo(destLocation);
+                    Destination myDest = basesToDestinations.get(key);
+                    int destDistance = myLocation.distanceSquaredTo(myDest.destLoc);
                     if (destDistance < enemyLocationDistance) {
-                        enemyLocation = destLocation;
+                        enemyLocation = myDest.destLoc;
                         enemyLocationDistance = destDistance;
-                        spawnDestIsGuess = false;
+                        spawnDestIsGuess = myDest.isGuess;
                     }
                 }
             } else if (includeNeutral && neutralECLocsToInfluence.size() > 0) {
