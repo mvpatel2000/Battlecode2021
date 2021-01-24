@@ -191,7 +191,7 @@ public class Politician extends Unit {
      */
     void movePolitician() throws GameActionException {
         // Don't move if next to enemy EC and clogging slots
-        if (myLocation.distanceSquaredTo(destination) <= 2 && rc.isLocationOccupied(destination)) {
+        if (myLocation.distanceSquaredTo(destination) <= 2 && rc.onTheMap(destination) && rc.isLocationOccupied(destination)) {
             RobotInfo target = rc.senseRobotAtLocation(destination);
             if (target.team == enemyTeam && target.type == RobotType.ENLIGHTENMENT_CENTER) {
                 return;

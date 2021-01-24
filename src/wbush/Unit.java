@@ -706,21 +706,25 @@ public abstract class Unit extends Robot {
         // 3) or you can sense your destination and your destination has a robot on it and that robot is not an enemy EC
         // then change your destination
         if (exploreMode) {
-            MapLocation nearDestination = myLocation;
-            for (int i = 0; i < 3; i++) {
-                nearDestination = nearDestination.add(nearDestination.directionTo(destination));
-            }
+            destination = potentialDest;
+            exploreMode = false;
+            return true;
 
-            if (!rc.onTheMap(nearDestination) || canSenseDestination &&
-                (!rc.onTheMap(destination) ||
-                (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
-                destination = potentialDest;
-                exploreMode = false;
-                // System.out.println("Re-routing to latest base destination!! " + potentialDest);
-                return true;
-            } else {
-                // System.out.println("Did not switch for personal location reasons.");
-            }
+            // MapLocation nearDestination = myLocation;
+            // for (int i = 0; i < 3; i++) {
+            //     nearDestination = nearDestination.add(nearDestination.directionTo(destination));
+            // }
+
+            // if (!rc.onTheMap(nearDestination) || canSenseDestination &&
+            //     (!rc.onTheMap(destination) ||
+            //     (destRobot != null && !(destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER)))) {
+            //     destination = potentialDest;
+            //     exploreMode = false;
+            //     // System.out.println("Re-routing to latest base destination!! " + potentialDest);
+            //     return true;
+            // } else {
+            //     // System.out.println("Did not switch for personal location reasons.");
+            // }
         }
 
         // If you are NOT in explore mode, and the following conditions hold

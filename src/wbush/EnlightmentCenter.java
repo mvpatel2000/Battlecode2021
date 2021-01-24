@@ -209,7 +209,9 @@ public class EnlightmentCenter extends Robot {
         if (currentVotes > 750) {
             currentBid = 0;
             return;
-        } if (currentBid == 0) currentBid = 1;
+        } 
+        
+        if (currentBid == 0) currentBid = 1;
 
         int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
         double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
@@ -229,7 +231,15 @@ public class EnlightmentCenter extends Robot {
                 descendingBid = true;
             }
         }
-        rc.bid(currentBid);
+        // Always bid at least 1
+        currentBid = Math.max(currentBid, 1);
+        // Don't bid more than 1 in first 100 turns
+        if (currentRound < 100) {
+            currentBid = Math.min(currentBid, 1);
+        }
+        if (rc.canBid(currentBid)) {
+            rc.bid(currentBid);
+        }
     }
 
     /**
