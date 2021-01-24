@@ -601,11 +601,10 @@ public class EnlightmentCenter extends Robot {
                     break;
                 case Flag.MAP_INFO_SCHEMA:
                     // Handles Edge logic.
-                    /*
                     MapInfoFlag mif = new MapInfoFlag(flagInt);
                     Direction edgeDir = mif.readEdgeDirection();
                     int[] relLocs = mif.readRelativeLocationFrom(myLocation);
-                    MapLocation omg = null;
+                    // System.out.println("relLocs: " + relLocs[0] + ", " + relLocs[1] + "; dir: " + edgeDir);
                     switch(edgeDir) {
                         case NORTH:
                             map.set(relLocs[0], relLocs[1]-1, 1);
@@ -626,7 +625,7 @@ public class EnlightmentCenter extends Robot {
                         default:
                             break;
                     }
-                    */
+                    // map.summarize();
                     break;
                 case Flag.LOCATION_SCHEMA:
                     break;
@@ -964,14 +963,6 @@ public class EnlightmentCenter extends Robot {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                        // System.out.println("Optimal horiz " + dHoriz[0] + " " + dHoriz[1]);
-                        // System.out.println("Optimal Vert " + dVert[0] + " " + dVert[1]);
-                        // System.out.println("Horiz furthest direction: " + horizFurthestDirection);
-                        // System.out.println("Horiz furthest wall: " + horizFurthestWall);
-                        // System.out.println("map.xLineAboveUpper: " + map.xLineAboveUpper);
-                        // System.out.println("Math.abs(map.xLineBelowLower): " + Math.abs(map.xLineBelowLower));
-                        // System.out.println("Vert furthest direction: " + vertFurthestDirection);
-                        // System.out.println("Vert furthest wall: " + vertFurthestWall);
                         double rand = Math.random();
                         if (rand < threshold) {
                             dArr = dVert;

@@ -67,13 +67,20 @@ public class RelativeMap {
             if (yRel < 0 && yRel + 64 < yLineAboveUpper)
                 yLineAboveUpper = yRel + 64;
             if (yRel < 0 && yRel <= yLineBelowUpper)
-                yLineBelowUpper = xRel - 1;
+                yLineBelowUpper = yRel - 1;
             if (yRel > 0 && yRel - 64 > yLineBelowLower)
                 yLineBelowLower = yRel - 64;
             if (yRel > 0 && yRel >= yLineAboveLower)
                 yLineAboveLower = yRel + 1;
             // map[xRel & 63][yRel & 63] = pa;
         }
+    }
+
+    public void summarize() {
+        System.out.println("left wall in [" + xLineBelowLower + ", " + xLineBelowUpper + "]");
+        System.out.println("right wall in [" + xLineAboveLower + ", " + xLineAboveUpper + "]");
+        System.out.println("bottom wall in [" + yLineBelowLower + ", " + yLineBelowUpper + "]");
+        System.out.println("top wall in [" + yLineAboveLower + ", " + yLineAboveUpper + "]");
     }
 
     /**
