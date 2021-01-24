@@ -217,10 +217,12 @@ public class EnlightmentCenter extends Robot {
         double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
         int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
 
+        // //System.out.println\("Conds: " + (rc.getTeamVotes() > previousTeamVotes) + " " + descendingBid));
         if (rc.getTeamVotes() > previousTeamVotes) { // we won the last bid
             previousTeamVotes++;
             if (descendingBid) {
                 currentBid = (int) (0.9*currentBid);
+                descendingBid = true;
             }
         } else { // we lost the last bid
             if (descendingBid) {
@@ -228,11 +230,10 @@ public class EnlightmentCenter extends Robot {
                 descendingBid = false;
             } else {
                 currentBid = Math.min((int) (1.5 * currentBid), maxWillingToBid);
-                descendingBid = true;
             }
         }
         // Always bid at least 1
-        currentBid = Math.max(currentBid, 1);
+        currentBid = Math.max(currentBid, 2);
         // Don't bid more than 1 in first 100 turns
         if (currentRound < 100) {
             currentBid = Math.min(currentBid, 1);
