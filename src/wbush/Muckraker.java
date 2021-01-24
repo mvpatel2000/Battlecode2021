@@ -56,6 +56,10 @@ public class Muckraker extends Unit {
      * @throws GameActionException
      */
     boolean denyNeutralEC() throws GameActionException {
+        if (currentRound < 100) {
+            return false;
+        }
+
         RobotInfo[] nearbyNeutrals = rc.senseNearbyRobots(RobotType.MUCKRAKER.sensorRadiusSquared, neutralTeam);
         // No nearby neutral units
         if (nearbyNeutrals.length == 0) {
