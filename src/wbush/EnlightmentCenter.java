@@ -306,6 +306,7 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
+                // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
                 else if (numSlanderers > 2 && optimalNeutral != null && (numSlanderers*3*5)+rc.getInfluence() > neutralECLocsToInfluence.get(optimalNeutral)) {
                     MapLocation enemyLocation = optimalNeutral;
                     int influence = neutralECLocsToInfluence.get(enemyLocation);
@@ -320,8 +321,8 @@ public class EnlightmentCenter extends Robot {
                         spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     }
                 }
-                // No more neutral ECs! Cases below here should not run if we know there are neutral ECs
-                // and we just don't have the influence to capture them yet.
+                // No more neutral ECs! Cases below here should not run if we know there are neutral ECs,
+                // have the requisite income.
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
