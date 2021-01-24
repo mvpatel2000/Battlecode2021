@@ -14,6 +14,11 @@ public class Slanderer extends Unit {
     // Tracks nearest enemy so we don't constantly update destination from same unit
     public MapLocation lastNearestLocation;
 
+    int minX = -1;
+    int maxX = -1;
+    int minY = -1;
+    int maxY = -1;
+
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
         // IGNORE EC DESTINATION FOR NOW!
@@ -132,12 +137,19 @@ public class Slanderer extends Unit {
             // In sensing radius and on map / unoccupied, so we can move towards it
             return false;
         }
+        // Location is off map based on prior map boundary information.
+        if (edgeLocations[0] != -1 && edgeLocations[0] < spiralPlace.y
+            || edgeLocations[1] != -1 && edgeLocations[1] < spiralPlace.x
+            || edgeLocations[2] != -1 && edgeLocations[2] > spiralPlace.y
+            || edgeLocations[3] != -1 && edgeLocations[3] > spiralPlace.x) {
+            return true;
+        }
         MapLocation nearSpiralPlace = myLocation;
         for (int i = 0; i < 3; i++) {
             Direction toDest = nearSpiralPlace.directionTo(spiralPlace);
             nearSpiralPlace = nearSpiralPlace.add(toDest);
         }
-        // //System.out.println\("Near: " + nearSpiralPlace + " " + rc.onTheMap(nearSpiralPlace));
+        //System.out.println\("Near: " + nearSpiralPlace + " " + rc.onTheMap(nearSpiralPlace));
         // Place near destination is off map so destination is off map
         if (!rc.onTheMap(nearSpiralPlace)) {
             return true;

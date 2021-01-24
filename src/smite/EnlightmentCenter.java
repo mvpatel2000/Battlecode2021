@@ -69,7 +69,9 @@ public class EnlightmentCenter extends Robot {
     int numUnitsTracked;
 
     // Bidding information
-    int previousInfluence = 0;
+    int currentBid;
+    boolean descendingBid;
+    int previousTeamVotes;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -130,15 +132,17 @@ public class EnlightmentCenter extends Robot {
         trackingList = new int[MAX_UNITS_TRACKED];
         numUnitsTracked = 0;
 
-        previousInfluence = 0;
+        currentBid = 1;
+        descendingBid = false;
+        previousTeamVotes = 0;
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 800) {
-            // //rc.resign\(); // TODO: remove; just for debugging
+        if (currentRound == 400) {
+            //rc.resign\(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -203,41 +207,29 @@ public class EnlightmentCenter extends Robot {
         int currentVotes = rc.getTeamVotes();
         // We have more than half the votes, stop bidding
         if (currentVotes > 750) {
+            currentBid = 0;
             return;
-        }
-        int currentInfluence = rc.getInfluence();
-        double dInf = Math.ceil(0.2 * Math.sqrt(currentRound));
-        // //System.out.println\("Income: " + dInf);
+        } if (currentBid == 0) currentBid = 1;
 
-        // Bid 1 for first 250 turns
-        if (currentRound <= 250) {
-            ////System.out.println\("Bidding 1!");
-            if (currentInfluence > 10 && rc.canBid(1)) {
-                rc.bid(1);
+        int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
+        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
+        int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
+
+        if (rc.getTeamVotes() > previousTeamVotes) { // we won the last bid
+            previousTeamVotes++;
+            if (descendingBid) {
+                currentBid = (int) (0.9*currentBid);
             }
-        } else {
-            if (currentRound <= 800) {
-                dInf = Math.max(dInf, currentInfluence / 600.0);
-            } else if (currentRound <= 1200) {
-                dInf = Math.max(dInf, currentInfluence / 400.0);
-            } else if (currentRound <= 1400) {
-                dInf = Math.max(dInf, currentInfluence / 100.0);
-            } else if (currentRound <= 1490) {
-                dInf = Math.max(dInf, currentInfluence / 50.0);
-            } else if (currentRound <= 1499) {
-                dInf = Math.max(dInf, currentInfluence / 10.0);
+        } else { // we lost the last bid
+            if (descendingBid) {
+                currentBid = (int) ((1 + currentBid)/0.9);
+                descendingBid = false;
             } else {
-                dInf = Math.max(dInf, currentInfluence / 1.0);
-            }
-            dInf = Math.min(dInf, currentInfluence / 4.0);
-            // //System.out.println\("New bid: " + dInf);
-            int bidAmount = (int)(dInf);
-            // //System.out.println\("Bid amount: " + bidAmount + " / " + currentInfluence);
-            if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
-                rc.bid(bidAmount);
+                currentBid = Math.min((int) (1.5 * currentBid), maxWillingToBid);
+                descendingBid = true;
             }
         }
-        previousInfluence = currentInfluence;
+        rc.bid(currentBid);
     }
 
     /**
@@ -281,7 +273,14 @@ public class EnlightmentCenter extends Robot {
                 boolean nearbyMuckraker = false;
                 double enemyMultiplier = rc.getEmpowerFactor(enemyTeam, 0);
                 double remainingHealth = rc.getConviction();
+                int nearestEnemyDistance = 10000;
+                Direction dirToNearestEnemy = null;
                 for (RobotInfo robot : nearbyEnemies) {
+                    int distTo = myLocation.distanceSquaredTo(robot.location);
+                    if (distTo < nearestEnemyDistance) {
+                        nearestEnemyDistance = distTo;
+                        dirToNearestEnemy = myLocation.directionTo(robot.location);
+                    }
                     switch (robot.type) {
                         case MUCKRAKER: {
                             nearbyMuckraker = true;
@@ -296,7 +295,10 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
+                dirToNearestEnemy = fanOutFromBuildDir(dirToNearestEnemy);
+                optimalDir = dirToNearestEnemy == null ? optimalDir : dirToNearestEnemy;
                 int myConviction = rc.getConviction();
+                int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
 
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
@@ -305,8 +307,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
-                    && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)) {
-                    int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
+                    && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
+                    && maxInfluence >= 41) {
                     int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
                     if (optimalSland < 0) {
                         optimalSland = -optimalSland;
@@ -365,7 +367,7 @@ public class EnlightmentCenter extends Robot {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                             // //System.out.println\("Spawning normal: " + enemyLocation);
                             int influence = 14;
-                            if (rc.getRoundNum() > 50) {
+                            if (rc.getRoundNum() > 100) {
                                 if (Math.random() < 0.5) {
                                     influence = 18;
                                 }
@@ -376,6 +378,10 @@ public class EnlightmentCenter extends Robot {
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                         }
                     }
+                }
+                if (rc.isReady()) {
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                 }
             }
         }
@@ -671,6 +677,25 @@ public class EnlightmentCenter extends Robot {
             }
         }
         return optimalDir;
+    }
+
+    /**
+     * Returns the closest direction to input destination parameter
+     *  which we can build.
+     */
+    Direction fanOutFromBuildDir(Direction toDest) throws GameActionException {
+        if (toDest == null) {
+            return null;
+        }
+        Direction[] fanDirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
+                              toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
+        for (Direction d: fanDirs) {
+            // Dummy robot build check for valid direction
+            if (rc.canBuildRobot(RobotType.MUCKRAKER, d, 1)) {
+                return d;
+            }
+        }
+        return null;
     }
 
     /**

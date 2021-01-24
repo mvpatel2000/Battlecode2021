@@ -23,6 +23,7 @@ public abstract class Unit extends Robot {
     MapLocation latestBaseDestination;
 
     boolean[] foundEdges;
+    int[] edgeLocations;
 
     int instruction;
     boolean spawnedSilently;
@@ -47,6 +48,7 @@ public abstract class Unit extends Robot {
         moveThisTurn = Direction.CENTER;
                                 // North, East, South, West
         foundEdges = new boolean[]{false, false, false, false};
+        edgeLocations = new int[]{-1, -1, -1, -1};
         // Add base information. If no base is found, baseID will be 0.
         // If spawned silently, then baseLocation will be any base that
         // is adjacent to the unit when it spawns, and is not necessarily
@@ -323,6 +325,7 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
+                                edgeLocations[0] =  testLoc.y;
                                 if (distClosestOff != -1) {
                                     setMapEdgeFlag(Direction.NORTH, testLoc.translate(0, 1));
                                     return;
@@ -340,6 +343,7 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
+                                edgeLocations[1] =  testLoc.x;
                                 if (distClosestOff != -1) {
                                     setMapEdgeFlag(Direction.EAST, testLoc.translate(1, 0));
                                     return;
@@ -357,6 +361,7 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
+                                edgeLocations[2] =  testLoc.y;
                                 if (distClosestOff != -1) {
                                     setMapEdgeFlag(Direction.SOUTH, testLoc.translate(0, -1));
                                     return;
@@ -374,6 +379,7 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
+                                edgeLocations[3] =  testLoc.x;
                                 if (distClosestOff != -1) {
                                     setMapEdgeFlag(Direction.WEST, testLoc.translate(-1, 0));
                                     return;
@@ -751,6 +757,7 @@ public abstract class Unit extends Robot {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
             }
         }
+        // //System.out.println\("Explore: " + nearDestination);
         // Reroute if 1) nearDestination not on map or 2) can sense destination and it's not on the map
         // or it's not occupied (so no EC) or 3) the EC is a neutral EC and we're not hunting the EC
         if (destination == null || !rc.onTheMap(nearDestination) ||
@@ -778,10 +785,17 @@ public abstract class Unit extends Robot {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
                 exploreMode = true;
-                for (int i = 0; i < priorDestinations.size(); i++) {
-                    if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
-                        valid = false;
-                        break;
+                if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
+                    || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
+                    || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
+                    || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
+                    valid = false;
+                } else {
+                    for (int i = 0; i < priorDestinations.size(); i++) {
+                        if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
+                            valid = false;
+                            break;
+                        }
                     }
                 }
             }
