@@ -210,15 +210,15 @@ public class Politician extends Unit {
             else if (edgeSlanderer == null || myLocation.distanceSquaredTo(baseLocation) > edgeSlanderer.distanceSquaredTo(baseLocation)) {
                 if (!startedLap) { // start lap if it hasn't been started yet
                     lapStartDirection = baseLocation.directionTo(myLocation);
-                    System.out.println("Starting defense lap; start direction: " + lapStartDirection);
+                    // System.out.println("Starting defense lap; start direction: " + lapStartDirection);
                     startedLap = true;
                 } else if (startedLap && !leftStartingOctant) { // if we were still in the starting octant before, check if we still are now
                     leftStartingOctant = baseLocation.directionTo(myLocation) != lapStartDirection;
                     if (leftStartingOctant) {
-                        System.out.println("Left the starting octant in my lap");
+                        // System.out.println("Left the starting octant in my lap");
                     }
                 } else if (startedLap && leftStartingOctant && baseLocation.directionTo(myLocation) == lapStartDirection) { // if we did a full lap, end defense lap
-                    System.out.println("Finished a full lap! Exiting defense mode.");
+                    // System.out.println("Finished a full lap! Exiting defense mode.");
                     defend = false;
                     movePolitician();
                     return;
@@ -243,16 +243,16 @@ public class Politician extends Unit {
                     }
                 }
                 if (!rc.onTheMap(myLocation.add(moveDir))) { // hit the wall, end defense lap
-                    System.out.println("Lap is taking me off the map. Exiting defense mode.");
+                    // System.out.println("Lap is taking me off the map. Exiting defense mode.");
                     defend = false;
                     movePolitician();
                     return;
                 }
-                System.out.println("FuzzyMoving " + moveDir + " for my lap");
+                // System.out.println("FuzzyMoving " + moveDir + " for my lap");
                 fuzzyMove(myLocation.add(moveDir)); // move orthogonal to direction to pivot, specified by moveDir
             } else { // I need to get farther from the base; get on the far side of the farthest slanderer
                 MapLocation farSide = edgeSlanderer.add(edgeSlanderer.directionTo(baseLocation).opposite());
-                System.out.println("Attempting to move to far side: " + farSide);
+                // System.out.println("Attempting to move to far side: " + farSide);
                 fuzzyMove(farSide);
             }
             return;
