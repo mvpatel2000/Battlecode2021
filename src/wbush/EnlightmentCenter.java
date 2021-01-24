@@ -281,7 +281,14 @@ public class EnlightmentCenter extends Robot {
                 boolean nearbyMuckraker = false;
                 double enemyMultiplier = rc.getEmpowerFactor(enemyTeam, 0);
                 double remainingHealth = rc.getConviction();
+                int nearestEnemyDistance = 10000;
+                Direction dirToNearestEnemy = null;
                 for (RobotInfo robot : nearbyEnemies) {
+                    int distTo = myLocation.distanceSquaredTo(robot.location);
+                    if (distTo < nearestEnemyDistance) {
+                        nearestEnemyDistance = distTo;
+                        dirToNearestEnemy = myLocation.directionTo(robot.location);
+                    }
                     switch (robot.type) {
                         case MUCKRAKER: {
                             nearbyMuckraker = true;
@@ -296,6 +303,7 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
+                optimalDir = fanOutFromBuildDir(dirToNearestEnemy) == null ? optimalDir : dirToNearestEnemy;
                 int myConviction = rc.getConviction();
                 int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
 
@@ -378,11 +386,11 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
+                if (rc.isReady()) {
+                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                }
             }
-        }
-        if (rc.isReady()) {
-            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
         }
     }
 
@@ -676,6 +684,25 @@ public class EnlightmentCenter extends Robot {
             }
         }
         return optimalDir;
+    }
+
+    /**
+     * Returns the closest direction to input destination parameter
+     *  which we can build.
+     */
+    Direction fanOutFromBuildDir(Direction toDest) throws GameActionException {
+        if (toDest == null) {
+            return null;
+        }
+        Direction[] fanDirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
+                              toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
+        for (Direction d: fanDirs) {
+            // Dummy robot build check for valid direction
+            if (rc.canBuildRobot(RobotType.MUCKRAKER, d, 1)) {
+                return d;
+            }
+        }
+        return null;
     }
 
     /**
