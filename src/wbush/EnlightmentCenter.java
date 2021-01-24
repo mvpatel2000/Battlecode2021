@@ -225,7 +225,7 @@ public class EnlightmentCenter extends Robot {
                 currentBid = (int) ((1 + currentBid)/0.9);
                 descendingBid = false;
             } else {
-                currentBid = Math.max((int) (1.5 * currentBid), maxWillingToBid);
+                currentBid = Math.min((int) (1.5 * currentBid), maxWillingToBid);
                 descendingBid = true;
             }
         }
