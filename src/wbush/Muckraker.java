@@ -28,7 +28,9 @@ public class Muckraker extends Unit {
 
 
     boolean unClog() throws GameActionException {
-        if (rc.canDetectLocation(destination.add(myLocation.directionTo(destination)))) {
+        if (rc.canDetectLocation(destination.add(myLocation.directionTo(destination))) &&
+            rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateLeft())) &&
+            rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateRight()))) {
             RobotInfo destRobot = rc.senseRobotAtLocation(destination);
             if (destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (myLocation.distanceSquaredTo(destination) <= 2) {

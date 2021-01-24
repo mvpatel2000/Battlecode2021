@@ -69,7 +69,9 @@ public class EnlightmentCenter extends Robot {
     int numUnitsTracked;
 
     // Bidding information
-    int previousInfluence = 0;
+    int currentBid;
+    boolean descendingBid;
+    int previousTeamVotes;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -130,7 +132,9 @@ public class EnlightmentCenter extends Robot {
         trackingList = new int[MAX_UNITS_TRACKED];
         numUnitsTracked = 0;
 
-        previousInfluence = 0;
+        currentBid = 1;
+        descendingBid = false;
+        previousTeamVotes = 0;
     }
 
     @Override
@@ -203,41 +207,29 @@ public class EnlightmentCenter extends Robot {
         int currentVotes = rc.getTeamVotes();
         // We have more than half the votes, stop bidding
         if (currentVotes > 750) {
+            currentBid = 0;
             return;
-        }
-        int currentInfluence = rc.getInfluence();
-        double dInf = Math.ceil(0.2 * Math.sqrt(currentRound));
-        // System.out.println("Income: " + dInf);
+        } if (currentBid == 0) currentBid = 1;
 
-        // Bid 1 for first 250 turns
-        if (currentRound <= 250) {
-            //System.out.println("Bidding 1!");
-            if (currentInfluence > 10 && rc.canBid(1)) {
-                rc.bid(1);
+        int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
+        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
+        int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
+
+        if (rc.getTeamVotes() > previousTeamVotes) { // we won the last bid
+            previousTeamVotes++;
+            if (descendingBid) {
+                currentBid = (int) (0.9*currentBid);
             }
-        } else {
-            if (currentRound <= 800) {
-                dInf = Math.max(dInf, currentInfluence / 600.0);
-            } else if (currentRound <= 1200) {
-                dInf = Math.max(dInf, currentInfluence / 400.0);
-            } else if (currentRound <= 1400) {
-                dInf = Math.max(dInf, currentInfluence / 100.0);
-            } else if (currentRound <= 1490) {
-                dInf = Math.max(dInf, currentInfluence / 50.0);
-            } else if (currentRound <= 1499) {
-                dInf = Math.max(dInf, currentInfluence / 10.0);
+        } else { // we lost the last bid
+            if (descendingBid) {
+                currentBid = (int) ((1 + currentBid)/0.9);
+                descendingBid = false;
             } else {
-                dInf = Math.max(dInf, currentInfluence / 1.0);
-            }
-            dInf = Math.min(dInf, currentInfluence / 4.0);
-            // System.out.println("New bid: " + dInf);
-            int bidAmount = (int)(dInf);
-            // System.out.println("Bid amount: " + bidAmount + " / " + currentInfluence);
-            if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
-                rc.bid(bidAmount);
+                currentBid = Math.min((int) (1.5 * currentBid), maxWillingToBid);
+                descendingBid = true;
             }
         }
-        previousInfluence = currentInfluence;
+        rc.bid(currentBid);
     }
 
     /**
