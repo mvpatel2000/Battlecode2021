@@ -366,7 +366,7 @@ public class EnlightmentCenter extends Robot {
                             enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                             // System.out.println("Spawning normal: " + enemyLocation);
                             int influence = 14;
-                            if (rc.getRoundNum() > 50) {
+                            if (rc.getRoundNum() > 100) {
                                 if (Math.random() < 0.5) {
                                     influence = 18;
                                 }
