@@ -1,4 +1,4 @@
-package wbush;
+package gore;
 
 import battlecode.common.*;
 import java.util.Set;
@@ -69,9 +69,7 @@ public class EnlightmentCenter extends Robot {
     int numUnitsTracked;
 
     // Bidding information
-    int currentBid;
-    boolean descendingBid;
-    int previousTeamVotes;
+    int previousInfluence = 0;
 
     static final RobotType[] spawnableRobot = {
         RobotType.POLITICIAN,
@@ -132,17 +130,15 @@ public class EnlightmentCenter extends Robot {
         trackingList = new int[MAX_UNITS_TRACKED];
         numUnitsTracked = 0;
 
-        currentBid = 1;
-        descendingBid = false;
-        previousTeamVotes = 0;
+        previousInfluence = 0;
     }
 
     @Override
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
-            rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 800) {
+            // rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -207,29 +203,41 @@ public class EnlightmentCenter extends Robot {
         int currentVotes = rc.getTeamVotes();
         // We have more than half the votes, stop bidding
         if (currentVotes > 750) {
-            currentBid = 0;
             return;
-        } if (currentBid == 0) currentBid = 1;
+        }
+        int currentInfluence = rc.getInfluence();
+        double dInf = Math.ceil(0.2 * Math.sqrt(currentRound));
+        // System.out.println("Income: " + dInf);
 
-        int canAffordToLose = Math.max(749 - rc.getRoundNum() + rc.getTeamVotes(), 0);
-        double maxOfferFactor = 1 + ((1500 - rc.getRoundNum()) / 50) + (canAffordToLose / 10);
-        int maxWillingToBid = (int) (rc.getInfluence() / maxOfferFactor);
-
-        if (rc.getTeamVotes() > previousTeamVotes) { // we won the last bid
-            previousTeamVotes++;
-            if (descendingBid) {
-                currentBid = (int) (0.9*currentBid);
+        // Bid 1 for first 250 turns
+        if (currentRound <= 250) {
+            //System.out.println("Bidding 1!");
+            if (currentInfluence > 10 && rc.canBid(1)) {
+                rc.bid(1);
             }
-        } else { // we lost the last bid
-            if (descendingBid) {
-                currentBid = (int) ((1 + currentBid)/0.9);
-                descendingBid = false;
+        } else {
+            if (currentRound <= 800) {
+                dInf = Math.max(dInf, currentInfluence / 600.0);
+            } else if (currentRound <= 1200) {
+                dInf = Math.max(dInf, currentInfluence / 400.0);
+            } else if (currentRound <= 1400) {
+                dInf = Math.max(dInf, currentInfluence / 100.0);
+            } else if (currentRound <= 1490) {
+                dInf = Math.max(dInf, currentInfluence / 50.0);
+            } else if (currentRound <= 1499) {
+                dInf = Math.max(dInf, currentInfluence / 10.0);
             } else {
-                currentBid = Math.max((int) (1.5 * currentBid), maxWillingToBid);
-                descendingBid = true;
+                dInf = Math.max(dInf, currentInfluence / 1.0);
+            }
+            dInf = Math.min(dInf, currentInfluence / 4.0);
+            // System.out.println("New bid: " + dInf);
+            int bidAmount = (int)(dInf);
+            // System.out.println("Bid amount: " + bidAmount + " / " + currentInfluence);
+            if (currentInfluence > bidAmount && rc.canBid(bidAmount)) {
+                rc.bid(bidAmount);
             }
         }
-        rc.bid(currentBid);
+        previousInfluence = currentInfluence;
     }
 
     /**
@@ -273,14 +281,7 @@ public class EnlightmentCenter extends Robot {
                 boolean nearbyMuckraker = false;
                 double enemyMultiplier = rc.getEmpowerFactor(enemyTeam, 0);
                 double remainingHealth = rc.getConviction();
-                int nearestEnemyDistance = 10000;
-                Direction dirToNearestEnemy = null;
                 for (RobotInfo robot : nearbyEnemies) {
-                    int distTo = myLocation.distanceSquaredTo(robot.location);
-                    if (distTo < nearestEnemyDistance) {
-                        nearestEnemyDistance = distTo;
-                        dirToNearestEnemy = myLocation.directionTo(robot.location);
-                    }
                     switch (robot.type) {
                         case MUCKRAKER: {
                             nearbyMuckraker = true;
@@ -295,7 +296,6 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
-                optimalDir = fanOutFromBuildDir(dirToNearestEnemy) == null ? optimalDir : dirToNearestEnemy;
                 int myConviction = rc.getConviction();
                 int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
 
@@ -378,11 +378,11 @@ public class EnlightmentCenter extends Robot {
                         }
                     }
                 }
-                if (rc.isReady()) {
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
-                }
             }
+        }
+        if (rc.isReady()) {
+            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
         }
     }
 
@@ -676,25 +676,6 @@ public class EnlightmentCenter extends Robot {
             }
         }
         return optimalDir;
-    }
-
-    /**
-     * Returns the closest direction to input destination parameter
-     *  which we can build.
-     */
-    Direction fanOutFromBuildDir(Direction toDest) throws GameActionException {
-        if (toDest == null) {
-            return null;
-        }
-        Direction[] fanDirs = {toDest, toDest.rotateLeft(), toDest.rotateRight(), toDest.rotateLeft().rotateLeft(),
-                              toDest.rotateRight().rotateRight(), toDest.opposite().rotateLeft(), toDest.opposite().rotateRight(), toDest.opposite()};
-        for (Direction d: fanDirs) {
-            // Dummy robot build check for valid direction
-            if (rc.canBuildRobot(RobotType.MUCKRAKER, d, 1)) {
-                return d;
-            }
-        }
-        return null;
     }
 
     /**
