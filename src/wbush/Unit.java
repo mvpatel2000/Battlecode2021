@@ -35,8 +35,7 @@ public abstract class Unit extends Robot {
     MapLocation newAllyLocation;
     Map<MapLocation, Integer> enemyECLocsToIDs;
     Map<MapLocation, Integer> neutralECLocsToIDs;
-    Map<MapLocation, Integer> capturedAllyECLocsToIDs;
-    Set<Integer> seenAllyECs;  // IDs for every ally EC we have seen before.
+    Map<MapLocation, Integer> allyECLocsToIDs;
 
     ArrayList<MapLocation> priorDestinations;
 
@@ -85,9 +84,8 @@ public abstract class Unit extends Robot {
         // variables to keep track of EC sightings
         enemyECLocsToIDs = new HashMap<>();
         neutralECLocsToIDs = new HashMap<>();
-        capturedAllyECLocsToIDs = new HashMap<>();
-        seenAllyECs = new HashSet<>();
-        seenAllyECs.add(baseID);
+        allyECLocsToIDs = new HashMap<>();
+        allyECLocsToIDs.put(baseLocation, baseID);
         priorDestinations = new ArrayList<MapLocation>();
 
         instruction = -1;
@@ -416,8 +414,8 @@ public abstract class Unit extends Robot {
                         neutralECLocsToIDs.remove(ri.location);
                     }
                     // If EC used to be captured ally, remove it from captured allies map
-                    if (capturedAllyECLocsToIDs.containsKey(ri.location)) {
-                        capturedAllyECLocsToIDs.remove(ri.location);
+                    if (allyECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.remove(ri.location);
                     }
                     setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn, ri.influence);
                     // we may not want to return in the future when there is more computation to be done.
@@ -435,26 +433,27 @@ public abstract class Unit extends Robot {
                 }
             }
         }
-        for (RobotInfo ri : nearbyAllies) {
-            if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
-                if (neutralECLocsToIDs.containsKey(ri.location)) {
-                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
-                    neutralECLocsToIDs.remove(ri.location);
-                    sawNewAllyLastTurn = 1;
-                    seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
-                    return;
-                } else if (enemyECLocsToIDs.containsKey(ri.location)) {
-                    capturedAllyECLocsToIDs.put(ri.location, ri.ID);
-                    enemyECLocsToIDs.remove(ri.location);
-                    sawNewAllyLastTurn = 1;
-                    seenAllyECs.add(ri.ID);
-                    setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
-                    return;
-                } else if (!seenAllyECs.contains(ri.ID)) {
-                    seenAllyECs.add(ri.ID);
-                    setMidGameAllyIDFlag(moveThisTurn);
-                    sawNewAllyLastTurn = 2;
+        if (sawNewAllyLastTurn == 0) {
+            for (RobotInfo ri : nearbyAllies) {
+                if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    if (neutralECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        neutralECLocsToIDs.remove(ri.location);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    } else if (enemyECLocsToIDs.containsKey(ri.location)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        enemyECLocsToIDs.remove(ri.location);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    } else if (!allyECLocsToIDs.containsKey(ri.ID)) {
+                        allyECLocsToIDs.put(ri.location, ri.ID);
+                        sawNewAllyLastTurn = 1;
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        return;
+                    }
                 }
             }
         }
