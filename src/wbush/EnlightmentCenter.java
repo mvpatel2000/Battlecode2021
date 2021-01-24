@@ -1997,7 +1997,7 @@ public class EnlightmentCenter extends Robot {
             // Note: Heuristic from optimalDestination() only applies to initial ECs, not mid-game ECs.
             int[] dArr = randomDestination();
             enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-            spawnDestIsGuess = false;
+            spawnDestIsGuess = true;
         }
         return enemyLocation;
     }
