@@ -69,6 +69,7 @@ public class EnlightmentCenter extends Robot {
 
     // Troop Counts
     int numSlanderers;
+    double approxNumSlanderers;
     int numMuckrakers;
     int numPoliticians;
     int numScouts; // scouts don't count in troop counts
@@ -133,6 +134,7 @@ public class EnlightmentCenter extends Robot {
         spawnDestIsGuess = true;
         // Troop counts
         numSlanderers = 0;
+        approxNumSlanderers = 0.0;
         numMuckrakers = 0;
         numPoliticians = 0;
         numScouts = 0;
@@ -395,17 +397,17 @@ public class EnlightmentCenter extends Robot {
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, false);
                     } else if (currentInfluence > 10000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                        // System.out.println("Spawning thicc killer: " + enemyLocation);
+                        System.out.println("Spawning thicc killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(currentInfluence) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     } else if (currentInfluence > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                        // System.out.println("Spawning killer: " + enemyLocation);
+                        System.out.println("Spawning killer: " + enemyLocation);
                         int instr = SpawnDestinationFlag.INSTR_ATTACK;
                         if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
                             instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
-                    } else if ((numSlanderers*3*5) + dilutedRemainingHealth > mediumSizedPolitician && dilutedRemainingHealth > 50) {
+                    } else if ((approxNumSlanderers*3*5) + dilutedRemainingHealth > mediumSizedPolitician && dilutedRemainingHealth > 50) {
                         int infNeeded = mediumSizedPolitician;
                         if (dilutedRemainingHealth > infNeeded) {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
@@ -583,7 +585,7 @@ public class EnlightmentCenter extends Robot {
      * Helper function to get the type of a robot being tracked.
      */
     RobotType getTrackedType(int index) {
-        return robotTypes[trackingList[index]];
+        return robotTypes[trackingList[index] >> 28 ];
     }
 
     /**
@@ -603,6 +605,9 @@ public class EnlightmentCenter extends Robot {
         for (int i = 0; i < numUnitsTracked; i++) {
             int trackedID = getTrackedID(i);
             if (!rc.canGetFlag(trackedID)) { // if I can't get its flag, the bot is dead
+                if (getTrackedType(i) == RobotType.SLANDERER) {
+                    approxNumSlanderers -= 1.0/((double)(numAllyECs+1));
+                }
                 stopTrackingBot(i);
                 i--;
                 continue;
@@ -879,6 +884,7 @@ public class EnlightmentCenter extends Robot {
                 break;
             case SLANDERER:
                 numSlanderers++;
+                approxNumSlanderers += 1;
                 break;
             default:
                 break;
