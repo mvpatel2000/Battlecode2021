@@ -151,7 +151,10 @@ public abstract class Unit extends Robot {
      * move before you call this function!
      */
     public void setUnitUpdateFlag() throws GameActionException {
-        if (flagSetThisRound) {System.out.println("Flag already set."); return; }
+        if (flagSetThisRound) {
+            System.out.println("Flag already set.");
+            return;
+        }
         System.out.println("Flag not already set.");
         int minDist = 100000;
         MapLocation enemyLoc = null;
