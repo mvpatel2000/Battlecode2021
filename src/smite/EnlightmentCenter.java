@@ -57,7 +57,9 @@ public class EnlightmentCenter extends Robot {
                                                                 // the new ally's location, not the ID. So, we cannot add that ally
                                                                 // to the allyECID/location arrays above, we must maintain this separate map.
     Map<MapLocation, Integer> sentRobotsToNeutralECs;
-
+    MapLocation enemySlanderer;
+    int enemySlandererRound;
+    int numUUFprocessed;
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
     SpawnUnitFlag latestSpawnFlag;
@@ -73,6 +75,7 @@ public class EnlightmentCenter extends Robot {
 
     // Build order
     int initialBuildStep;
+    boolean openingBuild;
 
     // Mid-game EC variables.
     boolean isMidGame;
@@ -124,7 +127,8 @@ public class EnlightmentCenter extends Robot {
         neutralECLocsToInfluence = new HashMap<MapLocation, Integer>();
         capturedAllyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         sentRobotsToNeutralECs = new HashMap<MapLocation, Integer>();
-
+        enemySlanderer = null;    // a location to send muckrackers where we have previously seen an enemy slanderer.
+        enemySlandererRound = 0;
         latestSpawnRound = -1;
         spawnDestIsGuess = true;
         // Troop counts
@@ -153,6 +157,8 @@ public class EnlightmentCenter extends Robot {
         currentBid = 1;
         descendingBid = false;
         previousTeamVotes = 0;
+
+        openingBuild = true;
     }
 
     @Override
@@ -164,7 +170,7 @@ public class EnlightmentCenter extends Robot {
         }
 
         spawnDestIsGuess = true;
-
+        numUUFprocessed = 0;
         considerBid();
 
         // Do not add any code in the run() function before this line.
@@ -256,6 +262,8 @@ public class EnlightmentCenter extends Robot {
         // Don't bid more than 1 in first 100 turns
         if (currentRound < 100) {
             currentBid = Math.min(currentBid, 1);
+        } if (currentRound < 20) { // don't bid more than 0 first 20 turns for build order
+            currentBid = Math.min(currentBid, 0);
         }
         if (rc.canBid(currentBid)) {
             rc.bid(currentBid);
@@ -275,25 +283,21 @@ public class EnlightmentCenter extends Robot {
         }
         Direction optimalDir = findOptimalSpawnDir();
         // Opening build order
-        if (!isMidGame && initialBuildStep < 4) {
+        if (!isMidGame && openingBuild) {
             if (optimalDir == null) return;
-            switch (initialBuildStep) {
-                case 0:
-                    spawnRobotSilentlyWithTracker(RobotType.SLANDERER, optimalDir, 130);
-                    break;
-                case 1:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
-                    break;
-                case 2:
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
-                    break;
-                case 3:
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
-                    break;
-                default:
-                    break;
+            if (numSlanderers == 4 && numPoliticians == 0) {
+                spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 16, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
+            } else if (numSlanderers < 8 && numSlanderers > numMuckrakers) {
+                spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+            } else if (numSlanderers < 7) {
+                int optimalSland = getOptimalSlandererInfluence(rc.getConviction());
+                spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, optimalSland, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+            } else if (numPoliticians < 4) {
+                spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 16, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
+                if (numPoliticians == 4) {
+                    openingBuild = false;
+                }
             }
-            initialBuildStep++;
         }
         // Otherwise, do normal build order
         else {
@@ -335,6 +339,8 @@ public class EnlightmentCenter extends Robot {
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
@@ -351,6 +357,8 @@ public class EnlightmentCenter extends Robot {
                     } else {
                         // //System.out.println\("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                        enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                        spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                         spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     }
                 }
@@ -359,30 +367,20 @@ public class EnlightmentCenter extends Robot {
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
                     && (maxInfluence >= 41 || isMidGame)) {
-                    int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
-                    if (optimalSland < 0) {
-                        optimalSland = -optimalSland;
-                        optimalSland -=2;
-                        maxInfluence = SLANDERER_INFLUENCE_THRESHOLDS[optimalSland];
-                    }
-                    MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                    Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
-                    MapLocation oneStep = myLocation.add(awayFromEnemy);
-                    int dx = oneStep.x - myLocation.x;
-                    int dy = oneStep.y - myLocation.y;
-                    int multiplier = turnCount < 50 ? 5 : 10;
-                    MapLocation shiftedLocation = myLocation.translate(multiplier*dx, multiplier*dy);
+                    int slandInfluence = getOptimalSlandererInfluence(maxInfluence);
                     // //System.out.println\("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
-                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, maxInfluence, shiftedLocation, SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, slandInfluence, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
                 }
                 // Politicians vs muckrakers ratio 3:2 in the later game
                 // Ratio 2:3 in early game
                 else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
-                    if (Math.random() < 0.1) {
-                        muckInf = (int) Math.pow(rc.getConviction(), 0.7);
+                    if (Math.random() < 0.2) {
+                        muckInf = (int) Math.pow(rc.getConviction(), 0.8);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     // //System.out.println\("Spawn Muckraker: " + enemyLocation);
                 }
@@ -422,10 +420,31 @@ public class EnlightmentCenter extends Robot {
                 }
                 if (rc.isReady()) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
             }
         }
+    }
+
+    int getOptimalSlandererInfluence(int maxInfluence) {
+        int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
+        if (optimalSland < 0) {
+            optimalSland = -optimalSland;
+            optimalSland -=2;
+        }
+        return SLANDERER_INFLUENCE_THRESHOLDS[optimalSland];
+    }
+
+    MapLocation optimalSlandererDestination() {
+        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
+        Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
+        MapLocation oneStep = myLocation.add(awayFromEnemy);
+        int dx = oneStep.x - myLocation.x;
+        int dy = oneStep.y - myLocation.y;
+        int multiplier = turnCount < 50 ? 5 : 10;
+        return myLocation.translate(multiplier*dx, multiplier*dy);
     }
 
     double poliMuckRatio() {
@@ -642,6 +661,18 @@ public class EnlightmentCenter extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
+                    if (numUUFprocessed < 300) {
+                        UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
+                        if (uuf.readHasNearbyEnemy()) {
+                            if(uuf.readEnemyType() == RobotType.SLANDERER) {
+                                enemySlanderer = uuf.readAbsoluteLocation(myLocation);
+                                //System.out.println\("ENEMY SLANDERER AT: " + enemySlanderer);
+                                enemySlandererRound = currentRound;
+                                break;
+                            }
+                        }
+                        numUUFprocessed += 1;
+                    }
                     break;
                 case Flag.MIDGAME_ALLY_SCHEMA:
                     // Relevant for unit --> mid-game ECs.
@@ -950,6 +981,7 @@ public class EnlightmentCenter extends Robot {
                 int vertFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
 
                 double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
+                double denom = (double)(vertFurthestWall + horizFurthestWall + Math.sqrt(2*vertFurthestWall*horizFurthestWall));
                 if (symmetries[0] == true && symmetries[1] == true) {
                     // //System.out.println\("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
@@ -971,10 +1003,13 @@ public class EnlightmentCenter extends Robot {
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         double rand = Math.random();
-                        if (rand < threshold) {
+                        if (rand < (double)horizFurthestWall/denom) {
                             dArr = dVert;
-                        } else {
+                        } else if (rand < (double)(horizFurthestWall + vertFurthestWall)/denom) {
                             dArr = dHoriz;
+                        } else {
+                            dArr[0] = dHoriz[0];
+                            dArr[1] = dVert[1];
                         }
                     }
                 } else if (symmetries[0] == true) {
