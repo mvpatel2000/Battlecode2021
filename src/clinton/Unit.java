@@ -781,7 +781,11 @@ public abstract class Unit extends Robot {
                 baseLocation = myLocation;
             }
             boolean valid = true;
-            destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            int dxexplore = (int)(Math.random()*80);
+            int dyexplore = 120 - dxexplore;
+            dxexplore = Math.random() < .5 ? dxexplore : -dxexplore;
+            dyexplore = Math.random() < .5 ? dyexplore : -dyexplore;
+            destination = new MapLocation(baseLocation.x + dxexplore, baseLocation.y + dyexplore);
             exploreMode = true;
             for (int i = 0; i < priorDestinations.size(); i++) {
                 if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
