@@ -162,8 +162,8 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
-            // rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 1000) {
+            rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -226,8 +226,9 @@ public class EnlightmentCenter extends Robot {
      */
     void considerBid() throws GameActionException {
         int currentVotes = rc.getTeamVotes();
-        // We have more than half the votes, stop bidding
-        if (currentVotes > 750) {
+        // We have more than half the votes, stop bidding. Also don't bid for first 100 turns of
+        // midgame EC unless game is about to end.
+        if (currentVotes > 750 || isMidGame && turnCount < 100 && currentRound < 1490) {
             currentBid = 0;
             return;
         }
@@ -290,7 +291,7 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 3:
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
                     break;
                 default:
                     break;
@@ -332,6 +333,8 @@ public class EnlightmentCenter extends Robot {
                 int myConviction = rc.getConviction();
                 int maxInfluence = Math.min(Math.min(949, rc.getInfluence() - 5), (int)remainingHealth);
                 MapLocation optimalNeutral = getLowestInfluenceNeutralEC();
+                int currentInfluence = rc.getInfluence();
+                double dilutedRemainingHealth = currentInfluence - (currentInfluence - remainingHealth) / 3.0;
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
@@ -341,17 +344,17 @@ public class EnlightmentCenter extends Robot {
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
                 // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
-                else if (numSlanderers > 2 && optimalNeutral != null && (numSlanderers*3*5)+rc.getInfluence() > neutralECLocsToInfluence.get(optimalNeutral)) {
+                else if (numSlanderers > 2 && optimalNeutral != null && (numSlanderers*3*5) + dilutedRemainingHealth > neutralECLocsToInfluence.get(optimalNeutral)) {
                     MapLocation enemyLocation = optimalNeutral;
                     int influence = neutralECLocsToInfluence.get(enemyLocation);
-                    int infNeeded = (int)(influence*1.1 + 10);
-                    if (rc.getInfluence() > infNeeded) {
-                        System.out.println("Spawning neutral killer: " + enemyLocation);
+                    int infNeeded = (int)(influence*1.1 + 20);
+                    if (dilutedRemainingHealth > infNeeded) {
+                        // System.out.println("Spawning neutral killer: " + enemyLocation);
                         spawnDestIsGuess = false;   // we are sending them to exactly the neutral ECs
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                         sentRobotsToNeutralECs.put(enemyLocation, currentRound);
                     } else {
-                        System.out.println("Biding time and saving for neutral killer.");
+                        // System.out.println("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                         spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
@@ -360,7 +363,7 @@ public class EnlightmentCenter extends Robot {
                 }
                 // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
-                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
+                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
                     && (maxInfluence >= 41 || isMidGame)) {
                     int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
@@ -396,14 +399,14 @@ public class EnlightmentCenter extends Robot {
                 else {
                     if (Math.random() < 0.5) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        // System.out.println("Spawning defender: " + enemyLocation);
+                        System.out.println("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, false);
-                    } else if (rc.getInfluence() > 10000) {
+                    } else if (currentInfluence > 10000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         // System.out.println("Spawning thicc killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(rc.getInfluence()) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
-                    } else if (rc.getInfluence() > 1000) {
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(currentInfluence) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    } else if (currentInfluence > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         // System.out.println("Spawning killer: " + enemyLocation);
                         int instr = SpawnDestinationFlag.INSTR_ATTACK;
@@ -413,7 +416,7 @@ public class EnlightmentCenter extends Robot {
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        // System.out.println("Spawning normal: " + enemyLocation);
+                        System.out.println("Spawning defender: " + enemyLocation);
                         int influence = 14;
                         if (rc.getRoundNum() > 100) {
                             if (Math.random() < 0.5) {

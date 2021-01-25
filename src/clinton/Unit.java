@@ -775,7 +775,7 @@ public abstract class Unit extends Robot {
             return;
         }
         MapLocation nearDestination = myLocation;
-        System.out.println(destination);
+        // System.out.println(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));

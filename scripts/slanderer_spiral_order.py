@@ -1,13 +1,13 @@
 import math
 
 # spiral order starts north and goes clockwise
-
-R2 = 150
+R1 = 96
+R2 = 128
 D = []
 
-for x in range(-20, 20):
-    for y in range(-20, 20):
-        if x**2 + y**2 <= R2 and (x+y) % 2 == 1:
+for x in range(-30, 30):
+    for y in range(-30, 30):
+        if x**2 + y**2 > R1 and x**2 + y**2 <= R2 and (x+y) % 2 == 1:
             if abs(x) > 1 or abs(y) > 1:
                 th = math.atan2(x,y) % (2*math.pi)
                 D.append([x**2 + y**2, th, [x, y]])

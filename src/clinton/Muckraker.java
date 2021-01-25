@@ -34,7 +34,6 @@ public class Muckraker extends Unit {
         setMoveWeights();
 
         updateDestinationForExploration(false);
-
         // Search for nearest slanderer. If one exists, kill it or move towards it.
         if (rc.isReady()) {
             if (!denyNeutralEC()) {
@@ -162,23 +161,33 @@ public class Muckraker extends Unit {
      * @throws GameActionException
      */
     void huntSlanderersOrToDestination() throws GameActionException {
+        int attackRadius = rc.getType().actionRadiusSquared;
         RobotInfo nearestSlanderer = null;
         int nearestSlandererDistSquared = 100;
+        RobotInfo biggestSlanderer = null;
+        int size = -1;
         for (RobotInfo robot : nearbyEnemies) {
             int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-            if (robot.type == RobotType.SLANDERER && robotDistSquared < nearestSlandererDistSquared) {
-                nearestSlanderer = robot;
-                nearestSlandererDistSquared = robotDistSquared;
+            if (robot.type == RobotType.SLANDERER) {
+                if (robotDistSquared < nearestSlandererDistSquared) {
+                    nearestSlanderer = robot;
+                    nearestSlandererDistSquared = robotDistSquared;
+                }
+                if (robot.conviction > size && robotDistSquared < attackRadius) {
+                    biggestSlanderer = robot;
+                    size = robot.conviction;
+                }
             }
         }
-        if (nearestSlanderer != null) {
-            // Nearest slanderer exists -- try to kill it or move towards it.
-            if (nearestSlandererDistSquared < rc.getType().actionRadiusSquared) {
-                rc.expose(nearestSlanderer.location);
-            } else {
-                fuzzyMove(nearestSlanderer.location);
-            }
-        } else {
+        // Kill biggest you can
+        if (biggestSlanderer != null && rc.canExpose(biggestSlanderer.location)) {
+            rc.expose(biggestSlanderer.location);
+        }
+        // Move towards nearest
+        else if (nearestSlanderer != null) {
+            fuzzyMove(nearestSlanderer.location);
+        }
+        else {
             // Continue towards destination
             // Consider using weightedFuzzyMove
             muckrakerMove();
@@ -205,7 +214,7 @@ public class Muckraker extends Unit {
     void setMoveWeights() {
         momentumWeight *= 0.97;
         destWeight = 1;
-        passabilityWeight = 0.7;
+        passabilityWeight = 1;
         spreadWeight = Math.pow(rc.getRoundNum() + (exploreMode ? 500 : 100), 0.4);
     }
 
@@ -333,12 +342,12 @@ public class Muckraker extends Unit {
             deltaY = (int)(tempDeltaX*rotate45 + tempDeltaY*rotate45);
             scale = scaleOnTheMap(deltaX, deltaY);
             MapLocation newDestination = myLocation.translate((int)(scale*deltaX), (int)(scale*deltaY));
-            System.out.println("Potential Destination: " + (int)(scale*deltaX) + " " + (int)(scale*deltaY));
+            //System.out.println("Potential Destination: " + (int)(scale*deltaX) + " " + (int)(scale*deltaY));
             if (rc.canSenseLocation(newDestination) || !rc.onTheMap(nearDestination(newDestination))) {
                 continue;
             }
             double distanceFrom = newDestination.distanceSquaredTo(baseLocation) + 0.5*newDestination.distanceSquaredTo(previousDestination);
-            System.out.println("Est. Distance from base: " + distanceFrom);
+            //System.out.println("Est. Distance from base: " + distanceFrom);
             if (distanceFrom > maxDistance) {
                 destination = newDestination;
                 maxDistance = distanceFrom;
@@ -348,7 +357,7 @@ public class Muckraker extends Unit {
         //System.out.println("Scale: " + i);
         //System.out.println("Best 45 shot is: " + destination);
         //destination = myLocation.translate((int)(i*bestDeltaX), (int)(i*bestDeltaY));
-        System.out.println("Best 45 shot is: " + destination);
+        System.out.println("Best dest is: " + destination);
 
         exploreMode = true;
         previousDestination = currDestination;
