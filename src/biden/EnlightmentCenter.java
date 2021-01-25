@@ -415,7 +415,11 @@ public class EnlightmentCenter extends Robot {
                                 influence = 30;
                             }
                         }
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
+                        int instruction = SpawnDestinationFlag.INSTR_ATTACK;
+                        if (Math.random() < 0.4) {
+                            instruction = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
+                        }
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, instruction, spawnDestIsGuess);
                     }
                 }
                 if (rc.isReady()) {
