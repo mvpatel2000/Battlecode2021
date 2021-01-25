@@ -223,8 +223,9 @@ public class EnlightmentCenter extends Robot {
      */
     void considerBid() throws GameActionException {
         int currentVotes = rc.getTeamVotes();
-        // We have more than half the votes, stop bidding
-        if (currentVotes > 750) {
+        // We have more than half the votes, stop bidding. Also don't bid for first 100 turns of
+        // midgame EC unless game is about to end.
+        if (currentVotes > 750 || isMidGame && turnCount < 100 && currentRound < 1490) {
             currentBid = 0;
             return;
         }
