@@ -159,7 +159,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
+        if (currentRound == 500) {
             // rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -287,7 +287,7 @@ public class EnlightmentCenter extends Robot {
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     break;
                 case 3:
-                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                    spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 14, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
                     break;
                 default:
                     break;
@@ -387,7 +387,7 @@ public class EnlightmentCenter extends Robot {
                 else {
                     if (Math.random() < 0.5) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        // System.out.println("Spawning defender: " + enemyLocation);
+                        System.out.println("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, false);
                     } else if (rc.getInfluence() > 10000) {
@@ -404,7 +404,7 @@ public class EnlightmentCenter extends Robot {
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
-                        // System.out.println("Spawning normal: " + enemyLocation);
+                        System.out.println("Spawning defender: " + enemyLocation);
                         int influence = 14;
                         if (rc.getRoundNum() > 100) {
                             if (Math.random() < 0.5) {

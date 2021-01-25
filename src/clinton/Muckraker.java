@@ -201,7 +201,7 @@ public class Muckraker extends Unit {
     void setMoveWeights() {
         momentumWeight *= 0.97;
         destWeight = 1;
-        passabilityWeight = 0.7;
+        passabilityWeight = 1;
         spreadWeight = Math.pow(rc.getRoundNum() + (exploreMode ? 500 : 100), 0.4);
     }
 
