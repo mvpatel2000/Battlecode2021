@@ -69,6 +69,7 @@ public class EnlightmentCenter extends Robot {
 
     // Troop Counts
     int numSlanderers;
+    double approxNumSlanderers;
     int numMuckrakers;
     int numPoliticians;
     int numScouts; // scouts don't count in troop counts
@@ -133,6 +134,7 @@ public class EnlightmentCenter extends Robot {
         spawnDestIsGuess = true;
         // Troop counts
         numSlanderers = 0;
+        approxNumSlanderers = 0.0;
         numMuckrakers = 0;
         numPoliticians = 0;
         numScouts = 0;
@@ -340,10 +342,12 @@ public class EnlightmentCenter extends Robot {
                 double dilutedRemainingHealth = currentInfluence - (currentInfluence - remainingHealth) / 3.0;
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
+                    //System.out.println\("Spawning muck.");
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                     enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                     spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                    int instruction = enemyLocation.equals(enemySlanderer) ? SpawnDestinationFlag.INSTR_MUCK_TO_SLAND : SpawnDestinationFlag.INSTR_MUCKRAKER;
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, instruction, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
                 // numSlanderers*3*5 is a heuristic for our income. It is there so we only save for neutral ECs when we can produce a killer in < ~5 turns.
@@ -358,10 +362,12 @@ public class EnlightmentCenter extends Robot {
                         sentRobotsToNeutralECs.put(enemyLocation, currentRound);
                     } else {
                         // //System.out.println\("Biding time and saving for neutral killer.");
+                        //System.out.println\("Spawning muck.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                         spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
-                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                        int instruction = enemyLocation.equals(enemySlanderer) ? SpawnDestinationFlag.INSTR_MUCK_TO_SLAND : SpawnDestinationFlag.INSTR_MUCKRAKER;
+                        spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, instruction, spawnDestIsGuess);
                     }
                 }
                 // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
@@ -382,10 +388,12 @@ public class EnlightmentCenter extends Robot {
                     if (Math.random() < 0.2) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.8);
                     }
+                    //System.out.println\("Spawning muck.");
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                     enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                     spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                    int instruction = enemyLocation.equals(enemySlanderer) ? SpawnDestinationFlag.INSTR_MUCK_TO_SLAND : SpawnDestinationFlag.INSTR_MUCKRAKER;
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, instruction, spawnDestIsGuess);
                     // //System.out.println\("Spawn Muckraker: " + enemyLocation);
                 }
                 // Build politician
@@ -399,17 +407,17 @@ public class EnlightmentCenter extends Robot {
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, false);
                     } else if (currentInfluence > 10000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                        // //System.out.println\("Spawning thicc killer: " + enemyLocation);
+                        //System.out.println\("Spawning thicc killer: " + enemyLocation);
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, (int) Math.sqrt(currentInfluence) * 10, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                     } else if (currentInfluence > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
-                        // //System.out.println\("Spawning killer: " + enemyLocation);
+                        //System.out.println\("Spawning killer: " + enemyLocation);
                         int instr = SpawnDestinationFlag.INSTR_ATTACK;
                         if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
                             instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
-                    } else if ((numSlanderers*3*5) + dilutedRemainingHealth > mediumSizedPolitician && dilutedRemainingHealth > 50) {
+                    } else if ((approxNumSlanderers*3*5) + dilutedRemainingHealth > mediumSizedPolitician && dilutedRemainingHealth > 50) {
                         int infNeeded = mediumSizedPolitician;
                         if (dilutedRemainingHealth > infNeeded) {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
@@ -421,11 +429,13 @@ public class EnlightmentCenter extends Robot {
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
                             mediumSizedPolitician = 300 + (int)(200.0*Math.random());
                         } else {
+                            //System.out.println\("Spawning muck.");
                             //System.out.println\("Biding time waiting for medium-sized Politician!");
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                             enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                             spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
-                            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                            int instruction = enemyLocation.equals(enemySlanderer) ? SpawnDestinationFlag.INSTR_MUCK_TO_SLAND : SpawnDestinationFlag.INSTR_MUCKRAKER;
+                            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, instruction, spawnDestIsGuess);
                         }
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
@@ -448,10 +458,12 @@ public class EnlightmentCenter extends Robot {
                     }
                 }
                 if (rc.isReady()) {
+                    //System.out.println\("Spawning muck.");
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                     enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
                     spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
-                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                    int instruction = enemyLocation.equals(enemySlanderer) ? SpawnDestinationFlag.INSTR_MUCK_TO_SLAND : SpawnDestinationFlag.INSTR_MUCKRAKER;
+                    spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, instruction, spawnDestIsGuess);
                 }
             }
         }
@@ -587,7 +599,7 @@ public class EnlightmentCenter extends Robot {
      * Helper function to get the type of a robot being tracked.
      */
     RobotType getTrackedType(int index) {
-        return robotTypes[trackingList[index]];
+        return robotTypes[trackingList[index] >> 28 ];
     }
 
     /**
@@ -607,6 +619,9 @@ public class EnlightmentCenter extends Robot {
         for (int i = 0; i < numUnitsTracked; i++) {
             int trackedID = getTrackedID(i);
             if (!rc.canGetFlag(trackedID)) { // if I can't get its flag, the bot is dead
+                if (getTrackedType(i) == RobotType.SLANDERER) {
+                    approxNumSlanderers -= 1.0/((double)(numAllyECs+1));
+                }
                 stopTrackingBot(i);
                 i--;
                 continue;
@@ -883,6 +898,7 @@ public class EnlightmentCenter extends Robot {
                 break;
             case SLANDERER:
                 numSlanderers++;
+                approxNumSlanderers += 1;
                 break;
             default:
                 break;
