@@ -758,7 +758,7 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
-        System.out.println(destination);
+        // System.out.println(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
@@ -773,7 +773,7 @@ public abstract class Unit extends Robot {
                 || !rc.isLocationOccupied(destination)
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
-            System.out.println("Deets, rerouting");
+            // System.out.println("Deets, rerouting");
             if (destination != null) {
                 priorDestinations.add(destination);
             }
