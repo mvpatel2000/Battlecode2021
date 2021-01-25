@@ -160,7 +160,7 @@ public class EnlightmentCenter extends Robot {
         super.run();
 
         if (currentRound == 400) {
-            //rc.resign\(); // TODO: remove; just for debugging
+            // //rc.resign\(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -355,7 +355,7 @@ public class EnlightmentCenter extends Robot {
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
                 else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && rc.getInfluence() > 40 && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
-                    && maxInfluence >= 41) {
+                    && (maxInfluence >= 41 || isMidGame)) {
                     int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
                     if (optimalSland < 0) {
                         optimalSland = -optimalSland;
@@ -389,7 +389,7 @@ public class EnlightmentCenter extends Robot {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         // //System.out.println\("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, false);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, false);
                     } else if (rc.getInfluence() > 10000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         // //System.out.println\("Spawning thicc killer: " + enemyLocation);
@@ -397,7 +397,11 @@ public class EnlightmentCenter extends Robot {
                     } else if (rc.getInfluence() > 1000) {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         // //System.out.println\("Spawning killer: " + enemyLocation);
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
+                        int instr = SpawnDestinationFlag.INSTR_ATTACK;
+                        if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                            instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
+                        }
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         // //System.out.println\("Spawning normal: " + enemyLocation);
@@ -410,7 +414,7 @@ public class EnlightmentCenter extends Robot {
                                 influence = 30;
                             }
                         }
-                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND_ATTACK, spawnDestIsGuess);
+                        spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
                     }
                 }
                 if (rc.isReady()) {
