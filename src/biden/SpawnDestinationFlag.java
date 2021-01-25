@@ -25,6 +25,7 @@ public class SpawnDestinationFlag extends LocationFlag {
     public static final int INSTR_DEFEND = 2;
     public static final int INSTR_DEFEND_ATTACK = 3;
     public static final int INSTR_MUCKRAKER = 4;
+    public static final int INSTR_MUCK_TO_SLAND = 5;
 
     public SpawnDestinationFlag() {
         super(true); // call the LocationFlag constructor that doesn't set the schema

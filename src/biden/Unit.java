@@ -659,6 +659,7 @@ public abstract class Unit extends Robot {
 
         MapLocation potentialDest = null;
         boolean baseGivingExplore = true;
+        int newInstruction = instruction;
         if (rc.canGetFlag(baseID)) {
             int flagInt = rc.getFlag(baseID);
             int flagSchema = Flag.getSchema(flagInt);
@@ -679,8 +680,11 @@ public abstract class Unit extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                    if (sdf.readInstruction() != SpawnDestinationFlag.INSTR_SLANDERER &&
-                        (sdf.readInstruction() == SpawnDestinationFlag.INSTR_MUCKRAKER ^
+                    newInstruction = sdf.readInstruction();
+                    System.out.println("I see my base has given instruction: " + newInstruction);
+                    if (newInstruction != SpawnDestinationFlag.INSTR_SLANDERER &&
+                        ((newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER ||
+                        newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) ^
                         rc.getType() == RobotType.POLITICIAN)) {
                         // the robot spawned is going to an enemy, we may want to go here.
                         potentialDest = sdf.readAbsoluteLocation(myLocation);
@@ -716,6 +720,16 @@ public abstract class Unit extends Robot {
             destRobot = rc.senseRobotAtLocation(destination);
         }
 
+        if (rc.getType() == RobotType.MUCKRAKER
+            && newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND
+            && instruction != SpawnDestinationFlag.INSTR_MUCK_TO_SLAND
+            && rc.getRoundNum() > 100) {
+            System.out.println("SWITCHING TO SLAND DESTINATION.");
+            destination = potentialDest;
+            exploreMode = false;
+            instruction = SpawnDestinationFlag.INSTR_MUCK_TO_SLAND;
+            return true;
+        }
         // Reroute if in explore mode and spawned after first 100 turns
         if (exploreMode && spawnRound > 100) {
             // System.out.println("Explore Reroute: " + potentialDest);
