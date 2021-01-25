@@ -39,8 +39,8 @@ public class EnlightmentCenter extends Robot {
     int[] searchBounds;
     ArrayList<Integer> firstRoundIDsToConsider;
     // Generate Secret Code. Change these two numbers before uploading to competition
-    final int CRYPTO_KEY = 92747502; // A random large number
-    final int MODULUS = 987; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
+    final int CRYPTO_KEY = 92747507; // A random large number
+    final int MODULUS = 997; // A random number strictly smaller than CRYPTO KEY and 2^10 = 1024
 
     // Ally ECs
     // We are treating unverified allies as ground truth for now.
