@@ -15,11 +15,6 @@ public class Slanderer extends Unit {
     // Tracks nearest enemy so we don't constantly update destination from same unit
     public MapLocation lastNearestLocation;
 
-    int minX = -1;
-    int maxX = -1;
-    int minY = -1;
-    int maxY = -1;
-
     public Slanderer(RobotController rc) throws GameActionException {
         super(rc);
         // IGNORE EC DESTINATION FOR NOW!
