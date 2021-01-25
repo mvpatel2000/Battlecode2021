@@ -125,7 +125,9 @@ public abstract class Unit extends Robot {
             setECSightingFlag();
             // System.out.println("11.3: " + Clock.getBytecodesLeft());
         }
-
+        if (rc.getType() == RobotType.MUCKRAKER) {
+            parseVision();
+        }
         setUnitUpdateFlag();
         // System.out.println("12: " + Clock.getBytecodesLeft());
 
@@ -149,16 +151,22 @@ public abstract class Unit extends Robot {
      * move before you call this function!
      */
     public void setUnitUpdateFlag() throws GameActionException {
-        if (flagSetThisRound) return;
+        if (flagSetThisRound) {System.out.println("Flag already set."); return; }
+        System.out.println("Flag not already set.");
         int minDist = 100000;
         MapLocation enemyLoc = null;
         RobotType enemyType = null;
         for (RobotInfo r : nearbyEnemies) {
             int dist = myLocation.distanceSquaredTo(r.location);
-            if (dist < minDist) {
+            if ((dist < minDist && enemyType != RobotType.SLANDERER && r.type != RobotType.SLANDERER)
+                || (enemyType != RobotType.SLANDERER && r.type == RobotType.SLANDERER)
+                || (dist < minDist && enemyType == RobotType.SLANDERER && r.type == RobotType.SLANDERER)) {
                 minDist = dist;
                 enemyLoc = r.location;
                 enemyType = r.type;
+                if (enemyType == RobotType.SLANDERER) {
+                    System.out.println("TELLING EC ABOUT ENEMY SLANDERER");
+                }
             }
         }
         // If enemyType is not muckraker (null is also not muckraker), use smoke signals
@@ -326,8 +334,8 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
-                                edgeLocations[0] =  testLoc.y;
                                 if (distClosestOff != -1) {
+                                    edgeLocations[0] = testLoc.y-1;
                                     setMapEdgeFlag(Direction.NORTH, testLoc.translate(0, 1));
                                     return;
                                 } else {
@@ -344,8 +352,8 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
-                                edgeLocations[1] =  testLoc.x;
                                 if (distClosestOff != -1) {
+                                    edgeLocations[1] = testLoc.x-1;
                                     setMapEdgeFlag(Direction.EAST, testLoc.translate(1, 0));
                                     return;
                                 } else {
@@ -362,8 +370,8 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
-                                edgeLocations[2] =  testLoc.y;
                                 if (distClosestOff != -1) {
+                                    edgeLocations[2] = testLoc.y+1;
                                     setMapEdgeFlag(Direction.SOUTH, testLoc.translate(0, -1));
                                     return;
                                 } else {
@@ -380,8 +388,8 @@ public abstract class Unit extends Robot {
                             if (!rc.onTheMap(testLoc)) {
                                 distClosestOff = j;
                             } else if (rc.onTheMap(testLoc)) {
-                                edgeLocations[3] =  testLoc.x;
                                 if (distClosestOff != -1) {
+                                    edgeLocations[3] = testLoc.x+1;
                                     setMapEdgeFlag(Direction.WEST, testLoc.translate(-1, 0));
                                     return;
                                 } else {
@@ -425,6 +433,7 @@ public abstract class Unit extends Robot {
                     // than just setting a flag.
                     return;
                 }
+
             }
         }
         for (RobotInfo ri : nearbyNeutral) {
@@ -746,6 +755,11 @@ public abstract class Unit extends Robot {
             exploreMode = false;
             // System.out.println("Re-routing to latest base destination!! " + potentialDest);
             return true;
+        } else if (!exploreMode && rc.getType() == RobotType.MUCKRAKER && (canSenseDestination || nearbyAllies.length > 20)) {
+            if (nearbyAllies.length > 20 || !(destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.SLANDERER)) {
+                destination = potentialDest;
+                exploreMode = false;
+            }
         }
         return false;
     }
@@ -757,6 +771,9 @@ public abstract class Unit extends Robot {
      * go where your base is telling newly spawned units of your type to go.
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
+        if (turnCount == 1 || turnCount == 2) {
+            return;
+        }
         MapLocation nearDestination = myLocation;
         System.out.println(destination);
         if (destination != null) {
@@ -774,6 +791,10 @@ public abstract class Unit extends Robot {
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
             System.out.println("Deets, rerouting");
+            if (rc.getType() == RobotType.MUCKRAKER) {
+                muckrackerRerouteDestination();
+                return;
+            }
             if (destination != null) {
                 priorDestinations.add(destination);
             }
@@ -798,7 +819,7 @@ public abstract class Unit extends Robot {
             //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
             //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
             //     valid = false;
-            // } 
+            // }
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
@@ -807,7 +828,7 @@ public abstract class Unit extends Robot {
                 //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
                 //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
                 //     valid = false;
-                // } 
+                // }
                 // else {
                     for (int i = 0; i < priorDestinations.size(); i++) {
                         if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
@@ -819,5 +840,9 @@ public abstract class Unit extends Robot {
             }
             // System.out.println("Exploration dest: " + destination);
         }
+    }
+
+    void muckrackerRerouteDestination() throws GameActionException {
+        return;
     }
 }

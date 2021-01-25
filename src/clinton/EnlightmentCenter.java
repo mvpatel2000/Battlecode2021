@@ -57,7 +57,9 @@ public class EnlightmentCenter extends Robot {
                                                                 // the new ally's location, not the ID. So, we cannot add that ally
                                                                 // to the allyECID/location arrays above, we must maintain this separate map.
     Map<MapLocation, Integer> sentRobotsToNeutralECs;
-
+    MapLocation enemySlanderer;
+    int enemySlandererRound;
+    int numUUFprocessed;
     // Flags to initialize whenever a unit is spawned, and then set
     // at the earliest available flag slot.
     SpawnUnitFlag latestSpawnFlag;
@@ -124,7 +126,8 @@ public class EnlightmentCenter extends Robot {
         neutralECLocsToInfluence = new HashMap<MapLocation, Integer>();
         capturedAllyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         sentRobotsToNeutralECs = new HashMap<MapLocation, Integer>();
-
+        enemySlanderer = null;    // a location to send muckrackers where we have previously seen an enemy slanderer.
+        enemySlandererRound = 0;
         latestSpawnRound = -1;
         spawnDestIsGuess = true;
         // Troop counts
@@ -164,7 +167,7 @@ public class EnlightmentCenter extends Robot {
         }
 
         spawnDestIsGuess = true;
-
+        numUUFprocessed = 0;
         considerBid();
 
         // Do not add any code in the run() function before this line.
@@ -332,6 +335,8 @@ public class EnlightmentCenter extends Robot {
                 // Highly EC at risk, only build muckrakers to dilute damage
                 if (remainingHealth < 0) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
                 // Assuming some base level of income, if we know about neutral ECs, get them.
@@ -348,6 +353,8 @@ public class EnlightmentCenter extends Robot {
                     } else {
                         System.out.println("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                        enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                        spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                         spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     }
                 }
@@ -380,6 +387,8 @@ public class EnlightmentCenter extends Robot {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.7);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, muckInf, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     // System.out.println("Spawn Muckraker: " + enemyLocation);
                 }
@@ -419,6 +428,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 if (rc.isReady()) {
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                    spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
                     spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                 }
             }
@@ -639,6 +650,18 @@ public class EnlightmentCenter extends Robot {
                 case Flag.SPAWN_DESTINATION_SCHEMA:
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
+                    if (numUUFprocessed < 300) {
+                        UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
+                        if (uuf.readHasNearbyEnemy()) {
+                            if(uuf.readEnemyType() == RobotType.SLANDERER) {
+                                enemySlanderer = uuf.readAbsoluteLocation(myLocation);
+                                System.out.println("ENEMY SLANDERER AT: " + enemySlanderer);
+                                enemySlandererRound = currentRound;
+                                break;
+                            }
+                        }
+                        numUUFprocessed += 1;
+                    }
                     break;
                 case Flag.MIDGAME_ALLY_SCHEMA:
                     // Relevant for unit --> mid-game ECs.
