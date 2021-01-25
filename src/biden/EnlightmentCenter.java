@@ -291,7 +291,9 @@ public class EnlightmentCenter extends Robot {
                 spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
             } else if (numSlanderers < 7) {
                 int optimalSland = getOptimalSlandererInfluence(rc.getConviction());
-                spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, optimalSland, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+                if (optimalSland > 0) {
+                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, optimalSland, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+                }
             } else if (numPoliticians < 4) {
                 spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 16, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
                 if (numPoliticians == 4) {
@@ -369,7 +371,9 @@ public class EnlightmentCenter extends Robot {
                     && (maxInfluence >= 41 || isMidGame)) {
                     int slandInfluence = getOptimalSlandererInfluence(maxInfluence);
                     // System.out.println("SPAWN SLANDERER:  " + enemyLocation + " " + shiftedLocation);
-                    spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, slandInfluence, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+                    if (slandInfluence > 0) {
+                        spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, slandInfluence, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
+                    }
                 }
                 // Politicians vs muckrakers ratio 3:2 in the later game
                 // Ratio 2:3 in early game
