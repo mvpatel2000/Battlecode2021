@@ -90,6 +90,13 @@ public class RelativeMap {
         set(relLoc[0], relLoc[1], pa);
     }
 
+    public boolean knowAllWalls() {
+        return (xLineAboveUpper == xLineAboveLower &&
+                xLineBelowUpper == xLineBelowLower &&
+                yLineAboveUpper == yLineAboveLower &&
+                yLineBelowUpper == yLineBelowLower);
+    }
+
     /**
      * Input relative x and y coordinates, which are each between -64 and 127
      * inclusive.
