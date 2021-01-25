@@ -7,6 +7,12 @@ This is team Smite's Battlecode 2021 repository.
     Base bot with comms and simple micro. Submitted to sprint 2.
 - `fdr`
     Improved build order and revamped bot. Named after FDR because of the New Deal, and because of his cleanup after the Great Depression.
+- `taft`
+- `gore`
+- `wbush`
+    Better voting than `gore`, improved destinations, and less clogging so we can more effectively send our units to war.
+- `clinton`
+    Boosting our economy
 
 ### Project Structure
 
