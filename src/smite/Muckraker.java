@@ -7,13 +7,27 @@ public class Muckraker extends Unit {
 
     public final static int INITIAL_COOLDOWN = 10;
 
+    Direction momentumDir;
+    double destWeight;
+    double spreadWeight;
+    double momentumWeight;
+    double passabilityWeight;
+    double noMovePenalty;
+    final double initialNoMovePenalty = 1.1;
+    final double noMovePenaltyMultiplier = 1.5;
+
     public Muckraker(RobotController rc) throws GameActionException {
         super(rc);
+
+        noMovePenalty = initialNoMovePenalty;
+        setInitialMomentum();
     }
 
     @Override
     public void runUnit() throws GameActionException {
         super.runUnit();
+
+        setMoveWeights();
 
         updateDestinationForExploration(false);
 
@@ -163,7 +177,96 @@ public class Muckraker extends Unit {
         } else {
             // Continue towards destination
             // Consider using weightedFuzzyMove
-            fuzzyMove(destination);
+            muckrakerMove();
         }
+    }
+
+    void setInitialMomentum() {
+        if (rc.getRoundNum() < 50 || destination == null) { // no momentum in early game
+            momentumDir = Direction.CENTER;
+            return;
+        }
+        double rng = Math.random();
+        if (rng < 0.33) {
+            momentumDir = myLocation.directionTo(destination).rotateLeft().rotateLeft();
+            momentumWeight = Math.random() * 100;
+        } else if (rng < 0.67) {
+            momentumDir = myLocation.directionTo(destination).rotateRight().rotateRight();
+            momentumWeight = Math.random() * 100;
+        } else {
+            momentumDir = Direction.CENTER;
+        }
+    }
+
+    void setMoveWeights() {
+        momentumWeight *= 0.97;
+        destWeight = 1;
+        passabilityWeight = 0.7;
+        spreadWeight = Math.pow(rc.getRoundNum() + (exploreMode ? 500 : 100), 0.4);
+    }
+
+    void muckrakerMove() throws GameActionException {
+        double[] scores = new double[9]; // we will pick the lowest-score tile
+        boolean[] canMove = new boolean[9];
+
+        for (int i = 0; i < 9; i++) {
+            scores[i] = 0;
+            Direction di = allDirections[i];
+            MapLocation targetLoc = myLocation.add(di);
+            // track if impossible to move
+            if (!rc.canMove(di) && di != Direction.CENTER) {
+                canMove[i] = false;
+                continue;
+            }
+            canMove[i] = true;
+
+            // R^2 component
+            if (destination != null)
+                scores[i] += destWeight * targetLoc.distanceSquaredTo(destination);
+
+            // momentum component
+            if (momentumDir == Direction.CENTER || di == momentumDir) {
+                scores[i] += 0;
+            } else if (di == momentumDir.rotateLeft() || di == momentumDir.rotateRight()) {
+                scores[i] += momentumWeight;
+            } else if (di == momentumDir.rotateLeft().rotateLeft() || di == momentumDir.rotateRight().rotateRight()) {
+                scores[i] += 2 * momentumWeight;
+            } else if (di == momentumDir.rotateLeft().rotateLeft().rotateLeft() || di == momentumDir.rotateRight().rotateRight().rotateRight()) {
+                scores[i] += 3 * momentumWeight;
+            } else if (di == momentumDir.opposite()) {
+                scores[i] += 4 * momentumWeight;
+            }
+
+            // passability component
+            scores[i] += passabilityWeight / rc.sensePassability(targetLoc);
+        }
+
+        // spread component
+        // we do this separately to minimize iterating over nearby allies
+        for (RobotInfo r : nearbyAllies) {
+            if (r.type == RobotType.MUCKRAKER) {
+                for (int i = 0; i < 9; i++) {
+                    scores[i] += spreadWeight / myLocation.add(allDirections[i]).distanceSquaredTo(r.location);
+                }
+            }
+        }
+        scores[8] *= noMovePenalty; // multiplier penalty for not moving
+        double bestScore = scores[8];
+        Direction moveDir = Direction.CENTER;
+        for (int i = 0; i < 8; i++) {
+            if (canMove[i] && scores[i] < bestScore) {
+                bestScore = scores[i];
+                moveDir = allDirections[i];
+            }
+        }
+        // //System.out.println\("Weights:\ndestWeight: "+destWeight+"\nspreadWeight: "+spreadWeight+"\nmomentumWeight: "+momentumWeight+"\npassabilityWeight: "+passabilityWeight);
+        // //System.out.println\("Scores:\nNORTH: "+scores[0]+"\nNORTHEAST: "+scores[1]+"\nEAST: "+scores[2]+"\nSOUTHEAST: "+scores[3]+"\nSOUTH: "+scores[4]+"\nSOUTHWEST: "+scores[5]+"\nWEST: "+scores[6]+"\nNORTHWEST: "+scores[7]+"\nCENTER: "+scores[8]);
+        if (moveDir == Direction.CENTER) {
+            noMovePenalty *= noMovePenaltyMultiplier; // penalty for not moving increases if you don't move
+        } else {
+            noMovePenalty = initialNoMovePenalty;
+        }
+        if (moveDir != Direction.CENTER)
+            move(moveDir);
     }
 }

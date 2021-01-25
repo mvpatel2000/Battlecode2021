@@ -758,7 +758,7 @@ public abstract class Unit extends Robot {
      */
     void updateDestinationForExploration(boolean isECHunter) throws GameActionException {
         MapLocation nearDestination = myLocation;
-        System.out.println(destination);
+        // System.out.println(destination);
         if (destination != null) {
             for (int i = 0; i < 3; i++) {
                 nearDestination = nearDestination.add(nearDestination.directionTo(destination));
@@ -773,7 +773,7 @@ public abstract class Unit extends Robot {
                 || !rc.isLocationOccupied(destination)
                 || (rc.senseRobotAtLocation(destination).team == neutralTeam && !isECHunter)
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
-            System.out.println("Deets, rerouting");
+            // System.out.println("Deets, rerouting");
             if (destination != null) {
                 priorDestinations.add(destination);
             }
@@ -781,7 +781,11 @@ public abstract class Unit extends Robot {
                 baseLocation = myLocation;
             }
             boolean valid = true;
-            destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
+            int dxexplore = (int)(Math.random()*80);
+            int dyexplore = 120 - dxexplore;
+            dxexplore = Math.random() < .5 ? dxexplore : -dxexplore;
+            dyexplore = Math.random() < .5 ? dyexplore : -dyexplore;
+            destination = new MapLocation(baseLocation.x + dxexplore, baseLocation.y + dyexplore);
             exploreMode = true;
             for (int i = 0; i < priorDestinations.size(); i++) {
                 if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
@@ -789,22 +793,29 @@ public abstract class Unit extends Robot {
                     break;
                 }
             }
+            // if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
+            //     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
+            //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
+            //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
+            //     valid = false;
+            // } 
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-                if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
-                    || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
-                    || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
-                    || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
-                    valid = false;
-                } else {
+                // if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
+                //     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
+                //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
+                //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
+                //     valid = false;
+                // } 
+                // else {
                     for (int i = 0; i < priorDestinations.size(); i++) {
                         if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
                             valid = false;
                             break;
                         }
                     }
-                }
+                // }
             }
             // System.out.println("Exploration dest: " + destination);
         }

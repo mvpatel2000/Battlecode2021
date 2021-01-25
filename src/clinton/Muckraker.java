@@ -158,23 +158,33 @@ public class Muckraker extends Unit {
      * @throws GameActionException
      */
     void huntSlanderersOrToDestination() throws GameActionException {
+        int attackRadius = rc.getType().actionRadiusSquared;
         RobotInfo nearestSlanderer = null;
         int nearestSlandererDistSquared = 100;
+        RobotInfo biggestSlanderer = null;
+        int size = -1;
         for (RobotInfo robot : nearbyEnemies) {
             int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
-            if (robot.type == RobotType.SLANDERER && robotDistSquared < nearestSlandererDistSquared) {
-                nearestSlanderer = robot;
-                nearestSlandererDistSquared = robotDistSquared;
+            if (robot.type == RobotType.SLANDERER) {
+                if (robotDistSquared < nearestSlandererDistSquared) {
+                    nearestSlanderer = robot;
+                    nearestSlandererDistSquared = robotDistSquared;
+                }
+                if (robot.conviction > size && robotDistSquared < attackRadius) {
+                    biggestSlanderer = robot;
+                    size = robot.conviction;
+                }
             }
         }
-        if (nearestSlanderer != null) {
-            // Nearest slanderer exists -- try to kill it or move towards it.
-            if (nearestSlandererDistSquared < rc.getType().actionRadiusSquared) {
-                rc.expose(nearestSlanderer.location);
-            } else {
-                fuzzyMove(nearestSlanderer.location);
-            }
-        } else {
+        // Kill biggest you can
+        if (biggestSlanderer != null && rc.canExpose(biggestSlanderer.location)) {
+            rc.expose(biggestSlanderer.location);
+        }
+        // Move towards nearest
+        else if (nearestSlanderer != null) {
+            fuzzyMove(nearestSlanderer.location);
+        } 
+        else {
             // Continue towards destination
             // Consider using weightedFuzzyMove
             muckrakerMove();
