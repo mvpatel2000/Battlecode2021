@@ -159,8 +159,8 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 500) {
-            // rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 300) {
+            rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -342,21 +342,21 @@ public class EnlightmentCenter extends Robot {
                 else if (numSlanderers > 2 && optimalNeutral != null && (numSlanderers*3*5) + dilutedRemainingHealth > neutralECLocsToInfluence.get(optimalNeutral)) {
                     MapLocation enemyLocation = optimalNeutral;
                     int influence = neutralECLocsToInfluence.get(enemyLocation);
-                    int infNeeded = (int)(influence*1.1 + 10);
+                    int infNeeded = (int)(influence*1.1 + 20);
                     if (dilutedRemainingHealth > infNeeded) {
-                        System.out.println("Spawning neutral killer: " + enemyLocation);
+                        // System.out.println("Spawning neutral killer: " + enemyLocation);
                         spawnDestIsGuess = false;   // we are sending them to exactly the neutral ECs
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, infNeeded, enemyLocation, SpawnDestinationFlag.INSTR_ATTACK, spawnDestIsGuess);
                         sentRobotsToNeutralECs.put(enemyLocation, currentRound);
                     } else {
-                        System.out.println("Biding time and saving for neutral killer.");
+                        // System.out.println("Biding time and saving for neutral killer.");
                         enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
                     }
                 }
                 // No more neutral ECs! Cases below here should not run if we know there are neutral ECs and we have the requisite income.
                 // If don't have majority votes and not contested and no nearby muckrakers and has sufficient influence
-                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && currentInfluence > 40 && myConviction < 8000
+                else if (rc.getTeamVotes() < 751 && remainingHealth > myConviction/2 && !nearbyMuckraker && myConviction < 8000
                     && (numSlanderers - 1) * 2 < (numMuckrakers + numPoliticians)*Math.ceil((double)(currentRound+1)/(double)500)
                     && (maxInfluence >= 41 || isMidGame)) {
                     int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
