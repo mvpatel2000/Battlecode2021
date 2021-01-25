@@ -236,12 +236,12 @@ public class Politician extends Unit {
 
     boolean inRing(MapLocation loc) {
         double radius = Math.sqrt(loc.distanceSquaredTo(baseLocation));
-        return radius > 7 && radius - 5 * ((int) (radius / 5)) < 1.7;
+        return radius > 4.5 && radius - 5 * ((int) (radius / 5)) < 1.7;
     }
 
     int getRing(MapLocation loc) {
         double radius = Math.sqrt(loc.distanceSquaredTo(baseLocation));
-        return (int) ((radius - 1.699) / 7);
+        return (int) ((radius - 1.699) / 5);
     }
 
     void ringMove() throws GameActionException {
