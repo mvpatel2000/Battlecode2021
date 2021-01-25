@@ -793,21 +793,22 @@ public abstract class Unit extends Robot {
                     break;
                 }
             }
-            if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
-                || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
-                || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
-                || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
-                valid = false;
-            } 
+            // if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
+            //     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
+            //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
+            //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
+            //     valid = false;
+            // } 
             while (!valid) {
                 valid = true;
                 destination = new MapLocation(baseLocation.x + (int)(Math.random()*80 - 40), baseLocation.y + (int)(Math.random()*80 - 40));
-                if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
-                    || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
-                    || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
-                    || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
-                    valid = false;
-                } else {
+                // if (edgeLocations[0] != -1 && edgeLocations[0] < destination.y
+                //     || edgeLocations[1] != -1 && edgeLocations[1] < destination.x
+                //     || edgeLocations[2] != -1 && edgeLocations[2] > destination.y
+                //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
+                //     valid = false;
+                // } 
+                else {
                     for (int i = 0; i < priorDestinations.size(); i++) {
                         if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
                             valid = false;
