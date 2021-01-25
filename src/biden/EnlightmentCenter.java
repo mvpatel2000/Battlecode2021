@@ -167,8 +167,8 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 400) {
-            rc.resign(); // TODO: remove; just for debugging
+        if (currentRound == 100) {
+            // rc.resign(); // TODO: remove; just for debugging
         }
 
         spawnDestIsGuess = true;
@@ -284,6 +284,10 @@ public class EnlightmentCenter extends Robot {
             return;
         }
         Direction optimalDir = findOptimalSpawnDir();
+        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
+        if (nearbyEnemies.length > 0) {
+            openingBuild = false;
+        }
         // Opening build order
         if (!isMidGame && openingBuild) {
             if (optimalDir == null) return;
@@ -307,7 +311,6 @@ public class EnlightmentCenter extends Robot {
         else {
             if (optimalDir != null) {
                 // Check for nearby enemy muckraker
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.ENLIGHTENMENT_CENTER.sensorRadiusSquared, enemyTeam);
                 boolean nearbyMuckraker = false;
                 double enemyMultiplier = rc.getEmpowerFactor(enemyTeam, 0);
                 double remainingHealth = rc.getConviction();
