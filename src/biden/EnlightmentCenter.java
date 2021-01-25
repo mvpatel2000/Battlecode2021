@@ -280,7 +280,7 @@ public class EnlightmentCenter extends Robot {
         }
         Direction optimalDir = findOptimalSpawnDir();
         // Opening build order
-        if (!isMidGame && initialBuildStep < 4) {
+        if (!isMidGame && initialBuildStep < 8) {
             if (optimalDir == null) return;
             switch (initialBuildStep) {
                 case 0:
