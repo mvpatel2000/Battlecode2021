@@ -947,6 +947,7 @@ public class EnlightmentCenter extends Robot {
                 int vertFurthestWall = Math.max(map.yLineAboveUpper, Math.abs(map.yLineBelowLower));
 
                 double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
+                double denom = (double)(vertFurthestWall + horizFurthestWall + Math.sqrt(2*vertFurthestWall*horizFurthestWall));
                 if (symmetries[0] == true && symmetries[1] == true) {
                     // System.out.println("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
@@ -968,10 +969,13 @@ public class EnlightmentCenter extends Robot {
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         double rand = Math.random();
-                        if (rand < threshold) {
+                        if (rand < (double)horizFurthestWall/denom) {
                             dArr = dVert;
-                        } else {
+                        } else if (rand < (double)(horizFurthestWall + vertFurthestWall)/denom) {
                             dArr = dHoriz;
+                        } else {
+                            dArr[0] = dHoriz[0];
+                            dArr[1] = dVert[1];
                         }
                     }
                 } else if (symmetries[0] == true) {
