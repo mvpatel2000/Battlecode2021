@@ -76,7 +76,7 @@ public class EnlightmentCenter extends Robot {
     // Build order
     int initialBuildStep;
     boolean openingBuild;
-
+    int mediumSizedPolitician;
     // Mid-game EC variables.
     boolean isMidGame;
     Map<Integer, Destination> basesToDestinations;  // <BaseID, DestinationForRobots>
@@ -138,7 +138,7 @@ public class EnlightmentCenter extends Robot {
         numScouts = 0;
         // Build orders
         initialBuildStep = 0;
-
+        mediumSizedPolitician = 300 + (int)(200.0*Math.random());
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
             MAX_UNITS_TRACKED = 60;
@@ -386,6 +386,8 @@ public class EnlightmentCenter extends Robot {
                 }
                 // Build politician
                 else {
+                    //System.out.println("Medium Sized Politician threshold: " + mediumSizedPolitician);
+                    //System.out.println("Diluted Remaining Health:" + dilutedRemainingHealth);
                     if (Math.random() < 0.5) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         System.out.println("Spawning defender: " + enemyLocation);
@@ -403,6 +405,24 @@ public class EnlightmentCenter extends Robot {
                             instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
+                    } else if ((numSlanderers*3*5) + dilutedRemainingHealth > mediumSizedPolitician && dilutedRemainingHealth > 50) {
+                        int infNeeded = mediumSizedPolitician;
+                        if (dilutedRemainingHealth > infNeeded) {
+                            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
+                            System.out.println("Spawning medium sized: " + enemyLocation);
+                            int instr = SpawnDestinationFlag.INSTR_ATTACK;
+                            if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                                instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
+                            }
+                            spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
+                            mediumSizedPolitician = 300 + (int)(200.0*Math.random());
+                        } else {
+                            System.out.println("Biding time waiting for medium-sized Politician!");
+                            MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                            enemyLocation = (enemySlandererRound > currentRound - 50 && enemySlanderer != null) ? enemySlanderer : enemyLocation;
+                            spawnDestIsGuess = enemyLocation.equals(enemySlanderer) ? false : spawnDestIsGuess;
+                            spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, enemyLocation, SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
+                        }
                     } else {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         System.out.println("Spawning defender: " + enemyLocation);
@@ -416,6 +436,7 @@ public class EnlightmentCenter extends Robot {
                             }
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, influence, enemyLocation, SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
+                        mediumSizedPolitician = 300 + (int)(200.0*Math.random());   // re-sample medium sized politician.
                     }
                 }
                 if (rc.isReady()) {
@@ -666,7 +687,7 @@ public class EnlightmentCenter extends Robot {
                         if (uuf.readHasNearbyEnemy()) {
                             if(uuf.readEnemyType() == RobotType.SLANDERER) {
                                 enemySlanderer = uuf.readAbsoluteLocation(myLocation);
-                                System.out.println("ENEMY SLANDERER AT: " + enemySlanderer);
+                                //System.out.println("ENEMY SLANDERER AT: " + enemySlanderer);
                                 enemySlandererRound = currentRound;
                                 break;
                             }
