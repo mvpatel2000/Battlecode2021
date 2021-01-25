@@ -808,14 +808,14 @@ public abstract class Unit extends Robot {
                 //     || edgeLocations[3] != -1 && edgeLocations[3] > destination.x) {
                 //     valid = false;
                 // } 
-                else {
+                // else {
                     for (int i = 0; i < priorDestinations.size(); i++) {
                         if (destination.distanceSquaredTo(priorDestinations.get(i)) < 40) {
                             valid = false;
                             break;
                         }
                     }
-                }
+                // }
             }
             // System.out.println("Exploration dest: " + destination);
         }
