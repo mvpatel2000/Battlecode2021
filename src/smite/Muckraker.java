@@ -15,6 +15,8 @@ public class Muckraker extends Unit {
     double noMovePenalty;
     final double initialNoMovePenalty = 1.1;
     final double noMovePenaltyMultiplier = 1.5;
+    MapLocation previousDestination;
+    int enemiesAtPrevDest;
 
     public Muckraker(RobotController rc) throws GameActionException {
         super(rc);
@@ -26,11 +28,12 @@ public class Muckraker extends Unit {
     @Override
     public void runUnit() throws GameActionException {
         super.runUnit();
-
+        previousDestination = baseLocation;
+        enemiesAtPrevDest = 0;
+        // //System.out.println\("Explore Mode: " + exploreMode);
         setMoveWeights();
 
         updateDestinationForExploration(false);
-
         // Search for nearest slanderer. If one exists, kill it or move towards it.
         if (rc.isReady()) {
             if (!denyNeutralEC()) {
@@ -43,9 +46,9 @@ public class Muckraker extends Unit {
 
 
     boolean unClog() throws GameActionException {
-        if (rc.canDetectLocation(destination.add(myLocation.directionTo(destination))) &&
-            rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateLeft())) &&
-            rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateRight()))) {
+        if (rc.canDetectLocation(destination.add(myLocation.directionTo(destination)))
+        && rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateLeft()))
+        && rc.canDetectLocation(destination.add(myLocation.directionTo(destination).rotateRight()))) {
             RobotInfo destRobot = rc.senseRobotAtLocation(destination);
             if (destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (myLocation.distanceSquaredTo(destination) <= 2) {
@@ -183,7 +186,7 @@ public class Muckraker extends Unit {
         // Move towards nearest
         else if (nearestSlanderer != null) {
             fuzzyMove(nearestSlanderer.location);
-        } 
+        }
         else {
             // Continue towards destination
             // Consider using weightedFuzzyMove
@@ -278,5 +281,87 @@ public class Muckraker extends Unit {
         }
         if (moveDir != Direction.CENTER)
             move(moveDir);
+    }
+
+    double scaleVector(int dx, int dy, int cap) {
+        int maxdir = Math.max(dx, dy);
+        return ((double)cap)/(double)maxdir;
+    }
+
+    double scaleOnTheMap(int dx, int dy) {
+        for (double i=0.2; i<10; i+=0.5) {
+            double resultingX = myLocation.x + i*dx;
+            double resultingY = myLocation.y + i*dy;
+            if ((edgeLocations[0] != -1 && edgeLocations[0] < resultingY)
+                 || (edgeLocations[1] != -1 && edgeLocations[1] < resultingX)
+                 || (edgeLocations[2] != -1 && edgeLocations[2] > resultingY)
+                 || (edgeLocations[3] != -1 && edgeLocations[3] > resultingX)) {
+                     return i;
+                 }
+        }
+        return 1;
+    }
+
+    double angleBetween(int dx1, int dy1, int dx2, int dy2) {
+        double ang = ((double)(dx1*dx2 + dy1*dy2))/(Math.sqrt(dx1*dx1 + dy1*dy1)*Math.sqrt(dx2*dx2 + dy2*dy2));
+        return ang;
+    }
+
+    MapLocation nearDestination(MapLocation trueDestination) throws GameActionException {
+        MapLocation nearDestination = myLocation;
+        for (int i = 0; i < 3; i++) {
+            nearDestination = nearDestination.add(nearDestination.directionTo(trueDestination));
+        }
+        //rc.setIndicatorDot(nearDestination, 0, 0, 255);
+        return nearDestination;
+    }
+
+    void muckrackerRerouteDestination() throws GameActionException {
+        MapLocation currDestination = destination;
+        int numEnemies = nearbyEnemies.length;
+        int enemyDiff = numEnemies - enemiesAtPrevDest;
+        int deltaX = destination.x - previousDestination.x;
+        int deltaY = destination.y - previousDestination.y;
+        double mult = scaleVector(deltaX, deltaY, 48);
+
+        //System.out.println\("Prev Dest: " + previousDestination);
+        //System.out.println\("Curr Dest: " + destination);
+
+        deltaX = (int)((double)(deltaX) * mult);
+        deltaY = (int)((double)(deltaY) * mult);
+        int tempDeltaX = 0;
+        int tempDeltaY = 0;
+        double maxDistance = 0.0;
+        double rotate45 = Math.sqrt(2)/2.0;
+        double scale = 1.0;
+        for (int i=0; i<8; i++) {
+            ////System.out.println\("Rotating 45 degrees. New Dest: " + destination);
+            tempDeltaX = deltaX;
+            tempDeltaY = deltaY;
+            deltaX = (int)(tempDeltaX*rotate45 - tempDeltaY*rotate45);
+            deltaY = (int)(tempDeltaX*rotate45 + tempDeltaY*rotate45);
+            scale = scaleOnTheMap(deltaX, deltaY);
+            MapLocation newDestination = myLocation.translate((int)(scale*deltaX), (int)(scale*deltaY));
+            ////System.out.println\("Potential Destination: " + (int)(scale*deltaX) + " " + (int)(scale*deltaY));
+            if (rc.canSenseLocation(newDestination) || !rc.onTheMap(nearDestination(newDestination))) {
+                continue;
+            }
+            double distanceFrom = newDestination.distanceSquaredTo(baseLocation) + 0.5*newDestination.distanceSquaredTo(previousDestination);
+            ////System.out.println\("Est. Distance from base: " + distanceFrom);
+            if (distanceFrom > maxDistance) {
+                destination = newDestination;
+                maxDistance = distanceFrom;
+            }
+        }
+        //double i = scaleOnTheMap(deltaX, deltaY);
+        ////System.out.println\("Scale: " + i);
+        ////System.out.println\("Best 45 shot is: " + destination);
+        //destination = myLocation.translate((int)(i*bestDeltaX), (int)(i*bestDeltaY));
+        //System.out.println\("Best dest is: " + destination);
+
+        exploreMode = true;
+        previousDestination = currDestination;
+        enemiesAtPrevDest = numEnemies;
+        return;
     }
 }
