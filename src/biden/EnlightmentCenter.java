@@ -287,9 +287,9 @@ public class EnlightmentCenter extends Robot {
             if (optimalDir == null) return;
             if (numSlanderers == 4 && numPoliticians == 0) {
                 spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 16, optimalDestination(false), SpawnDestinationFlag.INSTR_DEFEND, spawnDestIsGuess);
-            } else if (numSlanderers < 10 && numSlanderers > numMuckrakers) {
+            } else if (numSlanderers < 8 && numSlanderers > numMuckrakers) {
                 spawnRobotWithTracker(RobotType.MUCKRAKER, optimalDir, 1, optimalDestination(false), SpawnDestinationFlag.INSTR_MUCKRAKER, spawnDestIsGuess);
-            } else if (numSlanderers < 9) {
+            } else if (numSlanderers < 7) {
                 int optimalSland = getOptimalSlandererInfluence(rc.getConviction());
                 spawnRobotWithTracker(RobotType.SLANDERER, optimalDir, optimalSland, optimalSlandererDestination(), SpawnDestinationFlag.INSTR_SLANDERER, spawnDestIsGuess);
             } else if (numPoliticians < 4) {
@@ -375,7 +375,7 @@ public class EnlightmentCenter extends Robot {
                 // Ratio 2:3 in early game
                 else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
-                    if (Math.random() < 0.1) {
+                    if (Math.random() < 0.2) {
                         muckInf = (int) Math.pow(rc.getConviction(), 0.8);
                     }
                     MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
