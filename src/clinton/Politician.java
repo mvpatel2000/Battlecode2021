@@ -458,13 +458,12 @@ public class Politician extends Unit {
                     if (robot.type == RobotType.MUCKRAKER) {
                         // System.out.println("Can kill MK: " + i + " " + j + " " + robot.location + " " + perUnitDamage + " " + robot.influence + " " + robot.conviction);
                         // 1 point for if slanderer nearby or not only EC
-                        if (!bigAttacker || nearbySlanderer) {
+                        if (!bigAttacker) {
                             numEnemiesKilled++;
                         } 
-                        // 0.5 points for ECHunter/bigAttacker
+                        // Scaled points for ECHunters
                         else {
-                            if (robot.conviction > 8) numEnemiesKilled += 1;
-                            else numEnemiesKilled += 0.5;
+                            numEnemiesKilled += 0.3 + 0.7 * (robot.conviction * 1.0) / (perUnitDamage * 1.0);
                         }
                     }
                     // 10 points for enlightenment center
@@ -483,9 +482,14 @@ public class Politician extends Unit {
                 }
                 // If strong nearby politicians, weaken EC so allies can capture.
                 else if (robot.type == RobotType.ENLIGHTENMENT_CENTER) {
+                    // Assume you can kill if strong allies around
                     if (robot.team != allyTeam && totalAllyConviction > robot.conviction + 5) {
                         // System.out.println("Weaken EC attack! Confirmed.");
                         numEnemiesKilled += 10;
+                    }
+                    // Points proportional to damage
+                    else {
+                        numEnemiesKilled += (perUnitDamage * 1.0) / (robot.conviction * 1.0);
                     }
                 }
             }
