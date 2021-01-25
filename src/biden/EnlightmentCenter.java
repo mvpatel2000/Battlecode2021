@@ -459,6 +459,9 @@ public class EnlightmentCenter extends Robot {
 
     int getOptimalSlandererInfluence(int maxInfluence) {
         int optimalSland = Arrays.binarySearch(SLANDERER_INFLUENCE_THRESHOLDS, maxInfluence);
+        if (optimalSland == -1) {
+            return 0;
+        }
         if (optimalSland < 0) {
             optimalSland = -optimalSland;
             optimalSland -=2;
