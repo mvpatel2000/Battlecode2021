@@ -184,6 +184,7 @@ public class Muckraker extends Unit {
     void setInitialMomentum() {
         if (rc.getRoundNum() < 50 || destination == null) { // no momentum in early game
             momentumDir = Direction.CENTER;
+            return;
         }
         double rng = Math.random();
         if (rng < 0.33) {

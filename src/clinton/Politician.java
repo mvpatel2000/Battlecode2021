@@ -87,7 +87,7 @@ public class Politician extends Unit {
 
         if (instruction == SpawnDestinationFlag.INSTR_ATTACK) {
             defend = false;
-            onlyECHunter = rc.getConviction() > 30;
+            onlyECHunter = true;
         }
 
         if (!defend) {

@@ -170,7 +170,7 @@ public abstract class Unit extends Robot {
             }
         }
         // Case where enemyLoc is still null is handled in UnitUpdateFlag constructor.
-        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, instruction == SpawnDestinationFlag.INSTR_DEFEND_ATTACK, enemyLoc, enemyType);
+        UnitUpdateFlag uuf = new UnitUpdateFlag(rc.getType() == RobotType.SLANDERER, instruction == SpawnDestinationFlag.INSTR_DEFEND, enemyLoc, enemyType);
         //System.out.println("My nearest enemy is a " + enemyType.toString() + " at " + enemyLoc.toString());
         // rc.setIndicatorDot(enemyLoc, 30, 255, 40);
         setFlag(uuf.flag);
