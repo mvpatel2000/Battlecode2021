@@ -387,7 +387,7 @@ public class Politician extends Unit {
      * is true, in which case I only blow up on it if it's a big muckraker.
      */
     public boolean considerAttack(boolean bigAttacker, boolean paranoid) throws GameActionException {
-        if (currentRound >= 1490 && rc.getTeamVotes() < 751) {
+        if (currentRound >= 1490 && rc.getTeamVotes() < 741) {
             RobotInfo[] adjacentEnemies = rc.senseNearbyRobots(1, enemyTeam);
             if (adjacentEnemies.length > 0 && rc.canEmpower(1)) {
                 rc.empower(1);
