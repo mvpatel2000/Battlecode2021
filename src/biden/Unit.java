@@ -809,6 +809,7 @@ public abstract class Unit extends Robot {
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
             System.out.println("Deets, rerouting");
             if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction = SpawnDestinationFlag.INSTR_MUCKRAKER;
                 muckrackerRerouteDestination();
                 return;
             }
