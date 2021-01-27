@@ -735,6 +735,9 @@ public abstract class Unit extends Robot {
             // System.out.println("Explore Reroute: " + potentialDest);
             destination = potentialDest;
             exploreMode = false;
+            if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction  = newInstruction;
+            }
             return true;
 
             // Old Criteria
@@ -770,12 +773,16 @@ public abstract class Unit extends Robot {
                 && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
             destination = potentialDest;
             exploreMode = false;
+            if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction  = newInstruction;
+            }
             // System.out.println("Re-routing to latest base destination!! " + potentialDest);
             return true;
         } else if (!exploreMode && rc.getType() == RobotType.MUCKRAKER && (canSenseDestination || nearbyAllies.length > 20)) {
             if (nearbyAllies.length > 20 || !(destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.SLANDERER)) {
                 destination = potentialDest;
                 exploreMode = false;
+                instruction  = newInstruction;
             }
         }
         return false;
