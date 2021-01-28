@@ -436,7 +436,7 @@ public abstract class Unit extends Robot {
                     if (allyECLocsToIDs.containsKey(ri.location)) {
                         allyECLocsToIDs.remove(ri.location);
                     }
-                    setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn, ri.influence);
+                    setECSightingFlagHelper(ri.location, enemyTeam, moveThisTurn, ri.influence, ri.ID);
                     // we may not want to return in the future when there is more computation to be done.
                     // than just setting a flag.
                     return;
@@ -448,7 +448,7 @@ public abstract class Unit extends Robot {
             if (ri.type == RobotType.ENLIGHTENMENT_CENTER) {
                 if (!neutralECLocsToIDs.containsKey(ri.location)) {
                     neutralECLocsToIDs.put(ri.location, ri.ID);
-                    setECSightingFlagHelper(ri.location, neutralTeam, moveThisTurn, ri.influence);
+                    setECSightingFlagHelper(ri.location, neutralTeam, moveThisTurn, ri.influence, ri.ID);
                     return;
                 }
             }
@@ -460,18 +460,18 @@ public abstract class Unit extends Robot {
                         allyECLocsToIDs.put(ri.location, ri.ID);
                         neutralECLocsToIDs.remove(ri.location);
                         sawNewAllyLastTurn = 1;
-                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence, ri.ID);
                         return;
                     } else if (enemyECLocsToIDs.containsKey(ri.location)) {
                         allyECLocsToIDs.put(ri.location, ri.ID);
                         enemyECLocsToIDs.remove(ri.location);
                         sawNewAllyLastTurn = 1;
-                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence, ri.ID);
                         return;
                     } else if (!allyECLocsToIDs.containsKey(ri.location)) {
                         allyECLocsToIDs.put(ri.location, ri.ID);
                         sawNewAllyLastTurn = 1;
-                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence);
+                        setECSightingFlagHelper(ri.location, allyTeam, moveThisTurn, ri.influence, ri.ID);
                         return;
                     }
                 }
@@ -482,7 +482,13 @@ public abstract class Unit extends Robot {
     /**
      * Helper function to actually set an ECSightingFlag.
      */
-    public void setECSightingFlagHelper(MapLocation ecLoc, Team t, Direction lastMove, int inf) throws GameActionException {
+    public void setECSightingFlagHelper(MapLocation ecLoc, Team t, Direction lastMove, int inf, int ecID) throws GameActionException {
+        if (baseID == 0 && t == allyTeam) {
+            //System.out.println\("Former slanderer, setting my base to " + ecID);
+            baseID = ecID;
+            baseLocation = ecLoc;
+            return;
+        }
         int ecType = ECSightingFlag.ENEMY_EC;
         if (t == allyTeam) {
             ecType = ECSightingFlag.ALLY_EC;
@@ -686,7 +692,7 @@ public abstract class Unit extends Robot {
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
                     newInstruction = sdf.readInstruction();
-                    //System.out.println\("I see my base has given instruction: " + newInstruction);
+                    ////System.out.println\("I see my base has given instruction: " + newInstruction);
                     if (newInstruction != SpawnDestinationFlag.INSTR_SLANDERER &&
                         ((newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER ||
                         newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) ^

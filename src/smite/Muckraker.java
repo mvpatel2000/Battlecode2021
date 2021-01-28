@@ -109,9 +109,11 @@ public class Muckraker extends Unit {
         }
         // Nearest enemy politician
         RobotInfo nearestEnemyPolitician = null;
-        int nearestEnemyPoliticianDistance = 100000;
+        int nearestEnemyPoliticianDistance = 1000000000;
         for (RobotInfo robot : nearbyEnemies) {
-            int distance = robot.location.distanceSquaredTo(nearestNeutralEC.location);
+            // Take nearest politician to EC and tiebreak on closest to my location
+            int distance = robot.location.distanceSquaredTo(nearestNeutralEC.location) * 1000 
+                    + robot.location.distanceSquaredTo(myLocation);
             if (robot.type == RobotType.POLITICIAN && distance < nearestEnemyPoliticianDistance) {
                 nearestEnemyPoliticianDistance = distance;
                 nearestEnemyPolitician = robot;
@@ -127,7 +129,8 @@ public class Muckraker extends Unit {
         else {
             // Redefine as unchanging variable for compiler
             MapLocation nearestEnemyPoliticianLocation = nearestEnemyPolitician.location;
-            int nearestEnemyPoliticianDistanceFinal = nearestEnemyPoliticianDistance;
+            // Cut off tiebreak portion
+            int nearestEnemyPoliticianDistanceFinal = nearestEnemyPoliticianDistance/1000;
             MapLocation nearestNeutralECLocation = nearestNeutralEC.location;
             Arrays.sort(allDirections, new Comparator<Direction>() {
                 public int compare(Direction d1, Direction d2) {
@@ -162,8 +165,10 @@ public class Muckraker extends Unit {
     void huntSlanderersOrToDestination() throws GameActionException {
         int attackRadius = rc.getType().actionRadiusSquared;
         RobotInfo nearestSlanderer = null;
-        int nearestSlandererDistSquared = 100;
+        int nearestSlandererDistSquared = 1000000;
         RobotInfo biggestSlanderer = null;
+        int nearestLargeMuckDistSquared = 1000000;
+        RobotInfo bigMuckraker = null;
         int size = -1;
         for (RobotInfo robot : nearbyEnemies) {
             int robotDistSquared = myLocation.distanceSquaredTo(robot.location);
@@ -177,10 +182,51 @@ public class Muckraker extends Unit {
                     size = robot.conviction;
                 }
             }
+            // Block off buffrakers before they reach our base if we are closer to base than buffraker
+            else if (robot.type == RobotType.MUCKRAKER && (robot.conviction > 800 || robot.conviction > 400 && currentRound <= 300) 
+                        && robotDistSquared < nearestLargeMuckDistSquared) {
+                int robotToBaseDist = Math.abs(baseLocation.x - robot.location.x) + Math.abs(baseLocation.y - robot.location.y);
+                int myLocToBaseDist = Math.abs(baseLocation.x - myLocation.x) + Math.abs(baseLocation.y - myLocation.y);
+                //System.out.println\("RBD: " + robotToBaseDist + " " + myLocToBaseDist);
+                if (robotToBaseDist > 5 && robotToBaseDist >= myLocToBaseDist - 1) {
+                    nearestLargeMuckDistSquared = robotDistSquared;
+                    bigMuckraker = robot;
+                }
+            }
         }
+        // //System.out.println\("Biggest slanderer: " + biggestSlanderer + " " + bigMuckraker);
         // Kill biggest you can
         if (biggestSlanderer != null && rc.canExpose(biggestSlanderer.location)) {
             rc.expose(biggestSlanderer.location);
+        }
+        // Block off biggest muck
+        else if (bigMuckraker != null) {
+            MapLocation bigMuckrakerLocation = bigMuckraker.location;
+            //rc.setIndicatorLine(myLocation, bigMuckrakerLocation, 0, 255, 255);
+            Arrays.sort(directions, new Comparator<Direction>() {
+                public int compare(Direction d1, Direction d2) {
+                    return bigMuckrakerLocation.add(d1).distanceSquaredTo(baseLocation) 
+                            - bigMuckrakerLocation.add(d2).distanceSquaredTo(baseLocation);
+                }
+            });
+            // for (Direction dir : directions) {
+            //     //System.out.println\("Dir: " + dir);
+            // }
+            for (Direction dirRelMuck : directions) {
+                Direction dir = myLocation.directionTo(bigMuckrakerLocation.add(dirRelMuck));
+                // //System.out.println\("Considering: " + dir);
+                // Stay put
+                if (dir == Direction.CENTER) {
+                    // //System.out.println\("staying put");
+                    break;
+                }
+                // Move to cut off bigMuckraker
+                else if (rc.canMove(dir)) {
+                    move(dir);
+                    // //System.out.println\("Moving: " + dir);
+                    break;
+                }
+            }
         }
         // Move towards nearest
         else if (nearestSlanderer != null) {
@@ -319,7 +365,10 @@ public class Muckraker extends Unit {
 
     void muckrackerRerouteDestination() throws GameActionException {
         MapLocation currDestination = destination;
-        int numEnemies = nearbyEnemies.length;
+        int numEnemies = 0;
+        if (nearbyEnemies != null) {
+            numEnemies = nearbyEnemies.length;
+        }
         int enemyDiff = numEnemies - enemiesAtPrevDest;
         int deltaX = destination.x - previousDestination.x;
         int deltaY = destination.y - previousDestination.y;

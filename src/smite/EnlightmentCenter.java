@@ -53,7 +53,7 @@ public class EnlightmentCenter extends Robot {
     // Environment and enemy; maps from MapLocations to influences. If influence is unknown it is null.
     Map<MapLocation, Integer> enemyECLocsToInfluence;
     Map<MapLocation, Integer> neutralECLocsToInfluence;
-    Map<MapLocation, Integer> capturedAllyECLocsToInfluence;    // for an ally captured after us, our robots only communicate
+    Map<MapLocation, Integer> allyECLocsToInfluence;    // for an ally captured after us, our robots only communicate
                                                                 // the new ally's location, not the ID. So, we cannot add that ally
                                                                 // to the allyECID/location arrays above, we must maintain this separate map.
     Map<MapLocation, Integer> sentRobotsToNeutralECs;
@@ -117,7 +117,7 @@ public class EnlightmentCenter extends Robot {
         allyECIDs = new int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         allyECLocs = new MapLocation[11];
         allyDistances = new int[]{0, 0};
-        searchBounds = new int[]{10000, 10960, 12528, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
+        searchBounds = new int[]{10000, 11056, 12592, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
@@ -126,7 +126,7 @@ public class EnlightmentCenter extends Robot {
         // Initialize environment and enemy tracking variables
         enemyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         neutralECLocsToInfluence = new HashMap<MapLocation, Integer>();
-        capturedAllyECLocsToInfluence = new HashMap<MapLocation, Integer>();
+        allyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         sentRobotsToNeutralECs = new HashMap<MapLocation, Integer>();
         enemySlanderer = null;    // a location to send muckrackers where we have previously seen an enemy slanderer.
         enemySlandererRound = 0;
@@ -167,7 +167,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 800) {
+        if (currentRound == 500) {
             //rc.resign\(); // TODO: remove; just for debugging
         }
         // //System.out.println\("Start: " + Clock.getBytecodeNum());
@@ -433,7 +433,7 @@ public class EnlightmentCenter extends Robot {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             //System.out.println\("Spawning medium sized: " + enemyLocation);
                             int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                            if (rc.getRoundNum() > 300 && nearbyMuckraker) {
+                            if (rc.getRoundNum() > 300 && (nearbyMuckraker || Math.random() < .33)) {
                                 instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                             }
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
@@ -515,7 +515,7 @@ public class EnlightmentCenter extends Robot {
 
     boolean existsAllyCloser(MapLocation enemyLoc) {
         int dist2 = myLocation.distanceSquaredTo(enemyLoc);
-        if (numAllyECs == 0 && capturedAllyECLocsToInfluence.isEmpty()) {
+        if (numAllyECs == 0 && allyECLocsToInfluence.isEmpty()) {
             return false;
         } else {
             for (int i=0; i<numAllyECs; i++) {
@@ -523,7 +523,7 @@ public class EnlightmentCenter extends Robot {
                     return true;
                 }
             }
-            for (MapLocation ml : capturedAllyECLocsToInfluence.keySet()) {
+            for (MapLocation ml : allyECLocsToInfluence.keySet()) {
                 if (ml.distanceSquaredTo(enemyLoc) < dist2) {
                     return true;
                 }
@@ -564,7 +564,8 @@ public class EnlightmentCenter extends Robot {
                     case Flag.SPAWN_DESTINATION_SCHEMA:
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK ||
+                            int newInstruction = sdf.readInstruction();
+                            if (newInstruction == SpawnDestinationFlag.INSTR_ATTACK ||
                                 sdf.readInstruction() == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
                                 // the robot spawned is going to an enemy, we want to record destination
                                 // so we can use it as a destination for our own robots.
@@ -573,6 +574,34 @@ public class EnlightmentCenter extends Robot {
                                     basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, sdf.readGuess()));
                                     //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
+                            } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER) {
+                                MapLocation ecLoc = sdf.readAbsoluteLocation(myLocation);
+                                if (!(ecLoc.x == myLocation.x && ecLoc.y == myLocation.y)) {
+                                    if (sdf.readGuess()) {
+                                        basesToDestinations.put(allyECIDs[i], new Destination(ecLoc, true));
+                                        //System.out.println\("Base " + allyECIDs[i] + " told me about a destination " + ecLoc);
+                                    } else {
+                                        if (!enemyECLocsToInfluence.containsKey(ecLoc)) {
+                                            map.set(myLocation.x - ecLoc.x, myLocation.y - ecLoc.y, RelativeMap.ENEMY_EC);
+                                            // This EC has been converted from neutral to enemy since we last saw it.
+                                            if(neutralECLocsToInfluence.containsKey(ecLoc)) {
+                                                neutralECLocsToInfluence.remove(ecLoc);
+                                            }
+                                            // This EC has been converted from a captured ally to an enemy since we last saw it.
+                                            if(allyECLocsToInfluence.containsKey(ecLoc)) {
+                                                allyECLocsToInfluence.remove(ecLoc);
+                                            }
+                                            // It is also possible for one of our original allies to be converted into an enemy.
+                                            // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
+                                            // are looking for its flag in readAllyECUpdates() and cannot read it.
+                                            //System.out.println\("Informed about ENEMY EC at " + ecLoc + ". Guessing influence 500.");
+                                        }
+                                        enemyECLocsToInfluence.put(ecLoc, 500);
+                                    }
+                                }
+                            } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) {
+                                enemySlanderer = sdf.readAbsoluteLocation(myLocation);
+                                enemySlandererRound = currentRound;
                             }
                         }
                         break;
@@ -588,10 +617,23 @@ public class EnlightmentCenter extends Robot {
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
                 if (!enemyECLocsToInfluence.containsKey(allyECLocs[i])) {
-                    // Add to list on enemies.
-                    enemyECLocsToInfluence.put(allyECLocs[i], null);
+                    // Add to list of enemies.
+                    enemyECLocsToInfluence.put(allyECLocs[i], 100);
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
+
+                    if(neutralECLocsToInfluence.containsKey(allyECLocs[i])) {
+                        neutralECLocsToInfluence.remove(allyECLocs[i]);
+                    }
+                    // This EC has been converted from a captured ally to an enemy since we last saw it.
+                    if(allyECLocsToInfluence.containsKey(allyECLocs[i])) {
+                        allyECLocsToInfluence.remove(allyECLocs[i]);
+                    }
+                    // It is also possible for one of our original allies to be converted into an enemy.
+                    // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
+                    // are looking for its flag in readAllyECUpdates() and cannot read it.
+                    //System.out.println\("Informed about ENEMY EC at " + allyECLocs[i] + ". Guessing influence 100.");
                 }
+
                 // For mid-game ECs. Update another list to remove this EC.
                 if (basesToDestinations != null && basesToDestinations.containsKey(allyECIDs[i])) {
                     basesToDestinations.remove(allyECIDs[i]);
@@ -611,7 +653,9 @@ public class EnlightmentCenter extends Robot {
      */
     void startTrackingBot(int id, RobotType type) {
         // //System.out.println\("Tracking " + type.toString() + "#" + id);
-        if (numUnitsTracked == MAX_UNITS_TRACKED) return;
+        if (numUnitsTracked == MAX_UNITS_TRACKED) {
+                return;
+        }
         int typeInt = typeToInt(type);
         trackingList[numUnitsTracked] = (typeInt << 28) + id;
         numUnitsTracked++;
@@ -678,8 +722,8 @@ public class EnlightmentCenter extends Robot {
                                 neutralECLocsToInfluence.remove(ecLoc);
                             }
                             // This EC has been converted from a captured ally to an enemy since we last saw it.
-                            if(capturedAllyECLocsToInfluence.containsKey(ecLoc)) {
-                                capturedAllyECLocsToInfluence.remove(ecLoc);
+                            if(allyECLocsToInfluence.containsKey(ecLoc)) {
+                                allyECLocsToInfluence.remove(ecLoc);
                             }
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
@@ -688,7 +732,7 @@ public class EnlightmentCenter extends Robot {
                         }
                         enemyECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
-                        if (!capturedAllyECLocsToInfluence.containsKey(ecLoc)) {
+                        if (!allyECLocsToInfluence.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ALLY_EC);
                             if (enemyECLocsToInfluence.containsKey(ecLoc)) {
                                 enemyECLocsToInfluence.remove(ecLoc);
@@ -698,7 +742,7 @@ public class EnlightmentCenter extends Robot {
                             }
                             //System.out.println\("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
-                        capturedAllyECLocsToInfluence.put(ecLoc, ecInf);
+                        allyECLocsToInfluence.put(ecLoc, ecInf);
                     }
                     break;
                 case Flag.MAP_INFO_SCHEMA:
@@ -1062,18 +1106,39 @@ public class EnlightmentCenter extends Robot {
                     // //System.out.println\("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
-                        int sendX = allyDistances[1];
-                        int sendY = allyDistances[0];
-                        int maxDelta = Math.max(sendX, sendY);
+                        int potentialX = allyDistances[1];
+                        int potentialY = -allyDistances[0];
+                        int sum1 = 0;
+                        int sum2 = 0;
+                        if (potentialX > 0) {
+                            sum1 += map.xLineAboveUpper;
+                            sum2 += Math.abs(map.xLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.xLineBelowLower);
+                            sum2 += map.xLineAboveUpper;
+                        }
+                        if (potentialY > 0) {
+                            sum1 += map.yLineAboveUpper;
+                            sum2 += Math.abs(map.yLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.yLineBelowLower);
+                            sum2 += map.yLineAboveUpper;
+                        }
+                        int maxDelta = Math.max(potentialX, potentialY);
                         int stop = 1;
                         for (int i=1; i<10; i++) {
                             stop=i;
-                            if (maxDelta >= 32) {
+                            if (maxDelta*i >= 32) {
                                 break;
                             }
                         }
-                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
-                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
+                        if (sum1 >= sum2) {
+                            dArr[0] = potentialX;
+                            dArr[1] = potentialY;
+                        } else {
+                            dArr[0] = -potentialX;
+                            dArr[1] = -potentialY;
+                        }
                     } else {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
                         // //System.out.println\("randomly launching in all dirs");
@@ -1097,25 +1162,48 @@ public class EnlightmentCenter extends Robot {
                     dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                 } else {
                     // only rotational symmetry possible
-                    // //System.out.println\("Only rotational symmetry.");
-                    // //System.out.println\("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
+                    //System.out.println\("Only rotational symmetry.");
+                    //System.out.println\("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
-                        int sendX = allyDistances[1];
-                        int sendY = allyDistances[0];
-                        int maxDelta = Math.max(sendX, sendY);
+                        int potentialX = allyDistances[1];
+                        int potentialY = -allyDistances[0];
+                        int sum1 = 0;
+                        int sum2 = 0;
+                        if (potentialX > 0) {
+                            sum1 += map.xLineAboveUpper;
+                            sum2 += Math.abs(map.xLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.xLineBelowLower);
+                            sum2 += map.xLineAboveUpper;
+                        }
+                        if (potentialY > 0) {
+                            sum1 += map.yLineAboveUpper;
+                            sum2 += Math.abs(map.yLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.yLineBelowLower);
+                            sum2 += map.yLineAboveUpper;
+                        }
+                        int maxDelta = Math.max(potentialX, potentialY);
                         int stop = 1;
                         for (int i=1; i<10; i++) {
                             stop=i;
-                            if (maxDelta >= 32) {
+                            if (maxDelta*i >= 32) {
                                 break;
                             }
                         }
-                        // //System.out.println\("Sending: X: " + stop*sendX + " Y:" + stop*sendY);
-                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
-                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
+                        if (sum1 >= sum2) {
+                            dArr[0] = potentialX;
+                            dArr[1] = potentialY;
+                        } else {
+                            dArr[0] = -potentialX;
+                            dArr[1] = -potentialY;
+                        }
+                        //System.out.println\("Sending: X: " + dArr[0] + " Y:" + dArr[1]);
+                        //System.out.println\("Sum1: " + sum1);
+                        //System.out.println\("Sum2: " + sum2);
                         enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-                        // //System.out.println\("Sending to enemyLoc: " + enemyLocation);
+                        //System.out.println\("Sending to enemyLoc: " + enemyLocation);
                     } else {
                         // Send at 45 degree angle cross-map
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
@@ -1234,11 +1322,19 @@ public class EnlightmentCenter extends Robot {
         if(numAllyECs == 0) {
             return new int[]{0, 0};
         } else if (numAllyECs == 1) {
-            return new int[]{Math.abs(myLocation.x - allyECLocs[0].x), Math.abs(myLocation.y - allyECLocs[0].y)};
+            return new int[]{allyECLocs[0].x - myLocation.x, allyECLocs[0].y - myLocation.y};
         } else if (numAllyECs == 2) {
-            int maxX = Math.max(Math.abs(myLocation.x - allyECLocs[0].x), Math.max(Math.abs(myLocation.x - allyECLocs[1].x), Math.abs(allyECLocs[1].x - allyECLocs[0].x)));
-            int maxY = Math.max(Math.abs(myLocation.y - allyECLocs[0].y), Math.max(Math.abs(myLocation.y - allyECLocs[1].y), Math.abs(allyECLocs[1].y - allyECLocs[0].y)));
-            return new int[]{maxX, maxY};
+            int dist0 = myLocation.distanceSquaredTo(allyECLocs[0]);
+            int dist1 = myLocation.distanceSquaredTo(allyECLocs[1]);
+            int dist01 = allyECLocs[0].distanceSquaredTo(allyECLocs[1]);
+            if (dist0 >= dist1 && dist0 >= dist01) {
+                return new int[]{allyECLocs[0].x - myLocation.x, allyECLocs[0].y - myLocation.y};
+            }
+            if (dist1 >= dist0 && dist1 >= dist01) {
+                return new int[]{allyECLocs[1].x - myLocation.x, allyECLocs[1].y - myLocation.y};
+            } else {
+                return new int[]{allyECLocs[1].x - allyECLocs[0].x, allyECLocs[1].y - allyECLocs[0].y};
+            }
         }
         return new int[]{0, 0};
     }

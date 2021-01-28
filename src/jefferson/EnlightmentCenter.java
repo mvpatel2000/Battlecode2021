@@ -167,7 +167,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 800) {
+        if (currentRound == 500) {
             rc.resign(); // TODO: remove; just for debugging
         }
         // System.out.println("Start: " + Clock.getBytecodeNum());
@@ -433,7 +433,7 @@ public class EnlightmentCenter extends Robot {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             System.out.println("Spawning medium sized: " + enemyLocation);
                             int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                            if (rc.getRoundNum() > 300 && nearbyMuckraker) {
+                            if (rc.getRoundNum() > 300 && (nearbyMuckraker || Math.random() < .33)) {
                                 instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                             }
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
