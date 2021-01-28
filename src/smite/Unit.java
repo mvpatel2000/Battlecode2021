@@ -42,6 +42,9 @@ public abstract class Unit extends Robot {
 
     int spawnRound;
 
+    // Muck only, needs to be accessed here
+    Direction momentumDir;
+
     public Unit(RobotController rc) throws GameActionException {
         super(rc);
         moveThisTurn = Direction.CENTER;
@@ -91,6 +94,8 @@ public abstract class Unit extends Robot {
 
         instruction = -1;
         spawnRound = rc.getRoundNum();
+
+        momentumDir = Direction.CENTER;
     }
 
     @Override
@@ -201,7 +206,7 @@ public abstract class Unit extends Robot {
         MapLocation enemyLoc = null;
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
         RobotType enemyType = null;
-        for (int i = 0; i < Math.min(20, nearbyAllies.length); i++) {
+        for (int i = 0; i < Math.min(10, nearbyAllies.length); i++) {
             RobotInfo r = nearbyAllies[i];
             if (rc.canGetFlag(r.ID)) {
                 int flag = rc.getFlag(r.ID);
@@ -726,6 +731,7 @@ public abstract class Unit extends Robot {
             && rc.getRoundNum() > 100) {
             //System.out.println\("SWITCHING TO SLAND DESTINATION.");
             destination = potentialDest;
+            momentumDir = myLocation.directionTo(destination);
             exploreMode = false;
             instruction = SpawnDestinationFlag.INSTR_MUCK_TO_SLAND;
             return true;
@@ -734,7 +740,11 @@ public abstract class Unit extends Robot {
         if (exploreMode && spawnRound > 100) {
             // //System.out.println\("Explore Reroute: " + potentialDest);
             destination = potentialDest;
+            momentumDir = myLocation.directionTo(destination);;
             exploreMode = false;
+            if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction  = newInstruction;
+            }
             return true;
 
             // Old Criteria
@@ -765,17 +775,23 @@ public abstract class Unit extends Robot {
         // 1) If you can sense your destination
         // 2) AND your destination has an ally EC on it
         // Then change destinations.
-        // Explanation: Presumably in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
+        // Explanation: Presumably not in explore mode, your EC really wants you to go to your destination, so the conditions are stricter.
         if (!exploreMode && canSenseDestination && destRobot != null && destRobot.team == allyTeam
                 && destRobot.type == RobotType.ENLIGHTENMENT_CENTER) {
             destination = potentialDest;
+            momentumDir = myLocation.directionTo(destination);
             exploreMode = false;
+            if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction  = newInstruction;
+            }
             // //System.out.println\("Re-routing to latest base destination!! " + potentialDest);
             return true;
         } else if (!exploreMode && rc.getType() == RobotType.MUCKRAKER && (canSenseDestination || nearbyAllies.length > 20)) {
             if (nearbyAllies.length > 20 || !(destRobot != null && destRobot.team == enemyTeam && destRobot.type == RobotType.SLANDERER)) {
                 destination = potentialDest;
+                momentumDir = myLocation.directionTo(destination);
                 exploreMode = false;
+                instruction  = newInstruction;
             }
         }
         return false;
@@ -809,6 +825,7 @@ public abstract class Unit extends Robot {
                 || rc.senseRobotAtLocation(destination).team == allyTeam))) {
             //System.out.println\("Deets, rerouting");
             if (rc.getType() == RobotType.MUCKRAKER) {
+                instruction = SpawnDestinationFlag.INSTR_MUCKRAKER;
                 muckrackerRerouteDestination();
                 return;
             }

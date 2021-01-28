@@ -87,7 +87,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     int[] trackingList;
-    int MAX_UNITS_TRACKED = 400;
+    int MAX_UNITS_TRACKED = 200;
     int numUnitsTracked;
 
     // Bidding information
@@ -143,7 +143,7 @@ public class EnlightmentCenter extends Robot {
         mediumSizedPolitician = 300 + (int)(200.0*Math.random());
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
-            MAX_UNITS_TRACKED = 60;
+            MAX_UNITS_TRACKED = 130;
             isMidGame = true;
             // //System.out.println\("I am a mid-game EC!");
             basesToDestinations = new HashMap<Integer, Destination>();
@@ -167,13 +167,15 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 100) {
-            // //rc.resign\(); // TODO: remove; just for debugging
+        if (currentRound == 800) {
+            //rc.resign\(); // TODO: remove; just for debugging
         }
+        // //System.out.println\("Start: " + Clock.getBytecodeNum());
 
         spawnDestIsGuess = true;
         numUUFprocessed = 0;
         considerBid();
+        // //System.out.println\("Done considering bid: " + Clock.getBytecodeNum());
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -184,11 +186,13 @@ public class EnlightmentCenter extends Robot {
             if (currentRound < searchBounds.length) {
                 initialFlagsAndAllies();
             }
+            // //System.out.println\("Done w initial flags: " + Clock.getBytecodeNum());
             if (turnCount == searchBounds.length) {
                 putVisionTilesOnMap();
                 updateSymmetryFromAllies();
                 allyDistances = furthestAllyDistances(); // only calculate this once after initial allies set.
             }
+            // //System.out.println\("Put tiles on map, update symmetry: " + Clock.getBytecodeNum());
             if (turnCount >= searchBounds.length) {
                 readAllyECUpdates(); // read EC updates before building units/prod logic.
                 setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
@@ -211,7 +215,7 @@ public class EnlightmentCenter extends Robot {
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
-        ////System.out.println\("I am tracking " + unitTrackerList.length + " units");
+        // //System.out.println\("I am tracking " + numUnitsTracked + " units");
         // //System.out.println\("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
         // //System.out.println\("Bytecodes used before buildUnit: " + Clock.getBytecodeNum());
@@ -403,7 +407,10 @@ public class EnlightmentCenter extends Robot {
                 else {
                     ////System.out.println\("Medium Sized Politician threshold: " + mediumSizedPolitician);
                     ////System.out.println\("Diluted Remaining Health:" + dilutedRemainingHealth);
-                    if (Math.random() < 0.5) { // spawn defender
+                    MapLocation tempEnemy = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    boolean allyCloser = existsAllyCloser(tempEnemy);
+                    //System.out.println\("Only Produce large Politicians: " + (!nearbyMuckraker && allyCloser && currentRound >= 200 && remainingHealth == rc.getConviction()));
+                    if (Math.random() < 0.5 && (nearbyMuckraker || !allyCloser || currentRound < 200 || remainingHealth != rc.getConviction())) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         //System.out.println\("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
@@ -416,7 +423,7 @@ public class EnlightmentCenter extends Robot {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         //System.out.println\("Spawning killer: " + enemyLocation);
                         int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                        if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                        if (rc.getRoundNum() > 300 && nearbyMuckraker) {
                             instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
@@ -426,7 +433,7 @@ public class EnlightmentCenter extends Robot {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             //System.out.println\("Spawning medium sized: " + enemyLocation);
                             int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                            if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                            if (rc.getRoundNum() > 300 && nearbyMuckraker) {
                                 instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                             }
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
@@ -504,6 +511,25 @@ public class EnlightmentCenter extends Robot {
         } else if (rc.getRoundNum() < 800) {
             return 1.2;
         } return 1.5;
+    }
+
+    boolean existsAllyCloser(MapLocation enemyLoc) {
+        int dist2 = myLocation.distanceSquaredTo(enemyLoc);
+        if (numAllyECs == 0 && capturedAllyECLocsToInfluence.isEmpty()) {
+            return false;
+        } else {
+            for (int i=0; i<numAllyECs; i++) {
+                if (allyECLocs[i].distanceSquaredTo(enemyLoc) < dist2) {
+                    return true;
+                }
+            }
+            for (MapLocation ml : capturedAllyECLocsToInfluence.keySet()) {
+                if (ml.distanceSquaredTo(enemyLoc) < dist2) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -712,14 +738,13 @@ public class EnlightmentCenter extends Robot {
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
                     if (numUUFprocessed < 300) {
-                        UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
-                        if (uuf.readHasNearbyEnemy()) {
-                            if(uuf.readEnemyType() == RobotType.SLANDERER) {
-                                enemySlanderer = uuf.readAbsoluteLocation(myLocation);
-                                ////System.out.println\("ENEMY SLANDERER AT: " + enemySlanderer);
-                                enemySlandererRound = currentRound;
-                                break;
-                            }
+                        // Checks has enemy unit near it and is slanderer
+                        if ((flagInt & 31) == 20) {
+                            UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
+                            enemySlanderer = uuf.readAbsoluteLocation(myLocation);
+                            // //System.out.println\("ENEMY SLANDERER AT: " + enemySlanderer);
+                            enemySlandererRound = currentRound;
+                            break;
                         }
                         numUUFprocessed += 1;
                     }
@@ -1051,6 +1076,7 @@ public class EnlightmentCenter extends Robot {
                         dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
                     } else {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
+                        // //System.out.println\("randomly launching in all dirs");
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         double rand = Math.random();
