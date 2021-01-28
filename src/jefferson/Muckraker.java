@@ -214,7 +214,8 @@ public class Muckraker extends Unit {
     void setMoveWeights() {
         momentumWeight *= 0.97;
         destWeight = 1;
-        passabilityWeight = 1;
+        passabilityWeight = currentRound < 200 && exploreMode ? 10 : 1;
+        // System.out.println("PWeight: " + passabilityWeight);
         spreadWeight = Math.pow(rc.getRoundNum() + (exploreMode ? 500 : 100), 0.4);
     }
 
@@ -252,6 +253,7 @@ public class Muckraker extends Unit {
 
             // passability component
             scores[i] += passabilityWeight / rc.sensePassability(targetLoc);
+            // System.out.println("Dir: " + di + " " + (passabilityWeight / rc.sensePassability(targetLoc)) + " " + scores[i]);
         }
 
         // spread component
@@ -324,8 +326,8 @@ public class Muckraker extends Unit {
         int deltaY = destination.y - previousDestination.y;
         double mult = scaleVector(deltaX, deltaY, 48);
 
-        System.out.println("Prev Dest: " + previousDestination);
-        System.out.println("Curr Dest: " + destination);
+        // System.out.println("Prev Dest: " + previousDestination);
+        // System.out.println("Curr Dest: " + destination);
 
         deltaX = (int)((double)(deltaX) * mult);
         deltaY = (int)((double)(deltaY) * mult);
@@ -357,7 +359,7 @@ public class Muckraker extends Unit {
         //System.out.println("Scale: " + i);
         //System.out.println("Best 45 shot is: " + destination);
         //destination = myLocation.translate((int)(i*bestDeltaX), (int)(i*bestDeltaY));
-        System.out.println("Best dest is: " + destination);
+        // System.out.println("Best dest is: " + destination);
 
         exploreMode = true;
         previousDestination = currDestination;
