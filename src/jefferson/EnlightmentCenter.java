@@ -395,8 +395,8 @@ public class EnlightmentCenter extends Robot {
                 else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
                     // TODO: @Mihir replace the below if statement with this:
-                    // if (Math.random() < 0.2 && numDeadMuckrakers > 6 && numDeadMuckrakers / numMuckrakers > 0.4) {
-                    if (Math.random() < 0.2) { // BUFFRAKER INFLUENCE LOGIC
+                    if (Math.random() < 0.2 && numDeadMuckrakers > 6 && (numDeadMuckrakers * 1.0) / (numMuckrakers * 1.0) > 0.4) {
+                    // if (Math.random() < 0.2) { // BUFFRAKER INFLUENCE LOGIC
                         muckInf = (int) Math.pow(rc.getConviction(), 0.8);
                     }
                     System.out.println("Spawning muck.");
