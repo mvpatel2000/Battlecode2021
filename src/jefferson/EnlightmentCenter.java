@@ -1120,6 +1120,7 @@ public class EnlightmentCenter extends Robot {
 
                 double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
                 double denom = (double)(vertFurthestWall + horizFurthestWall + Math.sqrt(2*vertFurthestWall*horizFurthestWall));
+                double randomAngle = Math.random()*(Math.PI/3.0) - Math.PI/6.0;    // random offset of up to +/- 10 degrees
                 if (symmetries[0] == true && symmetries[1] == true) {
                     // System.out.println("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
@@ -1158,7 +1159,7 @@ public class EnlightmentCenter extends Robot {
                             dArr[1] = -potentialY;
                         }
                     } else {
-                        // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
+                        // Randomly launch vertically, horizontally, or at ~45 degrees
                         System.out.println("----------------------------");
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
@@ -1175,10 +1176,10 @@ public class EnlightmentCenter extends Robot {
                                 if (!sendingSlanderer) { numSentHoriz += 1; }
                                 System.out.println("Sending horizontally.");
                             } else {
-                                dArr[0] = dHoriz[0];
-                                dArr[1] = dVert[1];
+                                dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                                dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
                                 if (!sendingSlanderer) { numSentDiag += 1; }
-                                System.out.println("Sending diagonally.");
+                                System.out.println("Sending diagonally with offsets " + dArr[0] + " " + dArr[1]);
                             }
                         } else {
                             double horizRatio = ((double)(numSentHoriz)/(double)(numSentVert + numSentHoriz + numSentDiag))/((double)horizFurthestWall/denom);
@@ -1196,9 +1197,9 @@ public class EnlightmentCenter extends Robot {
                                 System.out.println("Sending vertically.");
                                 numSentVert += 1;
                             } else {
-                                dArr[0] = dHoriz[0];
-                                dArr[1] = dVert[1];
-                                System.out.println("Sending diagonally.");
+                                dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                                dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
+                                System.out.println("Sending diagonally with offsets " + dArr[0] + " " + dArr[1]);
                                 numSentDiag += 1;
                             }
                         }
@@ -1244,9 +1245,11 @@ public class EnlightmentCenter extends Robot {
                         if (sum1 >= sum2) {
                             dArr[0] = potentialX;
                             dArr[1] = potentialY;
+                            dArr[0] = (int)(potentialX*Math.cos(randomAngle) - potentialY*Math.sin(randomAngle));
+                            dArr[1] = (int)(potentialX*Math.sin(randomAngle) + potentialY*Math.cos(randomAngle));
                         } else {
-                            dArr[0] = -potentialX;
-                            dArr[1] = -potentialY;
+                            dArr[0] = (int)(-potentialX*Math.cos(randomAngle) - -potentialY*Math.sin(randomAngle));
+                            dArr[1] = (int)(-potentialX*Math.sin(randomAngle) + -potentialY*Math.cos(randomAngle));
                         }
                         System.out.println("Sending: X: " + dArr[0] + " Y:" + dArr[1]);
                         System.out.println("Sum1: " + sum1);
@@ -1257,8 +1260,8 @@ public class EnlightmentCenter extends Robot {
                         // Send at 45 degree angle cross-map
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                        dArr[0] = dHoriz[0];
-                        dArr[1] = dVert[1];
+                        dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                        dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
                     }
                 }
             } else {
