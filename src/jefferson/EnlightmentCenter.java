@@ -87,7 +87,7 @@ public class EnlightmentCenter extends Robot {
 
     // UnitTrackers
     int[] trackingList;
-    int MAX_UNITS_TRACKED = 400;
+    int MAX_UNITS_TRACKED = 200;
     int numUnitsTracked;
 
     // Bidding information
@@ -167,13 +167,15 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 600) {
+        if (currentRound == 800) {
             rc.resign(); // TODO: remove; just for debugging
         }
+        // System.out.println("Start: " + Clock.getBytecodeNum());
 
         spawnDestIsGuess = true;
         numUUFprocessed = 0;
         considerBid();
+        // System.out.println("Done considering bid: " + Clock.getBytecodeNum());
 
         // Do not add any code in the run() function before this line.
         // initialFlagsAndAllies must run here to fit properly with bytecode.
@@ -184,11 +186,13 @@ public class EnlightmentCenter extends Robot {
             if (currentRound < searchBounds.length) {
                 initialFlagsAndAllies();
             }
+            // System.out.println("Done w initial flags: " + Clock.getBytecodeNum());
             if (turnCount == searchBounds.length) {
                 putVisionTilesOnMap();
                 updateSymmetryFromAllies();
                 allyDistances = furthestAllyDistances(); // only calculate this once after initial allies set.
             }
+            // System.out.println("Put tiles on map, update symmetry: " + Clock.getBytecodeNum());
             if (turnCount >= searchBounds.length) {
                 readAllyECUpdates(); // read EC updates before building units/prod logic.
                 setSpawnOrDirectionFlag(); // this needs to be run before spawning any unit
@@ -211,7 +215,7 @@ public class EnlightmentCenter extends Robot {
         }
         // Be careful about bytecode usage on rounds < searchBounds.length, especially round 1.
         // We currently end round 1 with 10 bytecode left. Rounds 2 and 3, ~2000 left.
-        //System.out.println("I am tracking " + unitTrackerList.length + " units");
+        // System.out.println("I am tracking " + numUnitsTracked + " units");
         // System.out.println("Bytecodes used before UnitTrackers: " + Clock.getBytecodeNum());
         updateUnitTrackers();
         // System.out.println("Bytecodes used before buildUnit: " + Clock.getBytecodeNum());
@@ -712,14 +716,13 @@ public class EnlightmentCenter extends Robot {
                     break;
                 case Flag.UNIT_UPDATE_SCHEMA:
                     if (numUUFprocessed < 300) {
-                        UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
-                        if (uuf.readHasNearbyEnemy()) {
-                            if(uuf.readEnemyType() == RobotType.SLANDERER) {
-                                enemySlanderer = uuf.readAbsoluteLocation(myLocation);
-                                //System.out.println("ENEMY SLANDERER AT: " + enemySlanderer);
-                                enemySlandererRound = currentRound;
-                                break;
-                            }
+                        // Checks has enemy unit near it and is slanderer
+                        if ((flagInt & 31) == 20) {
+                            UnitUpdateFlag uuf = new UnitUpdateFlag(flagInt);
+                            enemySlanderer = uuf.readAbsoluteLocation(myLocation);
+                            // System.out.println("ENEMY SLANDERER AT: " + enemySlanderer);
+                            enemySlandererRound = currentRound;
+                            break;
                         }
                         numUUFprocessed += 1;
                     }
