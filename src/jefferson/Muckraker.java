@@ -7,7 +7,6 @@ public class Muckraker extends Unit {
 
     public final static int INITIAL_COOLDOWN = 10;
 
-    Direction momentumDir;
     double destWeight;
     double spreadWeight;
     double momentumWeight;
@@ -364,6 +363,7 @@ public class Muckraker extends Unit {
         exploreMode = true;
         previousDestination = currDestination;
         enemiesAtPrevDest = numEnemies;
+        momentumDir = myLocation.directionTo(destination);
         return;
     }
 }

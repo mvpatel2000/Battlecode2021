@@ -51,6 +51,9 @@ public class Politician extends Unit {
 
         // //System.out.println\("1: " + Clock.getBytecodesLeft());
         // Read flags to check for slanderers
+        if (nearbyAllies.length > 20) {
+            nearbyAllies = rc.senseNearbyRobots(RobotType.POLITICIAN.actionRadiusSquared, allyTeam);
+        }
         areSlanderers = new boolean[nearbyAllies.length];
         nearbySlanderer = false;
         edgeSlanderer = null;
@@ -403,6 +406,11 @@ public class Politician extends Unit {
                 rc.empower(1);
                 return true;
             }
+        }
+
+        // Everyone around us is an ally, no need to attack
+        if (nearbyNeutral.length == 0 && nearbyEnemies.length == 0) {
+            return false;
         }
 
 
