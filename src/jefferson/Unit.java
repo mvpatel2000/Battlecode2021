@@ -201,7 +201,7 @@ public abstract class Unit extends Robot {
         MapLocation enemyLoc = null;
         MapLocation allyLoc = null; // TODO: remove, for debugging purposes
         RobotType enemyType = null;
-        for (int i = 0; i < Math.min(20, nearbyAllies.length); i++) {
+        for (int i = 0; i < Math.min(10, nearbyAllies.length); i++) {
             RobotInfo r = nearbyAllies[i];
             if (rc.canGetFlag(r.ID)) {
                 int flag = rc.getFlag(r.ID);
