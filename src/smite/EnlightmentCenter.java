@@ -49,6 +49,9 @@ public class EnlightmentCenter extends Robot {
     int[] allyECIDs;
     MapLocation[] allyECLocs; // absolute locations
     int[] allyDistances;
+    int numSentHoriz;
+    int numSentVert;
+    int numSentDiag;
 
     // Environment and enemy; maps from MapLocations to influences. If influence is unknown it is null.
     Map<MapLocation, Integer> enemyECLocsToInfluence;
@@ -123,6 +126,11 @@ public class EnlightmentCenter extends Robot {
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
         firstRoundIDsToConsider = new ArrayList<Integer>();
+
+        // Spawn direction variables
+        numSentHoriz = 0;
+        numSentVert = 0;
+        numSentDiag = 0;
 
         // Initialize environment and enemy tracking variables
         enemyECLocsToInfluence = new HashMap<MapLocation, Integer>();
@@ -496,7 +504,7 @@ public class EnlightmentCenter extends Robot {
     }
 
     MapLocation optimalSlandererDestination() {
-        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
+        MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true, false, false, true);
         Direction awayFromEnemy = enemyLocation.directionTo(myLocation);
         MapLocation oneStep = myLocation.add(awayFromEnemy);
         int dx = oneStep.x - myLocation.x;
@@ -1038,8 +1046,11 @@ public class EnlightmentCenter extends Robot {
      MapLocation optimalDestination(boolean includeNeutral, boolean prioritizeDistanceOverEnemy) {
          return optimalDestination(includeNeutral, prioritizeDistanceOverEnemy, false);
      }
+     MapLocation optimalDestination(boolean includeNeutral, boolean prioritizeDistanceOverEnemy, boolean killerPolitician) {
+        return optimalDestination(includeNeutral, prioritizeDistanceOverEnemy, killerPolitician, false);
+    }
 
-    MapLocation optimalDestination(boolean includeNeutral, boolean prioritizeDistanceOverEnemy, boolean killerPolitician) {
+    MapLocation optimalDestination(boolean includeNeutral, boolean prioritizeDistanceOverEnemy, boolean killerPolitician, boolean sendingSlanderer) {
         boolean randomFallback = false;
         if (currentRound < searchBounds.length) {
             int[] dArr = randomDestination();
@@ -1109,6 +1120,7 @@ public class EnlightmentCenter extends Robot {
 
                 double threshold = (double)horizFurthestWall / (double)(vertFurthestWall + horizFurthestWall);
                 double denom = (double)(vertFurthestWall + horizFurthestWall + Math.sqrt(2*vertFurthestWall*horizFurthestWall));
+                double randomAngle = Math.random()*(Math.PI/3.0) - Math.PI/6.0;    // random offset of up to +/- 10 degrees
                 if (symmetries[0] == true && symmetries[1] == true) {
                     // //System.out.println\("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
@@ -1147,18 +1159,49 @@ public class EnlightmentCenter extends Robot {
                             dArr[1] = -potentialY;
                         }
                     } else {
-                        // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
-                        // //System.out.println\("randomly launching in all dirs");
+                        // Randomly launch vertically, horizontally, or at ~45 degrees
+                        //System.out.println\("----------------------------");
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         double rand = Math.random();
-                        if (rand < (double)horizFurthestWall/denom) {
-                            dArr = dVert;
-                        } else if (rand < (double)(horizFurthestWall + vertFurthestWall)/denom) {
-                            dArr = dHoriz;
+                        //System.out.println\("Horiz Furthest Wall/Denom " + horizFurthestWall/denom);
+                        //System.out.println\("Vert Furthest Wall/Denom " + (double)(horizFurthestWall + vertFurthestWall)/denom);
+                        if (numSentDiag == 0 && numSentHoriz == 0 && numSentVert == 0 || sendingSlanderer) {
+                            if (rand < (double)horizFurthestWall/denom) {
+                                dArr = dVert;
+                                if (!sendingSlanderer) { numSentVert += 1; }
+                                //System.out.println\("Sending vertically.");
+                            } else if (rand < (double)(horizFurthestWall + vertFurthestWall)/denom) {
+                                dArr = dHoriz;
+                                if (!sendingSlanderer) { numSentHoriz += 1; }
+                                //System.out.println\("Sending horizontally.");
+                            } else {
+                                dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                                dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
+                                if (!sendingSlanderer) { numSentDiag += 1; }
+                                //System.out.println\("Sending diagonally with offsets " + dArr[0] + " " + dArr[1]);
+                            }
                         } else {
-                            dArr[0] = dHoriz[0];
-                            dArr[1] = dVert[1];
+                            double horizRatio = ((double)(numSentHoriz)/(double)(numSentVert + numSentHoriz + numSentDiag))/((double)horizFurthestWall/denom);
+                            double vertRatio = ((double)(numSentVert)/(double)(numSentVert + numSentHoriz + numSentDiag))/((double)vertFurthestWall/denom);
+                            double diagRatio = ((double)(numSentDiag)/(double)(numSentVert + numSentHoriz + numSentDiag))/((double)(denom - horizFurthestWall - vertFurthestWall)/denom);
+                            //System.out.println\("Horiz Proportion: " + horizRatio);
+                            //System.out.println\("Vert Proportion: " + vertRatio);
+                            //System.out.println\("Diag Proportion: " + diagRatio);
+                            if (horizRatio <= vertRatio && horizRatio <= diagRatio) {
+                                dArr = dHoriz;
+                                //System.out.println\("Sending horizontally.");
+                                numSentHoriz += 1;
+                            } else if (vertRatio <= horizRatio && vertRatio <= diagRatio) {
+                                dArr = dVert;
+                                //System.out.println\("Sending vertically.");
+                                numSentVert += 1;
+                            } else {
+                                dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                                dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
+                                //System.out.println\("Sending diagonally with offsets " + dArr[0] + " " + dArr[1]);
+                                numSentDiag += 1;
+                            }
                         }
                     }
                 } else if (symmetries[0] == true) {
@@ -1202,9 +1245,11 @@ public class EnlightmentCenter extends Robot {
                         if (sum1 >= sum2) {
                             dArr[0] = potentialX;
                             dArr[1] = potentialY;
+                            dArr[0] = (int)(potentialX*Math.cos(randomAngle) - potentialY*Math.sin(randomAngle));
+                            dArr[1] = (int)(potentialX*Math.sin(randomAngle) + potentialY*Math.cos(randomAngle));
                         } else {
-                            dArr[0] = -potentialX;
-                            dArr[1] = -potentialY;
+                            dArr[0] = (int)(-potentialX*Math.cos(randomAngle) - -potentialY*Math.sin(randomAngle));
+                            dArr[1] = (int)(-potentialX*Math.sin(randomAngle) + -potentialY*Math.cos(randomAngle));
                         }
                         //System.out.println\("Sending: X: " + dArr[0] + " Y:" + dArr[1]);
                         //System.out.println\("Sum1: " + sum1);
@@ -1215,14 +1260,15 @@ public class EnlightmentCenter extends Robot {
                         // Send at 45 degree angle cross-map
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
-                        dArr[0] = dHoriz[0];
-                        dArr[1] = dVert[1];
+                        dArr[0] = (int)(dHoriz[0]*Math.cos(randomAngle) - dVert[1]*Math.sin(randomAngle));
+                        dArr[1] = (int)(dHoriz[0]*Math.sin(randomAngle) + dVert[1]*Math.cos(randomAngle));
                     }
                 }
             } else {
                 dArr = randomDestination();
             }
             enemyLocation = myLocation.translate(dArr[0], dArr[1]);
+            //System.out.println\("Sending guy to: " + enemyLocation);
             spawnDestIsGuess = true;
         }
         return enemyLocation;
