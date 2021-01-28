@@ -117,7 +117,7 @@ public class EnlightmentCenter extends Robot {
         allyECIDs = new int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         allyECLocs = new MapLocation[11];
         allyDistances = new int[]{0, 0};
-        searchBounds = new int[]{10000, 10960, 12528, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
+        searchBounds = new int[]{10000, 11056, 12592, 14096};   // Underweight the first turn of searching since we initialize arrays on that turn.
         initialFaf = new FindAllyFlag();
         initialFaf.writeCode(generateSecretCode(myID));
         initialFaf.writeLocation(myLocation.x & 127, myLocation.y & 127); // modulo 128
