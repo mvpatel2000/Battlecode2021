@@ -53,7 +53,7 @@ public class EnlightmentCenter extends Robot {
     // Environment and enemy; maps from MapLocations to influences. If influence is unknown it is null.
     Map<MapLocation, Integer> enemyECLocsToInfluence;
     Map<MapLocation, Integer> neutralECLocsToInfluence;
-    Map<MapLocation, Integer> capturedAllyECLocsToInfluence;    // for an ally captured after us, our robots only communicate
+    Map<MapLocation, Integer> allyECLocsToInfluence;    // for an ally captured after us, our robots only communicate
                                                                 // the new ally's location, not the ID. So, we cannot add that ally
                                                                 // to the allyECID/location arrays above, we must maintain this separate map.
     Map<MapLocation, Integer> sentRobotsToNeutralECs;
@@ -126,7 +126,7 @@ public class EnlightmentCenter extends Robot {
         // Initialize environment and enemy tracking variables
         enemyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         neutralECLocsToInfluence = new HashMap<MapLocation, Integer>();
-        capturedAllyECLocsToInfluence = new HashMap<MapLocation, Integer>();
+        allyECLocsToInfluence = new HashMap<MapLocation, Integer>();
         sentRobotsToNeutralECs = new HashMap<MapLocation, Integer>();
         enemySlanderer = null;    // a location to send muckrackers where we have previously seen an enemy slanderer.
         enemySlandererRound = 0;
@@ -515,7 +515,7 @@ public class EnlightmentCenter extends Robot {
 
     boolean existsAllyCloser(MapLocation enemyLoc) {
         int dist2 = myLocation.distanceSquaredTo(enemyLoc);
-        if (numAllyECs == 0 && capturedAllyECLocsToInfluence.isEmpty()) {
+        if (numAllyECs == 0 && allyECLocsToInfluence.isEmpty()) {
             return false;
         } else {
             for (int i=0; i<numAllyECs; i++) {
@@ -523,7 +523,7 @@ public class EnlightmentCenter extends Robot {
                     return true;
                 }
             }
-            for (MapLocation ml : capturedAllyECLocsToInfluence.keySet()) {
+            for (MapLocation ml : allyECLocsToInfluence.keySet()) {
                 if (ml.distanceSquaredTo(enemyLoc) < dist2) {
                     return true;
                 }
@@ -575,13 +575,28 @@ public class EnlightmentCenter extends Robot {
                                     System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
                             } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER) {
-                                MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
-                                if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
+                                MapLocation ecLoc = sdf.readAbsoluteLocation(myLocation);
+                                if (!(ecLoc.x == myLocation.x && ecLoc.y == myLocation.y)) {
                                     if (sdf.readGuess()) {
-                                        basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, true));
-                                        System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                        basesToDestinations.put(allyECIDs[i], new Destination(ecLoc, true));
+                                        System.out.println("Base " + allyECIDs[i] + " told me about a destination " + ecLoc);
                                     } else {
-                                        enemyECLocsToInfluence.put(potentialEnemy, 500);
+                                        if (!enemyECLocsToInfluence.containsKey(ecLoc)) {
+                                            map.set(myLocation.x - ecLoc.x, myLocation.y - ecLoc.y, RelativeMap.ENEMY_EC);
+                                            // This EC has been converted from neutral to enemy since we last saw it.
+                                            if(neutralECLocsToInfluence.containsKey(ecLoc)) {
+                                                neutralECLocsToInfluence.remove(ecLoc);
+                                            }
+                                            // This EC has been converted from a captured ally to an enemy since we last saw it.
+                                            if(allyECLocsToInfluence.containsKey(ecLoc)) {
+                                                allyECLocsToInfluence.remove(ecLoc);
+                                            }
+                                            // It is also possible for one of our original allies to be converted into an enemy.
+                                            // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
+                                            // are looking for its flag in readAllyECUpdates() and cannot read it.
+                                            System.out.println("Informed about ENEMY EC at " + ecLoc + ". Guessing influence 500.");
+                                        }
+                                        enemyECLocsToInfluence.put(ecLoc, 500);
                                     }
                                 }
                             } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) {
@@ -602,10 +617,23 @@ public class EnlightmentCenter extends Robot {
                 // Delete from list by replacing elem i with last elem of List
                 // and decrementing list length.
                 if (!enemyECLocsToInfluence.containsKey(allyECLocs[i])) {
-                    // Add to list on enemies.
-                    enemyECLocsToInfluence.put(allyECLocs[i], null);
+                    // Add to list of enemies.
+                    enemyECLocsToInfluence.put(allyECLocs[i], 100);
                     map.set(allyECLocs[i].x-myLocation.x, allyECLocs[i].y-myLocation.y, RelativeMap.ENEMY_EC);
+
+                    if(neutralECLocsToInfluence.containsKey(allyECLocs[i])) {
+                        neutralECLocsToInfluence.remove(allyECLocs[i]);
+                    }
+                    // This EC has been converted from a captured ally to an enemy since we last saw it.
+                    if(allyECLocsToInfluence.containsKey(allyECLocs[i])) {
+                        allyECLocsToInfluence.remove(allyECLocs[i]);
+                    }
+                    // It is also possible for one of our original allies to be converted into an enemy.
+                    // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
+                    // are looking for its flag in readAllyECUpdates() and cannot read it.
+                    System.out.println("Informed about ENEMY EC at " + allyECLocs[i] + ". Guessing influence 100.");
                 }
+
                 // For mid-game ECs. Update another list to remove this EC.
                 if (basesToDestinations != null && basesToDestinations.containsKey(allyECIDs[i])) {
                     basesToDestinations.remove(allyECIDs[i]);
@@ -625,7 +653,9 @@ public class EnlightmentCenter extends Robot {
      */
     void startTrackingBot(int id, RobotType type) {
         // System.out.println("Tracking " + type.toString() + "#" + id);
-        if (numUnitsTracked == MAX_UNITS_TRACKED) return;
+        if (numUnitsTracked == MAX_UNITS_TRACKED) {
+                return;
+        }
         int typeInt = typeToInt(type);
         trackingList[numUnitsTracked] = (typeInt << 28) + id;
         numUnitsTracked++;
@@ -692,8 +722,8 @@ public class EnlightmentCenter extends Robot {
                                 neutralECLocsToInfluence.remove(ecLoc);
                             }
                             // This EC has been converted from a captured ally to an enemy since we last saw it.
-                            if(capturedAllyECLocsToInfluence.containsKey(ecLoc)) {
-                                capturedAllyECLocsToInfluence.remove(ecLoc);
+                            if(allyECLocsToInfluence.containsKey(ecLoc)) {
+                                allyECLocsToInfluence.remove(ecLoc);
                             }
                             // It is also possible for one of our original allies to be converted into an enemy.
                             // If that happens, we will remove the ally from allyECIDs and allyECLocs when we
@@ -702,7 +732,7 @@ public class EnlightmentCenter extends Robot {
                         }
                         enemyECLocsToInfluence.put(ecLoc, ecInf);
                     } else if (ecsf.readECType() == ECSightingFlag.ALLY_EC && !ecLoc.equals(myLocation)) {
-                        if (!capturedAllyECLocsToInfluence.containsKey(ecLoc)) {
+                        if (!allyECLocsToInfluence.containsKey(ecLoc)) {
                             map.set(relECLoc, RelativeMap.ALLY_EC);
                             if (enemyECLocsToInfluence.containsKey(ecLoc)) {
                                 enemyECLocsToInfluence.remove(ecLoc);
@@ -712,7 +742,7 @@ public class EnlightmentCenter extends Robot {
                             }
                             System.out.println("Informed about new ALLY EC at " + ecLoc + " with influence " + ecInf);
                         }
-                        capturedAllyECLocsToInfluence.put(ecLoc, ecInf);
+                        allyECLocsToInfluence.put(ecLoc, ecInf);
                     }
                     break;
                 case Flag.MAP_INFO_SCHEMA:
