@@ -143,7 +143,7 @@ public class EnlightmentCenter extends Robot {
         mediumSizedPolitician = 300 + (int)(200.0*Math.random());
         // Everyone spawned after round 1 is a mid-game EC.
         if (currentRound > 1) {
-            MAX_UNITS_TRACKED = 60;
+            MAX_UNITS_TRACKED = 130;
             isMidGame = true;
             // System.out.println("I am a mid-game EC!");
             basesToDestinations = new HashMap<Integer, Destination>();
