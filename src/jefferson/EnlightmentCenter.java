@@ -560,7 +560,8 @@ public class EnlightmentCenter extends Robot {
                     case Flag.SPAWN_DESTINATION_SCHEMA:
                         if (isMidGame) {
                             SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
-                            if (sdf.readInstruction() == SpawnDestinationFlag.INSTR_ATTACK ||
+                            int newInstruction = sdf.readInstruction();
+                            if (newInstruction == SpawnDestinationFlag.INSTR_ATTACK ||
                                 sdf.readInstruction() == SpawnDestinationFlag.INSTR_DEFEND_ATTACK) {
                                 // the robot spawned is going to an enemy, we want to record destination
                                 // so we can use it as a destination for our own robots.
@@ -569,6 +570,19 @@ public class EnlightmentCenter extends Robot {
                                     basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, sdf.readGuess()));
                                     System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
                                 }
+                            } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER) {
+                                MapLocation potentialEnemy = sdf.readAbsoluteLocation(myLocation);
+                                if (!(potentialEnemy.x == myLocation.x && potentialEnemy.y == myLocation.y)) {
+                                    if (sdf.readGuess()) {
+                                        basesToDestinations.put(allyECIDs[i], new Destination(potentialEnemy, true));
+                                        System.out.println("Base " + allyECIDs[i] + " told me about a destination " + potentialEnemy);
+                                    } else {
+                                        enemyECLocsToInfluence.put(potentialEnemy, 500);
+                                    }
+                                }
+                            } else if (newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) {
+                                enemySlanderer = sdf.readAbsoluteLocation(myLocation);
+                                enemySlandererRound = currentRound;
                             }
                         }
                         break;
