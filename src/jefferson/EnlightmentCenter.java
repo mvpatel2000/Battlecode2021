@@ -416,7 +416,7 @@ public class EnlightmentCenter extends Robot {
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                         System.out.println("Spawning killer: " + enemyLocation);
                         int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                        if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                        if (rc.getRoundNum() > 300 && nearbyMuckraker) {
                             instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                         }
                         spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, 1000, enemyLocation, instr, spawnDestIsGuess);
@@ -426,7 +426,7 @@ public class EnlightmentCenter extends Robot {
                             MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(true) : optimalDestination(true);
                             System.out.println("Spawning medium sized: " + enemyLocation);
                             int instr = SpawnDestinationFlag.INSTR_ATTACK;
-                            if (rc.getRoundNum() > 300 && Math.random() < 0.5) {
+                            if (rc.getRoundNum() > 300 && nearbyMuckraker) {
                                 instr = SpawnDestinationFlag.INSTR_DEFEND_ATTACK;
                             }
                             spawnRobotWithTracker(RobotType.POLITICIAN, optimalDir, mediumSizedPolitician, enemyLocation, instr, spawnDestIsGuess);
