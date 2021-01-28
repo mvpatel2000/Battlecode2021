@@ -167,7 +167,7 @@ public class EnlightmentCenter extends Robot {
     public void run() throws GameActionException {
         super.run();
 
-        if (currentRound == 600) {
+        if (currentRound == 1000) {
             rc.resign(); // TODO: remove; just for debugging
         }
 
@@ -403,7 +403,10 @@ public class EnlightmentCenter extends Robot {
                 else {
                     //System.out.println("Medium Sized Politician threshold: " + mediumSizedPolitician);
                     //System.out.println("Diluted Remaining Health:" + dilutedRemainingHealth);
-                    if (Math.random() < 0.5) { // spawn defender
+                    MapLocation tempEnemy = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
+                    boolean allyCloser = existsAllyCloser(tempEnemy);
+                    System.out.println("Only Produce large Politicians: " + (!nearbyMuckraker && allyCloser && currentRound >= 200 && remainingHealth == rc.getConviction()));
+                    if (Math.random() < 0.5 && (nearbyMuckraker || !allyCloser || currentRound < 200 || remainingHealth != rc.getConviction())) { // spawn defender
                         MapLocation enemyLocation = isMidGame ? optimalDestinationMidGame(false) : optimalDestination(false);
                         System.out.println("Spawning defender: " + enemyLocation);
                         int influence = rc.getRoundNum() < 50 ? 14 : 18;
@@ -504,6 +507,25 @@ public class EnlightmentCenter extends Robot {
         } else if (rc.getRoundNum() < 800) {
             return 1.2;
         } return 1.5;
+    }
+
+    boolean existsAllyCloser(MapLocation enemyLoc) {
+        int dist2 = myLocation.distanceSquaredTo(enemyLoc);
+        if (numAllyECs == 0 && capturedAllyECLocsToInfluence.isEmpty()) {
+            return false;
+        } else {
+            for (int i=0; i<numAllyECs; i++) {
+                if (allyECLocs[i].distanceSquaredTo(enemyLoc) < dist2) {
+                    return true;
+                }
+            }
+            for (MapLocation ml : capturedAllyECLocsToInfluence.keySet()) {
+                if (ml.distanceSquaredTo(enemyLoc) < dist2) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -1051,6 +1073,7 @@ public class EnlightmentCenter extends Robot {
                         dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
                     } else {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
+                        // System.out.println("randomly launching in all dirs");
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                         int[] dVert = optimalVerticalDestination(vertAbsSum, vertSum, vertFurthestDirection, vertFurthestWall);
                         double rand = Math.random();
