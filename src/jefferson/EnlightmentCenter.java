@@ -1106,18 +1106,39 @@ public class EnlightmentCenter extends Robot {
                     // System.out.println("Unknown symmetry. Horizontal and vertical both potential.");
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
-                        int sendX = allyDistances[1];
-                        int sendY = allyDistances[0];
-                        int maxDelta = Math.max(sendX, sendY);
+                        int potentialX = allyDistances[1];
+                        int potentialY = -allyDistances[0];
+                        int sum1 = 0;
+                        int sum2 = 0;
+                        if (potentialX > 0) {
+                            sum1 += map.xLineAboveUpper;
+                            sum2 += Math.abs(map.xLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.xLineBelowLower);
+                            sum2 += map.xLineAboveUpper;
+                        }
+                        if (potentialY > 0) {
+                            sum1 += map.yLineAboveUpper;
+                            sum2 += Math.abs(map.yLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.yLineBelowLower);
+                            sum2 += map.yLineAboveUpper;
+                        }
+                        int maxDelta = Math.max(potentialX, potentialY);
                         int stop = 1;
                         for (int i=1; i<10; i++) {
                             stop=i;
-                            if (maxDelta >= 32) {
+                            if (maxDelta*i >= 32) {
                                 break;
                             }
                         }
-                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
-                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
+                        if (sum1 >= sum2) {
+                            dArr[0] = potentialX;
+                            dArr[1] = potentialY;
+                        } else {
+                            dArr[0] = -potentialX;
+                            dArr[1] = -potentialY;
+                        }
                     } else {
                         // Randomly launch vertically, horizontally, or at 45 degrees (45 deg TODO).
                         // System.out.println("randomly launching in all dirs");
@@ -1141,25 +1162,48 @@ public class EnlightmentCenter extends Robot {
                     dArr = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
                 } else {
                     // only rotational symmetry possible
-                    // System.out.println("Only rotational symmetry.");
-                    // System.out.println("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
+                    System.out.println("Only rotational symmetry.");
+                    System.out.println("Ally Distance Horiz: " + allyDistances[0] + " Vert: " + allyDistances[1]);
                     if (numAllyECs != 0) {
                         // Send perpendicular to longest line between Allies.
-                        int sendX = allyDistances[1];
-                        int sendY = allyDistances[0];
-                        int maxDelta = Math.max(sendX, sendY);
+                        int potentialX = allyDistances[1];
+                        int potentialY = -allyDistances[0];
+                        int sum1 = 0;
+                        int sum2 = 0;
+                        if (potentialX > 0) {
+                            sum1 += map.xLineAboveUpper;
+                            sum2 += Math.abs(map.xLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.xLineBelowLower);
+                            sum2 += map.xLineAboveUpper;
+                        }
+                        if (potentialY > 0) {
+                            sum1 += map.yLineAboveUpper;
+                            sum2 += Math.abs(map.yLineBelowLower);
+                        } else {
+                            sum1 += Math.abs(map.yLineBelowLower);
+                            sum2 += map.yLineAboveUpper;
+                        }
+                        int maxDelta = Math.max(potentialX, potentialY);
                         int stop = 1;
                         for (int i=1; i<10; i++) {
                             stop=i;
-                            if (maxDelta >= 32) {
+                            if (maxDelta*i >= 32) {
                                 break;
                             }
                         }
-                        // System.out.println("Sending: X: " + stop*sendX + " Y:" + stop*sendY);
-                        dArr[0] = horizFurthestDirection == Direction.EAST ? stop*sendX : -stop*sendX;
-                        dArr[1] = vertFurthestDirection == Direction.NORTH ? stop*sendY : -stop*sendY;
+                        if (sum1 >= sum2) {
+                            dArr[0] = potentialX;
+                            dArr[1] = potentialY;
+                        } else {
+                            dArr[0] = -potentialX;
+                            dArr[1] = -potentialY;
+                        }
+                        System.out.println("Sending: X: " + dArr[0] + " Y:" + dArr[1]);
+                        System.out.println("Sum1: " + sum1);
+                        System.out.println("Sum2: " + sum2);
                         enemyLocation = myLocation.translate(dArr[0], dArr[1]);
-                        // System.out.println("Sending to enemyLoc: " + enemyLocation);
+                        System.out.println("Sending to enemyLoc: " + enemyLocation);
                     } else {
                         // Send at 45 degree angle cross-map
                         int[] dHoriz = optimalHorizontalDestination(horizAbsSum, horizSum, horizFurthestDirection, horizFurthestWall);
@@ -1278,11 +1322,19 @@ public class EnlightmentCenter extends Robot {
         if(numAllyECs == 0) {
             return new int[]{0, 0};
         } else if (numAllyECs == 1) {
-            return new int[]{Math.abs(myLocation.x - allyECLocs[0].x), Math.abs(myLocation.y - allyECLocs[0].y)};
+            return new int[]{allyECLocs[0].x - myLocation.x, allyECLocs[0].y - myLocation.y};
         } else if (numAllyECs == 2) {
-            int maxX = Math.max(Math.abs(myLocation.x - allyECLocs[0].x), Math.max(Math.abs(myLocation.x - allyECLocs[1].x), Math.abs(allyECLocs[1].x - allyECLocs[0].x)));
-            int maxY = Math.max(Math.abs(myLocation.y - allyECLocs[0].y), Math.max(Math.abs(myLocation.y - allyECLocs[1].y), Math.abs(allyECLocs[1].y - allyECLocs[0].y)));
-            return new int[]{maxX, maxY};
+            int dist0 = myLocation.distanceSquaredTo(allyECLocs[0]);
+            int dist1 = myLocation.distanceSquaredTo(allyECLocs[1]);
+            int dist01 = allyECLocs[0].distanceSquaredTo(allyECLocs[1]);
+            if (dist0 >= dist1 && dist0 >= dist01) {
+                return new int[]{allyECLocs[0].x - myLocation.x, allyECLocs[0].y - myLocation.y};
+            }
+            if (dist1 >= dist0 && dist1 >= dist01) {
+                return new int[]{allyECLocs[1].x - myLocation.x, allyECLocs[1].y - myLocation.y};
+            } else {
+                return new int[]{allyECLocs[1].x - allyECLocs[0].x, allyECLocs[1].y - allyECLocs[0].y};
+            }
         }
         return new int[]{0, 0};
     }

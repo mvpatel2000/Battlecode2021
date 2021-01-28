@@ -319,7 +319,10 @@ public class Muckraker extends Unit {
 
     void muckrackerRerouteDestination() throws GameActionException {
         MapLocation currDestination = destination;
-        int numEnemies = nearbyEnemies.length;
+        int numEnemies = 0;
+        if (nearbyEnemies != null) {
+            numEnemies = nearbyEnemies.length;
+        }
         int enemyDiff = numEnemies - enemiesAtPrevDest;
         int deltaX = destination.x - previousDestination.x;
         int deltaY = destination.y - previousDestination.y;

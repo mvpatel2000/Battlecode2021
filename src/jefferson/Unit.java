@@ -692,7 +692,7 @@ public abstract class Unit extends Robot {
                     // Use this to figure out where our base is sending currently produced unit
                     SpawnDestinationFlag sdf = new SpawnDestinationFlag(flagInt);
                     newInstruction = sdf.readInstruction();
-                    System.out.println("I see my base has given instruction: " + newInstruction);
+                    //System.out.println("I see my base has given instruction: " + newInstruction);
                     if (newInstruction != SpawnDestinationFlag.INSTR_SLANDERER &&
                         ((newInstruction == SpawnDestinationFlag.INSTR_MUCKRAKER ||
                         newInstruction == SpawnDestinationFlag.INSTR_MUCK_TO_SLAND) ^
