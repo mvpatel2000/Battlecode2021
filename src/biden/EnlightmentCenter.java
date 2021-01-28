@@ -72,7 +72,7 @@ public class EnlightmentCenter extends Robot {
     double approxNumSlanderers;
     int numMuckrakers;
     int numPoliticians;
-    int numScouts; // scouts don't count in troop counts
+    int numDeadMuckrakers;
 
     // Build order
     int initialBuildStep;
@@ -137,7 +137,7 @@ public class EnlightmentCenter extends Robot {
         approxNumSlanderers = 0.0;
         numMuckrakers = 0;
         numPoliticians = 0;
-        numScouts = 0;
+        numDeadMuckrakers = 0;
         // Build orders
         initialBuildStep = 0;
         mediumSizedPolitician = 300 + (int)(200.0*Math.random());
@@ -388,7 +388,9 @@ public class EnlightmentCenter extends Robot {
                 // Ratio 2:3 in early game
                 else if (numPoliticians > numMuckrakers * poliMuckRatio()) {
                     int muckInf = 1;
-                    if (Math.random() < 0.2) {
+                    // TODO: @Mihir replace the below if statement with this:
+                    // if (Math.random() < 0.2 && numDeadMuckrakers > 6 && numDeadMuckrakers / numMuckrakers > 0.4) {
+                    if (Math.random() < 0.2) { // BUFFRAKER INFLUENCE LOGIC
                         muckInf = (int) Math.pow(rc.getConviction(), 0.8);
                     }
                     System.out.println("Spawning muck.");
@@ -611,6 +613,9 @@ public class EnlightmentCenter extends Robot {
     void stopTrackingBot(int index) {
         trackingList[index] = trackingList[numUnitsTracked - 1];
         numUnitsTracked--;
+        if (getTrackedType(index) == RobotType.MUCKRAKER) {
+            numDeadMuckrakers++;
+        }
     }
 
     /**
