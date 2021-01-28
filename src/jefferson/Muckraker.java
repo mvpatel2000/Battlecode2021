@@ -109,9 +109,11 @@ public class Muckraker extends Unit {
         }
         // Nearest enemy politician
         RobotInfo nearestEnemyPolitician = null;
-        int nearestEnemyPoliticianDistance = 100000;
+        int nearestEnemyPoliticianDistance = 1000000000;
         for (RobotInfo robot : nearbyEnemies) {
-            int distance = robot.location.distanceSquaredTo(nearestNeutralEC.location);
+            // Take nearest politician to EC and tiebreak on closest to my location
+            int distance = robot.location.distanceSquaredTo(nearestNeutralEC.location) * 1000 
+                    + robot.location.distanceSquaredTo(myLocation);
             if (robot.type == RobotType.POLITICIAN && distance < nearestEnemyPoliticianDistance) {
                 nearestEnemyPoliticianDistance = distance;
                 nearestEnemyPolitician = robot;
@@ -127,7 +129,8 @@ public class Muckraker extends Unit {
         else {
             // Redefine as unchanging variable for compiler
             MapLocation nearestEnemyPoliticianLocation = nearestEnemyPolitician.location;
-            int nearestEnemyPoliticianDistanceFinal = nearestEnemyPoliticianDistance;
+            // Cut off tiebreak portion
+            int nearestEnemyPoliticianDistanceFinal = nearestEnemyPoliticianDistance/1000;
             MapLocation nearestNeutralECLocation = nearestNeutralEC.location;
             Arrays.sort(allDirections, new Comparator<Direction>() {
                 public int compare(Direction d1, Direction d2) {
